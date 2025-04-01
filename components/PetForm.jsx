@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 
-export default function PetForm({ form, handleChange }) {
+export default function PetForm({ pet, index, handlePetChange }) {
   return (
     <div className="mt-6">
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -9,9 +9,9 @@ export default function PetForm({ form, handleChange }) {
       </label>
       <input
         type="text"
-        name="petName"
-        value={form.petName}
-        onChange={handleChange}
+        name="name"
+        value={pet.name || ""}
+        onChange={(e) => handlePetChange(index, e)}
         className="w-full border rounded px-3 py-2"
       />
 
@@ -21,8 +21,8 @@ export default function PetForm({ form, handleChange }) {
       <input
         type="date"
         name="dob"
-        value={form.dob}
-        onChange={handleChange}
+        value={pet.dob || ""}
+        onChange={(e) => handlePetChange(index, e)}
         className="w-full border rounded px-3 py-2"
       />
 
@@ -31,8 +31,8 @@ export default function PetForm({ form, handleChange }) {
       </label>
       <textarea
         name="vaccinations"
-        value={form.vaccinations}
-        onChange={handleChange}
+        value={pet.vaccinations || ""}
+        onChange={(e) => handlePetChange(index, e)}
         rows="2"
         className="w-full border rounded px-3 py-2"
       />
@@ -42,8 +42,8 @@ export default function PetForm({ form, handleChange }) {
       </label>
       <textarea
         name="medicalConditions"
-        value={form.medicalConditions}
-        onChange={handleChange}
+        value={pet.medicalConditions || ""}
+        onChange={(e) => handlePetChange(index, e)}
         rows="2"
         className="w-full border rounded px-3 py-2"
       />
@@ -53,8 +53,8 @@ export default function PetForm({ form, handleChange }) {
       </label>
       <textarea
         name="vetInfo"
-        value={form.vetInfo}
-        onChange={handleChange}
+        value={pet.vetInfo || ""}
+        onChange={(e) => handlePetChange(index, e)}
         rows="2"
         className="w-full border rounded px-3 py-2"
       />
@@ -64,8 +64,8 @@ export default function PetForm({ form, handleChange }) {
       </label>
       <textarea
         name="feedingSchedule"
-        value={form.feedingSchedule}
-        onChange={handleChange}
+        value={pet.feedingSchedule || ""}
+        onChange={(e) => handlePetChange(index, e)}
         rows="2"
         className="w-full border rounded px-3 py-2"
       />
@@ -75,8 +75,8 @@ export default function PetForm({ form, handleChange }) {
       </label>
       <textarea
         name="walkSchedule"
-        value={form.walkSchedule}
-        onChange={handleChange}
+        value={pet.walkSchedule || ""}
+        onChange={(e) => handlePetChange(index, e)}
         rows="2"
         className="w-full border rounded px-3 py-2"
       />
@@ -85,9 +85,9 @@ export default function PetForm({ form, handleChange }) {
         Additional Notes
       </label>
       <textarea
-        name="petNotes"
-        value={form.petNotes}
-        onChange={handleChange}
+        name="additionalNotes"
+        value={pet.additionalNotes || ""}
+        onChange={(e) => handlePetChange(index, e)}
         rows="2"
         className="w-full border rounded px-3 py-2"
       />

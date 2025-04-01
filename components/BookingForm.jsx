@@ -97,19 +97,25 @@ const handleRemovePet = (index) => {
        setForm({
          fullName: "",
          phone: "",
+         email: "",
          address: "",
-         petName: "",
-         dob: "",
-         vaccinations: "",
-         medicalConditions: "",
-         vetInfo: "",
-         feedingSchedule: "",
-         walkSchedule: "",
-         petNotes: "",
+         pets: [
+           {
+             name: "",
+             dob: "",
+             vaccinations: "",
+             medicalConditions: "",
+             vetInfo: "",
+             feedingSchedule: "",
+             walkSchedule: "",
+             additionalNotes: "",
+           },
+         ],
          service: "",
          date: "",
          notes: "",
        });
+
 
       } else {
         alert("Something went wrong.");
@@ -161,7 +167,7 @@ const handleRemovePet = (index) => {
           />
         </div>
 
-       {/* Email Info */}
+        {/* Email Info */}
         <div>
           <label className="block font-medium mb-1">Email</label>
           <input
@@ -187,8 +193,7 @@ const handleRemovePet = (index) => {
           />
         </div>
 
-        {/* Pet Info Section */}
-        <PetForm form={form} handleChange={handleChange} />
+      
 
         {/* Service Info */}
         <div>
@@ -204,6 +209,7 @@ const handleRemovePet = (index) => {
             <option value="Dog Walking">Dog Walking</option>
             <option value="Cat Sitting">Cat Sitting</option>
             <option value="Overnight Stay">Overnight Stay</option>
+            <option value="Drop-In's">Drop-In's</option>
           </select>
         </div>
 
@@ -235,21 +241,24 @@ const handleRemovePet = (index) => {
 
         {/* Submit Button */}
         <h2 className="text-xl font-semibold mb-2">Pet Info</h2>
-        {form.pets.map((pet, index) => (
-          <div key={index} className="mb-6 border rounded p-4 bg-gray-50">
-            <PetForm
-              form={pet}
-              handleChange={(e) => handlePetChange(index, e)}
-            />
-            <button
-              type="button"
-              onClick={() => handleRemovePet(index)}
-              className="text-red-600 underline mt-2"
-            >
-              Remove Pet
-            </button>
-          </div>
-        ))}
+        
+        {Array.isArray(form.pets) &&
+          form.pets.map((pet, index) => (
+            <div key={index} className="mb-6 border rounded p-4 bg-gray-50">
+              <PetForm
+                pet={pet}
+                index={index}
+                handlePetChange={handlePetChange}
+              />
+              <button
+                type="button"
+                onClick={() => handleRemovePet(index)}
+                className="text-red-600 underline mt-2"
+              >
+                Remove Pet
+              </button>
+            </div>
+          ))}
 
         <button
           type="button"
@@ -257,6 +266,13 @@ const handleRemovePet = (index) => {
           className="bg-gray-200 text-gray-800 py-1 px-3 rounded mb-4"
         >
           + Add Another Pet
+        </button>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+        >
+          {submitting ? "Submitting..." : "Submit Booking"}
         </button>
       </form>
     </div>
