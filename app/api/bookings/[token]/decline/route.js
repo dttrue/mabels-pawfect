@@ -35,21 +35,22 @@ export async function POST(req, { params }) {
     });
 
     // Send email to client explaining the decline
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: booking.email || "danielrtorres.dt@gmail.com", // ✅ Now using the actual client email
-      subject: "Booking Request Declined",
-      html: `
-        <h2>🐾 Hello ${booking.fullName},</h2>
-        <p>Unfortunately, your booking request for <strong>${booking.service}</strong> on <strong>${new Date(
-          booking.date
-        ).toLocaleString()}</strong> has been declined.</p>
-        <p><strong>Reason:</strong></p>
-        <blockquote>${message || "No reason was provided."}</blockquote>
-        <p>Please feel free to reach out if you'd like to reschedule.</p>
-        <p>Thank you for considering us!</p>
-      `,
-    });
+await resend.emails.send({
+  from: "onboarding@resend.dev",
+  to: booking.email,
+  subject: "Booking Request Declined",
+  html: `
+    <h2>🐾 Hello ${booking.fullName},</h2>
+    <p>Unfortunately, your booking request for <strong>${booking.service}</strong> on <strong>${new Date(
+      booking.date
+    ).toLocaleString()}</strong> has been declined.</p>
+    <p><strong>Reason:</strong></p>
+    <blockquote>${message || "No reason was provided."}</blockquote>
+    <p>Please feel free to reach out if you'd like to reschedule.</p>
+    <p>Thank you for considering us!</p>
+  `,
+});
+
 
     return Response.json({ success: true });
   } catch (error) {
