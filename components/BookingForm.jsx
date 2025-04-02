@@ -210,6 +210,7 @@ const handleRemovePet = (index) => {
             <option value="Cat Sitting">Cat Sitting</option>
             <option value="Overnight Stay">Overnight Stay</option>
             <option value="Drop-In's">Drop-In's</option>
+            <option value="Other">Other</option>
           </select>
         </div>
 
