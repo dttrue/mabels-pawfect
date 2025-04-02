@@ -2,12 +2,8 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
-  }
-
-  const { token } = req.query;
+export async function GET(req, { params }) {
+  const { token } = params;
 
   try {
     const booking = await prisma.booking.findUnique({
@@ -15,19 +11,23 @@ export default async function handler(req, res) {
     });
 
     if (!booking) {
-      return res.status(404).json({ error: "Booking not found." });
+      return Response.json({ error: "Booking not found." }, { status: 404 });
     }
 
     // Check if token is expired
     if (booking.expiresAt && new Date(booking.expiresAt) < new Date()) {
-      return res.status(410).json({ error: "This link has expired." });
+      return Response.json(
+        { error: "This link has expired." },
+        { status: 410 }
+      );
     }
 
     // Already processed?
     if (booking.status === "accepted" || booking.status === "declined") {
-      return res
-        .status(400)
-        .json({ error: `Booking already ${booking.status}.` });
+      return Response.json(
+        { error: `Booking already ${booking.status}.` },
+        { status: 400 }
+      );
     }
 
     // Accept the booking
@@ -36,9 +36,9 @@ export default async function handler(req, res) {
       data: { status: "accepted" },
     });
 
-    return res.status(200).json({ message: "Booking accepted successfully." });
+    return Response.json({ message: "Booking accepted successfully." });
   } catch (error) {
     console.error("Accept error:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

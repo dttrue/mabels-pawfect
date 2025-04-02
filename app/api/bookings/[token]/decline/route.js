@@ -1,30 +1,29 @@
 import { PrismaClient } from "@prisma/client";
 import { Resend } from "resend";
 
-
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export default async function handler(req, res) {
-  const { token } = req.query;
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+export async function POST(req, { params }) {
+  const { token } = params;
 
   try {
-    const { message } = req.body;
+    const body = await req.json();
+    const { message } = body;
 
     const booking = await prisma.booking.findUnique({
       where: { token },
     });
 
     if (!booking) {
-      return res.status(404).json({ error: "Booking not found" });
+      return Response.json({ error: "Booking not found" }, { status: 404 });
     }
 
     if (booking.status === "declined") {
-      return res.status(400).json({ error: "Booking already declined" });
+      return Response.json(
+        { error: "Booking already declined" },
+        { status: 400 }
+      );
     }
 
     // Update status to declined
@@ -38,7 +37,7 @@ export default async function handler(req, res) {
     // Send email to client explaining the decline
     await resend.emails.send({
       from: "onboarding@resend.dev",
-      to: booking.phone.includes("@") ? booking.phone : "danielrtorres.dt@gmail.com", // 📌 Replace with actual client email field
+      to: booking.email || "danielrtorres.dt@gmail.com", // ✅ Now using the actual client email
       subject: "Booking Request Declined",
       html: `
         <h2>🐾 Hello ${booking.fullName},</h2>
@@ -52,9 +51,9 @@ export default async function handler(req, res) {
       `,
     });
 
-    return res.status(200).json({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
     console.error("DECLINE error:", error);
-    return res.status(500).json({ error: "Server error" });
+    return Response.json({ error: "Server error" }, { status: 500 });
   }
 }
