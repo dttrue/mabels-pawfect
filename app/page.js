@@ -1,13 +1,18 @@
+import HeroSection from "@/components/HeroSection";
+import AboutSection from "@/components/AboutSection";
+import ServicesPreview from "@/components/ServicesPreview";
+import TestimonialsSection from "@/components/TestimonialsSection";
+import FinalCTA from "@/components/FinalCTA";
 
 // app/page.js
 export default function Home() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <h1 className="text-3xl font-bold text-blue-600">
-        🐾 Mabel’s Pawfect Site Is Coming Soon!
-      </h1>
-
-    
-    </div>
+    <>
+      <HeroSection />
+      <AboutSection />
+      <ServicesPreview />
+      <TestimonialsSection />
+      <FinalCTA />
+    </>
   );
 }

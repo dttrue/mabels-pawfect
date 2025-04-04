@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="bg-white border-t mt-10">
+    <footer className="bg-gradient-to-b from-pink-50 to-pink-100 border-t mt-10">
       <div className="max-w-screen-xl mx-auto px-4 py-8 text-center sm:text-left">
         {/* Top Row: Brand + Links */}
         <div className="sm:flex sm:items-center sm:justify-between">
