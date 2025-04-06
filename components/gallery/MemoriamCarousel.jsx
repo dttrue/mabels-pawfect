@@ -1,0 +1,51 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import memorials from "@/lib/memoriamData";
+import { Heart } from "lucide-react";
+
+export default function MemoriamCarousel() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % memorials.length);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentPet = memorials[currentIndex];
+
+  return (
+    <section className="bg-white py-16 px-4">
+      <div className="max-w-2xl mx-auto text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          In Loving Memory{" "}
+          <Heart className="inline w-5 h-5 text-red-400 ml-1" />
+        </h2>
+        <p className="text-sm text-gray-500 mb-8">
+          Honoring the pets who brought so much joy and are dearly missed.
+        </p>
+
+        <div className="relative w-full max-w-xs mx-auto rounded-lg overflow-hidden shadow-md aspect-[4/5] bg-gray-100">
+          <div className="absolute inset-0 transition-opacity duration-1000 ease-in-out">
+            <img
+              src={currentPet.image}
+              alt={currentPet.name}
+              className="w-full h-full object-contain"
+            />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col justify-end items-center text-white px-4 pb-6">
+              <h3 className="text-lg font-bold mb-1">{currentPet.name}</h3>
+              {currentPet.tribute && (
+                <p className="text-xs text-center italic text-pink-100">
+                  {currentPet.tribute}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
