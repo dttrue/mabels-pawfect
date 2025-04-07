@@ -10,6 +10,13 @@ export async function POST(req, { params }) {
   const { token } = params;
   const { reason } = await req.json();
 
+     if (!reason?.trim()) {
+       return NextResponse.json(
+         { error: "Decline reason is required." },
+         { status: 400 }
+       );
+     }
+
   try {
     const booking = await prisma.booking.update({
       where: { token },
@@ -35,12 +42,7 @@ export async function POST(req, { params }) {
       `,
     });
 
-    if (!reason?.trim()) {
-      return NextResponse.json(
-        { error: "Decline reason is required." },
-        { status: 400 }
-      );
-    }
+ 
 
 
     return NextResponse.json({ message: "Declined and email sent." });
