@@ -88,7 +88,7 @@ export async function POST(req) {
 
     await resend.emails.send({
       from: "onboarding@resend.dev",
-      to: "danielrtorres.dt@gmail.com",
+      to: "Therainbowniche@gmail.com",
       subject: "New Booking Request",
       html: `
         <h2>🐾 New Booking Request</h2>

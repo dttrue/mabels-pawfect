@@ -89,6 +89,16 @@ export default function ContactPage() {
           </button>
 
           {status && <p className="text-sm text-gray-500 mt-2">{status}</p>}
+
+          <p className="text-sm text-gray-600 mt-4">
+            Or email us directly at{" "}
+            <a
+              href="mailto:Therainbowniche@gmail.com"
+              className="text-pink-600 underline hover:text-pink-700"
+            >
+              Therainbowniche@gmail.com
+            </a>
+          </p>
         </form>
       </div>
     </section>

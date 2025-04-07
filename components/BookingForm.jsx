@@ -241,6 +241,11 @@ export default function BookingForm() {
             </select>
           </div>
 
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded text-sm my-3">
+            Booking hours are limited to 9:00 AM – 4:00 PM. Please choose a time
+            within this window.
+          </div>
+
           {/* 🔹 Date & Time */}
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-900">

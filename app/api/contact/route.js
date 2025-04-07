@@ -21,12 +21,15 @@ export async function POST(req) {
       ${message.replace(/\n/g, "<br />")}
     `;
 
-    const data = await resend.emails.send({
-      from: "Mabel's Contact Form <no-reply@mabelspawfectpetservices.com>",
-      to: [to],
-      subject,
-      html: body,
-    });
+const data = await resend.emails.send({
+  from: "Mabel's Contact Form <no-reply@mabelspawfectpetservices.com>",
+  to: ["Therainbowniche@gmail.com"],
+  reply_to: email, // 👈 so Bridget can reply straight to the sender
+  subject,
+  html: body,
+});
+
+
 
     return NextResponse.json({ success: true, id: data?.id });
   } catch (err) {

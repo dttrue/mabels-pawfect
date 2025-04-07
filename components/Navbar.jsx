@@ -82,6 +82,11 @@ export default function Navbar() {
             </Link>
           </li>
           <li>
+            <Link href="/about" onClick={toggleMobileMenu}>
+              About
+            </Link>
+          </li>
+          <li>
             <Link
               href="/booking"
               onClick={toggleMobileMenu}
