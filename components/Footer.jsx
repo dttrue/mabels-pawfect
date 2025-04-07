@@ -9,7 +9,7 @@ export default function Footer() {
         <div className="sm:flex sm:items-center sm:justify-between">
           {/* Left side */}
           <div className="mb-4 sm:mb-0">
-            <h2 className="text-lg font-semibold text-blue-800">
+            <h2 className="text-lg font-semibold text-pink-600">
               Mabel’s Pawfect
             </h2>
             <p className="text-sm text-gray-500">
@@ -19,10 +19,10 @@ export default function Footer() {
 
           {/* Links */}
           <div className="flex gap-4 justify-center text-sm">
-            <Link href="/about" className="text-gray-600 hover:text-blue-700">
+            <Link href="/about" className="text-gray-600 hover:text-pink-600">
               About
             </Link>
-            <Link href="/contact" className="text-gray-600 hover:text-blue-700">
+            <Link href="/contact" className="text-gray-600 hover:text-pink-600">
               Contact
             </Link>
           </div>
@@ -36,7 +36,7 @@ export default function Footer() {
           <span className="text-gray-500 font-medium">Follow us:</span>
           <div className="flex gap-4">
             <a
-              href="https://www.instagram.com"
+              href="https://www.instagram.com/mabelspawfectpetservices?igsh=MWs1anNyYzM4ZGt5cA=="
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
@@ -45,20 +45,20 @@ export default function Footer() {
               <Instagram className="w-5 h-5" />
             </a>
             <a
-              href="https://www.linkedin.com"
+              href="https://www.linkedin.com/in/bridget-quinones-9ab17b286?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="LinkedIn"
-              className="text-gray-600 hover:text-blue-700 transition-transform duration-200 hover:scale-110"
+              className="text-gray-600 hover:text-pink-500 transition-transform duration-200 hover:scale-110"
             >
               <Linkedin className="w-5 h-5" />
             </a>
             <a
-              href="https://www.facebook.com"
+              href="https://www.facebook.com/share/167cnHCnmV/"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Facebook"
-              className="text-gray-600 hover:text-blue-600 transition-transform duration-200 hover:scale-110"
+              className="text-gray-600 hover:text-pink-500 transition-transform duration-200 hover:scale-110"
             >
               <Facebook className="w-5 h-5" />
             </a>

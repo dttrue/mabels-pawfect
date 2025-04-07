@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* Import any custom styles AFTER the Tailwind layers */
-
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500&family=Quicksand&display=swap');
 
 
 
@@ -30,7 +30,13 @@ body {
   /* REMOVE this line */
   /* background-color: white; */
   color: #171717;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Quicksand', sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Dancing Script', cursive;
 }
 @keyframes fade-in {
   from {

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import PetForm from "@/components/PetForm";
-
+import { useRouter } from "next/navigation";
 export default function BookingForm() {
   const [form, setForm] = useState({
     fullName: "",
@@ -27,7 +27,7 @@ export default function BookingForm() {
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-
+  const router = useRouter();
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -85,6 +85,12 @@ export default function BookingForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      if (res.ok) {
+        router.push("/thank-you");
+      } else {
+        alert("Something went wrong. Please try again.");
+      }
 
       if (res.ok) {
         setSuccess(true);
@@ -299,7 +305,7 @@ export default function BookingForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
+            className="w-full text-white bg-pink-500 hover:bg-pink-600 focus:ring-4 focus:ring-pink-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
           >
             {submitting ? "Submitting..." : "Submit Booking"}
           </button>

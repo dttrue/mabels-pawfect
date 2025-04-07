@@ -1,5 +1,4 @@
-"use client";
-
+'use client';
 import { useEffect, useState } from "react";
 import memorials from "@/lib/memoriamData";
 import { Heart } from "lucide-react";
@@ -35,7 +34,7 @@ export default function MemoriamCarousel() {
               alt={currentPet.name}
               className="w-full h-full object-contain"
             />
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-col justify-end items-center text-white px-4 pb-6">
+            <div className="absolute inset-0 bg-black/30 flex flex-col justify-start items-center text-white px-4 pt-4">
               <h3 className="text-lg font-bold mb-1">{currentPet.name}</h3>
               {currentPet.tribute && (
                 <p className="text-xs text-center italic text-pink-100">

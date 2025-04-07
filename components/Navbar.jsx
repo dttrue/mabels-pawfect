@@ -14,22 +14,22 @@ export default function Navbar() {
         {/* Logo */}
         <Link
           href="/"
-          className="text-2xl font-bold text-blue-800 flex items-center gap-2"
+          className="text-2xl font-bold text-pink-600 flex items-center gap-2"
         >
           🐾 Mabel’s Pawfect
         </Link>
 
-        {/* Book Now CTA (always visible on larger screens) */}
+        {/* Book Now CTA (desktop) */}
         <div className="hidden md:flex items-center gap-4">
           <Link
             href="/booking"
-            className="text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-lg text-sm px-5 py-2.5"
+            className="text-white bg-pink-500 hover:bg-pink-600 font-medium rounded-lg text-sm px-5 py-2.5"
           >
             Book Now
           </Link>
         </div>
 
-        {/* Mobile Hamburger */}
+        {/* Hamburger */}
         <button
           onClick={toggleMobileMenu}
           className="md:hidden text-gray-600 hover:text-gray-900 focus:outline-none"
@@ -39,14 +39,14 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Mobile Slide-in Drawer */}
+      {/* Mobile Drawer */}
       <div
         className={`md:hidden fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-40 transform transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between px-4 py-4 border-b">
-          <span className="text-lg font-bold text-blue-800">Menu</span>
+          <span className="text-lg font-bold text-pink-600">Menu</span>
           <button
             onClick={toggleMobileMenu}
             className="text-gray-500 hover:text-gray-900"
@@ -56,11 +56,11 @@ export default function Navbar() {
           </button>
         </div>
         <ul className="flex flex-col gap-4 p-4 text-gray-700">
-        <li>
+          <li>
             <Link href="/" onClick={toggleMobileMenu}>
               Home
             </Link>
-        </li>
+          </li>
           <li>
             <Link href="/booking" onClick={toggleMobileMenu}>
               Book
@@ -85,7 +85,7 @@ export default function Navbar() {
             <Link
               href="/booking"
               onClick={toggleMobileMenu}
-              className="block mt-6 text-white bg-blue-600 hover:bg-blue-700 font-medium rounded-lg text-center px-4 py-2.5"
+              className="block mt-6 text-white bg-pink-500 hover:bg-pink-600 font-medium rounded-lg text-center px-4 py-2.5"
             >
               Book Now
             </Link>
@@ -93,7 +93,7 @@ export default function Navbar() {
         </ul>
       </div>
 
-      {/* Overlay (click outside to close) */}
+      {/* Overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-30 bg-black opacity-30"
