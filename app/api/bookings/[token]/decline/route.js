@@ -1,62 +1,54 @@
-import { PrismaClient } from "@prisma/client";
+import { NextResponse } from "next/server";
 import { Resend } from "resend";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req, { params }) {
   const { token } = params;
+  const { reason } = await req.json();
 
   try {
-    const body = await req.json();
-    const { message } = body;
-
-    const booking = await prisma.booking.findUnique({
+    const booking = await prisma.booking.update({
       where: { token },
+      data: {
+        status: "declined",
+        notes: reason,
+      },
     });
 
-    if (!booking) {
-      return Response.json({ error: "Booking not found" }, { status: 404 });
-    }
+    // 🔥 Send email to the client
+    await resend.emails.send({
+      from: "mabel@mabelspawfectpetservices.com",
+      to: booking.email, // make sure this exists in your schema!
+      subject: "Booking Request Declined",
+      html: `
+        <h2>Hi ${booking.fullName},</h2>
+        <p>Unfortunately, your booking request has been declined.</p>
+        <p><strong>Reason:</strong> ${reason}</p>
+        <p>We appreciate your interest and hope to connect with you another time.</p>
+        <br/>
+        <p>Warm wishes,</p>
+        <p>🐾 Mabel's Pawfect Team</p>
+      `,
+    });
 
-    if (booking.status === "declined") {
-      return Response.json(
-        { error: "Booking already declined" },
+    if (!reason?.trim()) {
+      return NextResponse.json(
+        { error: "Decline reason is required." },
         { status: 400 }
       );
     }
 
-    // Update status to declined
-    await prisma.booking.update({
-      where: { token },
-      data: {
-        status: "declined",
-      },
-    });
 
-    // Send email to client explaining the decline
-    // ✅ Log the recipient before sending
-    console.log("📩 Sending decline email to:", booking.email);
-
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: booking.email,
-      subject: "Booking Request Declined",
-      html: `
-    <h2>🐾 Hello ${booking.fullName},</h2>
-    <p>Unfortunately, your booking request for <strong>${booking.service}</strong> on <strong>${new Date(
-      booking.date
-    ).toLocaleString()}</strong> has been declined.</p>
-    <p><strong>Reason:</strong></p>
-    <blockquote>${message || "No reason was provided."}</blockquote>
-    <p>Please feel free to reach out if you'd like to reschedule.</p>
-    <p>Thank you for considering us!</p>
-  `,
-    });
-
-    return Response.json({ success: true });
-  } catch (error) {
-    console.error("DECLINE error:", error);
-    return Response.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ message: "Declined and email sent." });
+  } catch (err) {
+    console.error("Decline error:", err);
+    return NextResponse.json(
+      { error: "Failed to decline booking" },
+      { status: 500 }
+    );
   }
 }

@@ -5,4 +5,3 @@ export default function DeclineBookingPage({ params }) {
   const { token } = params;
   return <DeclineBooking token={token} />;
 }
-

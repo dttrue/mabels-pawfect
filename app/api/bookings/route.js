@@ -122,6 +122,13 @@ export async function POST(req) {
       `,
     });
 
+    if (!booking.email) {
+      return NextResponse.json(
+        { error: "Booking email not found." },
+        { status: 400 }
+      );
+    }
+
     return Response.json(booking, { status: 201 });
   } catch (err) {
     console.error("POST error:", err);
