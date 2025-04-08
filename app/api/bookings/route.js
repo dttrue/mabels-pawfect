@@ -86,7 +86,7 @@ export async function POST(req) {
     const acceptUrl = `${baseUrl}/api/bookings/${token}/accept`;
     const declineUrl = `${baseUrl}/decline/${token}`;
 
-    await resend.emails.send({
+    const emailResult = await resend.emails.send({
       from: "onboarding@resend.dev",
       to: "Therainbowniche@gmail.com",
       subject: "New Booking Request",
@@ -121,6 +121,8 @@ export async function POST(req) {
         </p>
       `,
     });
+
+    console.log("📬 Booking email result:", emailResult);
 
     if (!booking.email) {
       return NextResponse.json(
