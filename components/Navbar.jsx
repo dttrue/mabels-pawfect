@@ -19,6 +19,25 @@ export default function Navbar() {
           🐾 Mabel’s Pawfect
         </Link>
 
+        {/* Desktop Nav Links (md and up) */}
+        <div className="hidden md:flex items-center gap-6 text-sm text-gray-700 font-medium">
+          <Link href="/services" className="hover:text-pink-600">
+            Services
+          </Link>
+          <Link href="/gallery" className="hover:text-pink-600">
+            Gallery
+          </Link>
+          <Link href="/reviews" className="hover:text-pink-600">
+            Reviews
+          </Link>
+          <Link href="/about" className="hover:text-pink-600">
+            About
+          </Link>
+          <Link href="/contact" className="hover:text-pink-600">
+            Contact
+          </Link>
+        </div>
+
         {/* Book Now CTA (desktop) */}
         <div className="hidden md:flex items-center gap-4">
           <Link
@@ -84,6 +103,11 @@ export default function Navbar() {
           <li>
             <Link href="/about" onClick={toggleMobileMenu}>
               About
+            </Link>
+          </li>
+          <li>
+            <Link href="/contact" onClick={toggleMobileMenu}>
+              Contact
             </Link>
           </li>
           <li>
