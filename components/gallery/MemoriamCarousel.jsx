@@ -19,14 +19,6 @@ export default function MemoriamCarousel() {
   return (
     <section className="bg-white py-16 px-4">
       <div className="max-w-2xl mx-auto text-center">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          In Loving Memory{" "}
-          <Heart className="inline w-5 h-5 text-red-400 ml-1" />
-        </h2>
-        <p className="text-sm text-gray-500 mb-8">
-          Honoring the pets who brought so much joy and are dearly missed.
-        </p>
-
         <div className="relative w-full max-w-xs mx-auto rounded-lg overflow-hidden shadow-md aspect-[4/5] bg-gray-100">
           <div className="absolute inset-0 transition-opacity duration-1000 ease-in-out">
             <img

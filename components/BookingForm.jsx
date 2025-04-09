@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PetForm from "@/components/PetForm";
 import { useRouter } from "next/navigation";
 export default function BookingForm() {
@@ -27,11 +27,19 @@ export default function BookingForm() {
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
+
+    // useEffect(() => {
+    //   if (errorMessage) {
+    //     const timer = setTimeout(() => setErrorMessage(""), 5000);
+    //     return () => clearTimeout(timer);
+    //   }
+    // }, [errorMessage]);
 
   const handlePetChange = (index, e) => {
     const { name, value } = e.target;
@@ -64,68 +72,63 @@ export default function BookingForm() {
     setForm((prev) => ({ ...prev, pets: updatedPets }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setSubmitting(true);
 
-    const payload = {
-      fullName: form.fullName,
-      email: form.email,
-      phone: form.phone,
-      address: form.address,
-      pets: form.pets,
-      service: form.service,
-      date: form.date,
-      notes: form.notes,
-    };
-
-    try {
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        router.push("/thank-you");
-      } else {
-        alert("Something went wrong. Please try again.");
-      }
-
-      if (res.ok) {
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 5000);
-        setForm({
-          fullName: "",
-          phone: "",
-          email: "",
-          address: "",
-          pets: [
-            {
-              name: "",
-              dob: "",
-              vaccinations: "",
-              medicalConditions: "",
-              vetInfo: "",
-              feedingSchedule: "",
-              walkSchedule: "",
-              additionalNotes: "",
-            },
-          ],
-          service: "",
-          date: "",
-          notes: "",
-        });
-      } else {
-        alert("Something went wrong.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Server error.");
-    } finally {
-      setSubmitting(false);
-    }
+  const payload = {
+    fullName: form.fullName,
+    email: form.email,
+    phone: form.phone,
+    address: form.address,
+    pets: form.pets,
+    service: form.service,
+    date: form.date,
+    notes: form.notes,
   };
+
+  try {
+    const res = await fetch("/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      setSuccess(true);
+      setErrorMessage(""); // clear errors if successful
+      setTimeout(() => setSuccess(false), 5000);
+      setForm({
+        fullName: "",
+        phone: "",
+        email: "",
+        address: "",
+        pets: [
+          {
+            name: "",
+            dob: "",
+            vaccinations: "",
+            medicalConditions: "",
+            vetInfo: "",
+            feedingSchedule: "",
+            walkSchedule: "",
+            additionalNotes: "",
+          },
+        ],
+        service: "",
+        date: "",
+        notes: "",
+      });
+      router.push("/thank-you");
+    } else {
+      const data = await res.json();
+      setErrorMessage(data.error || "Something went wrong. Please try again.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Server error.");
+  }
+};
 
   return (
     <div className="w-full px-4 py-10 sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto">
@@ -243,7 +246,17 @@ export default function BookingForm() {
 
           <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded text-sm my-3">
             Booking hours are limited to 9:00 AM – 4:00 PM. Please choose a time
-            within this window.
+            within this window.{" "}
+            <span>
+              For times outside this window, please{" "}
+              <a
+                href="/contact"
+                className="underline text-pink-600 hover:text-pink-700 font-medium"
+              >
+                reach out through our contact page
+              </a>
+              .
+            </span>
           </div>
 
           {/* 🔹 Date & Time */}
@@ -314,6 +327,47 @@ export default function BookingForm() {
           >
             {submitting ? "Submitting..." : "Submit Booking"}
           </button>
+
+          {errorMessage && (
+            <div
+              className="flex items-start justify-between p-4 mb-4 text-sm text-red-800 bg-red-100 rounded-lg shadow-md transition-all duration-300 animate-fade-in"
+              role="alert"
+            >
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 mr-2 text-red-700"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a4 4 0 00-3.446 6.032l-2.261 2.26a1 1 0 101.414 1.415l2.261-2.261A4 4 0 1011 5zm-6 4a2 2 0 11-4 0 2 2 0 014 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+               
+                <div className="text-sm">
+                  <p>{errorMessage}</p>
+                  <p className="mt-1">
+                    If the issue persists, feel free to{" "}
+                    <a
+                      href="mailto:Therainbowniche@gmail.com"
+                      className="text-pink-600 underline hover:text-pink-700"
+                    >
+                      email us directly
+                    </a>
+                    .
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setErrorMessage("")}
+                className="ml-4 text-red-700 hover:text-red-900 focus:outline-none"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

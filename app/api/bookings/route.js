@@ -87,7 +87,7 @@ export async function POST(req) {
     const declineUrl = `${baseUrl}/decline/${token}`;
 
     const emailResult = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "Mabel's Pawfect <no-reply@mabelspawfectpetservices.com>",
       to: "Therainbowniche@gmail.com",
       subject: "New Booking Request",
       html: `
