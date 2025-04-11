@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from "react";
 import memorials from "@/lib/memoriamData";
-import { Heart } from "lucide-react";
+
 
 export default function MemoriamCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0);

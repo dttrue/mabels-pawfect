@@ -6,7 +6,6 @@ import ApprovedReviews from "@/components/ApprovedReviews";
 
 
 export default function ReviewsPage() {
-    const [editingReview, setEditingReview] = useState(null);
   return (
     <main className="bg-pinky-50 min-h-screen py-16 px-4">
       <div className="max-w-4xl mx-auto text-center">
@@ -19,16 +18,12 @@ export default function ReviewsPage() {
         </p>
       </div>
 
-      {/* Review Form with edit state */}
-      <ReviewForm
-        editingReview={editingReview}
-        onFinishEdit={() => setEditingReview(null)}
-      />
+      <ReviewForm />
 
-      {/* Review List with edit handler */}
       <div className="mt-16">
-        <ApprovedReviews onEdit={setEditingReview} />
+        <ApprovedReviews />
       </div>
     </main>
   );
 }
+

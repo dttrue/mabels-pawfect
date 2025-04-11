@@ -1,33 +1,20 @@
-// components/ReviewForm.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import axios from "axios";
+import Image from "next/image";
 
-export default function ReviewForm({ editingReview, onFinishEdit }) {
+
+export default function ReviewForm() {
   const [formData, setFormData] = useState({
     name: "",
     message: "",
     image: null,
     rating: 0,
-    editingId: null,
   });
 
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (editingReview) {
-      setFormData({
-        name: editingReview.name,
-        message: editingReview.message,
-        image: null,
-        rating: editingReview.rating,
-        editingId: editingReview.id,
-      });
-      setPreview(editingReview.imageUrl);
-    }
-  }, [editingReview]);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -45,8 +32,7 @@ export default function ReviewForm({ editingReview, onFinishEdit }) {
     setLoading(true);
 
     try {
-      let imageUrl = preview;
-
+      let imageUrl = "/images/default-avatar.png"; 
       if (formData.image) {
         const uploadData = new FormData();
         uploadData.append("file", formData.image);
@@ -56,42 +42,29 @@ export default function ReviewForm({ editingReview, onFinishEdit }) {
         );
 
         const res = await axios.post(
-          "https://api.cloudinary.com/v1_1/" +
-            process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD +
-            "/image/upload",
+          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
           uploadData
         );
 
         imageUrl = res.data.secure_url;
       }
 
-      if (formData.editingId) {
-        await axios.put(`/api/reviews/${formData.editingId}`, {
-          name: formData.name,
-          message: formData.message,
-          imageUrl,
-          rating: formData.rating,
-        });
-        alert("Review updated successfully!");
-      } else {
-        await axios.post("/api/reviews", {
-          name: formData.name,
-          message: formData.message,
-          imageUrl,
-          rating: formData.rating,
-        });
-        alert("Review submitted for approval!");
-      }
+      await axios.post("/api/reviews", {
+        name: formData.name,
+        message: formData.message,
+        imageUrl,
+        rating: formData.rating,
+      });
+
+      alert("Review submitted for approval!");
 
       setFormData({
         name: "",
         message: "",
         image: null,
         rating: 0,
-        editingId: null,
       });
       setPreview(null);
-      onFinishEdit?.();
     } catch (err) {
       console.error(err);
       alert("Something went wrong.");
@@ -101,13 +74,11 @@ export default function ReviewForm({ editingReview, onFinishEdit }) {
   };
 
   return (
-    <form
+     <form
       onSubmit={handleSubmit}
       className="bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto"
     >
-      <h2 className="text-xl font-semibold mb-4">
-        {formData.editingId ? "Edit Review" : "Leave a Review"}
-      </h2>
+      <h2 className="text-xl font-semibold mb-4">Leave a Review</h2>
 
       <div className="mb-4">
         <label className="block text-gray-700 mb-1">Name</label>
@@ -147,13 +118,15 @@ export default function ReviewForm({ editingReview, onFinishEdit }) {
             className="hidden"
           />
         </label>
-        {preview && (
-          <img
-            src={preview}
+
+        <div className="relative w-16 h-16 mt-2">
+          <Image
+            src={preview || "/images/default-avatar.png"}
             alt="Avatar Preview"
-            className="w-16 h-16 mt-2 rounded-full object-cover border border-gray-300 shadow"
+            fill
+            className="rounded-full object-cover border border-gray-300 shadow"
           />
-        )}
+        </div>
       </div>
 
       <div className="mb-4">
@@ -175,39 +148,13 @@ export default function ReviewForm({ editingReview, onFinishEdit }) {
         </div>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <button
-          type="submit"
-          className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md font-semibold"
-          disabled={loading}
-        >
-          {loading
-            ? "Submitting..."
-            : formData.editingId
-              ? "Update Review"
-              : "Submit Review"}
-        </button>
-
-        {formData.editingId && (
-          <button
-            type="button"
-            onClick={() => {
-              setFormData({
-                name: "",
-                message: "",
-                image: null,
-                rating: 0,
-                editingId: null,
-              });
-              setPreview(null);
-              onFinishEdit?.();
-            }}
-            className="text-sm text-gray-500 hover:underline"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
+      <button
+        type="submit"
+        className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md font-semibold"
+        disabled={loading}
+      >
+        {loading ? "Submitting..." : "Submit Review"}
+      </button>
     </form>
   );
 }

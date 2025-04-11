@@ -1,10 +1,9 @@
-// components/ApprovedReviews.jsx
 "use client";
 
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-export default function ApprovedReviews({ onEdit }) {
+export default function ApprovedReviews() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,23 +23,6 @@ export default function ApprovedReviews({ onEdit }) {
     fetchReviews();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this review?")) return;
-
-    try {
-      await axios.delete(`/api/reviews/${id}`);
-      setReviews((prev) => prev.filter((r) => r.id !== id));
-    } catch (err) {
-      console.error("Delete failed", err);
-      alert("Could not delete review.");
-    }
-  };
-
-  const handleEdit = (review) => {
-    onEdit?.(review); // Lift selected review up to parent
-    window.scrollTo({ top: 0, behavior: "smooth" }); // Optional: scroll to form
-  };
-
   if (loading) return <p className="text-center">Loading reviews...</p>;
 
   return (
@@ -58,7 +40,7 @@ export default function ApprovedReviews({ onEdit }) {
             >
               <div className="flex items-center mb-4">
                 <img
-                  src={review.imageUrl || "/default-avatar.png"}
+                  src={review.imageUrl || "/images/default-avatar.png"}
                   alt={review.name}
                   className="w-12 h-12 rounded-full object-cover mr-3"
                 />
@@ -105,22 +87,6 @@ export default function ApprovedReviews({ onEdit }) {
                   </div>
                 </div>
               )}
-
-              {/* Edit/Delete Controls */}
-              <div className="flex justify-end space-x-2 mt-4">
-                <button
-                  onClick={() => handleEdit(review)}
-                  className="text-xs text-blue-500 hover:underline"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(review.id)}
-                  className="text-xs text-red-500 hover:underline"
-                >
-                  Delete
-                </button>
-              </div>
             </div>
           ))}
         </div>
