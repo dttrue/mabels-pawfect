@@ -60,8 +60,8 @@ export default function ApprovedReviews() {
                 “{review.message}”
               </blockquote>
 
-              {review.rating && (
-                <div className="mt-3">
+              {typeof review.rating === "number" && review.rating > 0 ? (
+                <>
                   <p className="text-sm text-gray-500 mb-1">
                     Rating:{" "}
                     <span className="font-medium text-gray-700">
@@ -85,7 +85,11 @@ export default function ApprovedReviews() {
                       </span>
                     ))}
                   </div>
-                </div>
+                </>
+              ) : (
+                <p className="text-sm italic text-gray-400">
+                  No rating provided
+                </p>
               )}
             </div>
           ))}

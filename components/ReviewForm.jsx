@@ -1,3 +1,4 @@
+// components/ReviewForm.jsx
 "use client";
 
 import { useState } from "react";
@@ -10,7 +11,7 @@ export default function ReviewForm() {
     name: "",
     message: "",
     image: null,
-    rating: 0,
+    rating: null,
   });
 
   const [preview, setPreview] = useState(null);
@@ -49,12 +50,15 @@ export default function ReviewForm() {
         imageUrl = res.data.secure_url;
       }
 
+      const ratingValue = parseInt(formData.rating, 10);
+
       await axios.post("/api/reviews", {
         name: formData.name,
         message: formData.message,
         imageUrl,
-        rating: formData.rating,
+        rating: ratingValue > 0 ? ratingValue : null,
       });
+
 
       alert("Review submitted for approval!");
 
