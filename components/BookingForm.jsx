@@ -1,3 +1,4 @@
+// components/BookingForm.jsx
 "use client";
 import { useState, useEffect } from "react";
 import PetForm from "@/components/PetForm";
@@ -245,7 +246,7 @@ const handleSubmit = async (e) => {
           </div>
 
           <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 rounded text-sm my-3">
-            Booking hours are limited to 9:00 AM – 4:00 PM. Please choose a time
+            Booking hours are limited to 6:00 AM – 11:00 PM. Please choose a time
             within this window.{" "}
             <span>
               For times outside this window, please{" "}

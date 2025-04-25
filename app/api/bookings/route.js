@@ -1,3 +1,4 @@
+// app/api/bookings/route.js
 import { PrismaClient } from "@prisma/client";
 import { Resend } from "resend";
 import crypto from "crypto";
@@ -54,14 +55,15 @@ export async function POST(req) {
       }
     }
 
-    // ⏰ Enforce 9am–4pm policy
+    // ⏰ Enforce 6am–11pm policy
     const hours = requestedDate.getHours();
-    if (hours < 9 || hours >= 16) {
+    if (hours < 6 || hours >= 23) {
       return Response.json(
-        { error: "Bookings must be scheduled between 9:00 AM and 4:00 PM." },
+        { error: "Bookings must be scheduled between 6:00 AM and 11:00 PM." },
         { status: 400 }
       );
     }
+
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
