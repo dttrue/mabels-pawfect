@@ -12,15 +12,18 @@ export default function generateDefaultTimeSlots(
       const date = new Date();
       date.setHours(h, m, 0, 0);
 
-      const timeString = date.toLocaleTimeString("en-US", {
+      const display = date.toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
       });
 
-      slots.push(timeString);
+      const value = date.toTimeString().slice(0, 5); // e.g., "06:00"
+
+      slots.push({ label: display, value });
     }
   }
 
   return slots;
 }
+

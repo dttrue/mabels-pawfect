@@ -260,14 +260,15 @@ export default function BookingForm() {
                   const fullISO = new Date(
                     `${selectedDay}T${e.target.value}:00`
                   );
+
                   setForm((prev) => ({ ...prev, date: fullISO.toISOString() }));
                 }}
                 required
               >
                 <option value="">-- Choose a time --</option>
                 {availableSlots.map((slot, i) => (
-                  <option key={i} value={slot}>
-                    {slot}
+                  <option key={i} value={slot.value}>
+                    {slot.label}
                   </option>
                 ))}
               </select>
