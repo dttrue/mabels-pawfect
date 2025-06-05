@@ -9,17 +9,21 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.20.0",
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
     "@prisma/client": "^6.5.0",
-    "axios": "^1.8.4",
+    "axios": "^1.9.0",
     "canvas-confetti": "^1.9.3",
     "framer-motion": "^12.6.3",
     "lucide-react": "^0.487.0",
     "next": "15.2.4",
     "next-cloudinary": "^6.16.0",
     "react": "^19.0.0",
+    "react-day-picker": "^9.7.0",
     "react-dom": "^19.0.0",
+    "react-hook-form": "^7.56.4",
+    "react-hot-toast": "^2.5.2",
     "resend": "^4.2.0"
   },
   "devDependencies": {

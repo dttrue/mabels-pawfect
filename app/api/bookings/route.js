@@ -1,9 +1,10 @@
 // app/api/bookings/route.js
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import { Resend } from "resend";
 import crypto from "crypto";
+import { NextResponse } from "next/server";
 
-const prisma = new PrismaClient();
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req) {
@@ -12,6 +13,45 @@ export async function POST(req) {
       await req.json();
 
     const requestedDate = new Date(date);
+    if (isNaN(requestedDate.getTime())) {
+      return NextResponse.json(
+        { error: "Invalid or missing date." },
+        { status: 400 }
+      );
+    }
+
+    // 🚫 Block Overnight bookings from June 27 to August 2
+    const lowerService = service.toLowerCase();
+    const isOvernightService = lowerService.includes("overnight");
+
+    const overnightBlockStart = new Date("2025-06-27");
+    const overnightBlockEnd = new Date("2025-08-02");
+    overnightBlockEnd.setHours(23, 59, 59, 999);
+
+    console.log("🗓️ Blocking overnight bookings between:");
+    console.log("Start:", overnightBlockStart.toISOString());
+    console.log("End:", overnightBlockEnd.toISOString());
+
+
+
+    if (isOvernightService) {
+      if (
+        requestedDate >= overnightBlockStart &&
+        requestedDate <= overnightBlockEnd
+      ) {
+        console.log("🚫 BLOCKED: Attempted overnight during blackout range.");
+        return NextResponse.json(
+          {
+            error:
+              "Overnight bookings are unavailable from June 27 to August 2. Please select a different date or service.",
+          },
+          { status: 400 }
+        );
+      } else {
+        console.log("✅ ALLOWED: Overnight, but outside of blackout range.");
+      }
+    }
+
 
     // ⛔️ Block out the whole day for Overnight
     if (service === "Overnight") {
@@ -29,7 +69,7 @@ export async function POST(req) {
       });
 
       if (existingOvernight) {
-        return Response.json(
+        return NextResponse.json(
           { error: "An overnight is already booked for this day." },
           { status: 409 }
         );
@@ -48,7 +88,7 @@ export async function POST(req) {
       });
 
       if (conflict) {
-        return Response.json(
+        return NextResponse.json(
           { error: "This time is already booked. Please select another time." },
           { status: 409 }
         );
@@ -58,12 +98,11 @@ export async function POST(req) {
     // ⏰ Enforce 6am–11pm policy
     const hours = requestedDate.getHours();
     if (hours < 6 || hours >= 23) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Bookings must be scheduled between 6:00 AM and 11:00 PM." },
         { status: 400 }
       );
     }
-
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);

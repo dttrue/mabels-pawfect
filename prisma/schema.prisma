@@ -32,12 +32,29 @@ model Booking {
 }
 
 model Review {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   name      String
   message   String
   imageUrl  String?
   rating    Int?     // New field for 1–5 paw rating
   approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Newsletter {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  imageUrl    String
+  fileUrl     String?   // Optional downloadable PDF
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+}
+
+model BlockedDate {
+  id        String   @id @default(uuid())
+  date      DateTime @unique
+  reason    String?
   createdAt DateTime @default(now())
 }
 

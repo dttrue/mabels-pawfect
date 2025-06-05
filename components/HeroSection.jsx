@@ -1,6 +1,7 @@
+// components/HeroSection.jsx
 import Link from "next/link";
 
-export default function HeroSection() {
+export default function HeroSection({ isSummer }) {
   return (
     <section className="py-10 text-center animate-fade-in">
       {/* Image First */}
@@ -13,7 +14,7 @@ export default function HeroSection() {
       </div>
 
       {/* CTA Box Below */}
-      <div className="mt-10 bg-pink-50 border border-pink-200 shadow rounded-lg px-4 py-6 max-w-md mx-auto text-center animate-fade-in">
+      <div className="mt-10 bg-pink-50 border border-pink-200 shadow rounded-lg px-4 py-6 max-w-md mx-auto text-center animate-fade-in hover:animate-pulse transition">
         <h1 className="text-4xl sm:text-5xl font-bold leading-tight text-gray-900 mb-4">
           Caring for Your Pets <br />
           Like They’re <span className="italic text-pink-600">Family</span> 🐾
@@ -30,6 +31,15 @@ export default function HeroSection() {
         </Link>
 
         <p className="mt-2 text-xs text-gray-500">Takes less than 1 minute</p>
+
+        {isSummer && (
+          <a
+            href="#summer-specials"
+            className="inline-block mt-6 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold py-2 px-4 rounded-full shadow transition"
+          >
+            🌞 See Summer Specials
+          </a>
+        )}
       </div>
     </section>
   );

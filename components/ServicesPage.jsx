@@ -1,3 +1,5 @@
+// components/ServicesPage.jsx
+
 import Link from "next/link";
 import servicesData from "@/lib/servicesData";
 
@@ -21,6 +23,28 @@ export default function ServicesPage() {
                 {service.icon} {service.title}
               </h3>
               <p className="text-gray-700">{service.description}</p>
+
+              {/* ✅ Add price block if it exists */}
+              {service.price && (
+                <div className="mt-4 bg-gray-50 border border-gray-200 p-4 rounded-lg space-y-2">
+                  {service.price.split("\n").map((line, i) => {
+                    // Bold animal labels like "🐶 Dogs:" or "🐱 Cats:"
+                    const isHeading = /^🐶|^🐱/.test(line.trim());
+                    return (
+                      <p
+                        key={i}
+                        className={`text-sm leading-relaxed ${
+                          isHeading
+                            ? "font-bold text-gray-800"
+                            : "text-gray-700"
+                        }`}
+                      >
+                        {line}
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
         </div>
