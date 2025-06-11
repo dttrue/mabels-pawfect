@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import NewsletterAdminForm from "@/components/dashboard/NewsletterAdminForm";
 import ImagePreviewModal from "@/components/modals/ImagePreviewModal";
+import OvernightBlocker from "@/components/dashboard/OvernightBlocker";
 
-export default function NewsletterDashboard() {
+export default function AdminDashboard() {
   const [newsletters, setNewsletters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(null);
@@ -47,9 +48,7 @@ export default function NewsletterDashboard() {
 
   return (
     <div className="space-y-12 max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center">
-        🛠️ Newsletter Admin Dashboard
-      </h1>
+      <h1 className="text-3xl font-bold text-center">🛠️ Admin Dashboard</h1>
 
       <NewsletterAdminForm onSuccess={fetchNewsletters} />
 
@@ -102,7 +101,9 @@ export default function NewsletterDashboard() {
           onClose={() => setPreviewImage(null)}
         />
       )}
-    
+
+      {/* NEW Overnight blocking tool */}
+      <OvernightBlocker />
     </div>
   );
 }

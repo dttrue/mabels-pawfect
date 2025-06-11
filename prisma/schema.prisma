@@ -53,8 +53,12 @@ model Newsletter {
 
 model BlockedDate {
   id        String   @id @default(uuid())
-  date      DateTime @unique
-  reason    String?
+  date      DateTime
+  service   String   @default("overnight") // 🟢 this fixes the migration issue
   createdAt DateTime @default(now())
+
+  @@unique([date, service])
 }
+
+
 

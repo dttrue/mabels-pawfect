@@ -73,6 +73,8 @@ export async function GET(req) {
       raw.setHours(0, 0, 0, 0); // normalize
       const key = raw.toISOString().split("T")[0];
 
+      console.log("📌 Injecting blocked date:", key);
+
       // Merge or create
       availabilityMap[key] = {
         ...(availabilityMap[key] || {}),
@@ -82,6 +84,7 @@ export async function GET(req) {
         blockedByAdmin: true,
       };
     });
+
 
     const response = Object.values(availabilityMap);
     return NextResponse.json(response);

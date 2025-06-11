@@ -1,7 +1,7 @@
 // components/BookingForm.jsx
 "use client";
 import toast from "react-hot-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PetForm from "@/components/PetForm";
 import { useRouter } from "next/navigation";
 import AvailabilityCalendar from "./AvailabilityCalendar";
@@ -29,13 +29,25 @@ export default function BookingForm() {
     date: "", // this will become full ISO
     notes: "",
   });
-
+  
+  const [blockedDates, setBlockedDates] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
+
+// Load all blocked overnights
+useEffect(() => {
+  const fetchBlocked = async () => {
+    const res = await fetch("/api/blocked-dates?service=overnight");
+    const data = await res.json();
+    setBlockedDates(data); // Assuming it's a list of ISO strings like "2025-06-18"
+  };
+
+  fetchBlocked();
+}, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

@@ -10,6 +10,17 @@ export default function AvailabilityCalendar({ onSelect }) {
   const [selectedDay, setSelectedDay] = useState(null);
   const [slots, setSlots] = useState([]);
   const [calendarKey, setCalendarKey] = useState(Date.now()); // ✅ force re-render key
+  const [overnightBlocked, setOvernightBlocked] = useState([]);
+
+// Load all blocked overnights
+  useEffect(() => {
+    const fetchOvernights = async () => {
+      const res = await fetch("/api/blocked-dates?service=overnight");
+      const data = await res.json();
+      setOvernightBlocked(data.map((d) => new Date(d)));
+    };
+    fetchOvernights();
+  }, []);
 
   const fetchAvailability = async () => {
     const today = new Date();
@@ -24,23 +35,42 @@ export default function AvailabilityCalendar({ onSelect }) {
     );
     const data = await res.json();
 
+    console.log("📦 Raw availability response:", data); // Debug
+
     const map = {};
     data.forEach((entry) => {
-      map[entry.date] = entry;
+      const {
+        date,
+        slots = [],
+        isFullyBooked = false,
+        blockedByAdmin = false,
+      } = entry;
+
+      map[date] = {
+        slots,
+        isFullyBooked,
+        blockedByAdmin,
+      };
     });
 
-    return map; // ✅ return so it can be manually set
+    console.log("✅ Mapped bookedDates object:", map); // Confirm structure
+
+    return map;
   };
 
 
   useEffect(() => {
-    const loadInitialAvailability = async () => {
-      const data = await fetchAvailability(); // ⬅️ get the returned map
-      setBookedDates(data); // ⬅️ apply it to state
+    const loadAvailability = async () => {
+      console.log("⏳ Loading availability...");
+      const data = await fetchAvailability(); // ✅ call the function
+      console.log("📦 Final bookedDates object:", data);
+      setBookedDates(data);
     };
 
-    loadInitialAvailability();
+    loadAvailability(); // 🔁 invoke
   }, []);
+
+
 
 
   const handleDayClick = (day) => {
@@ -57,70 +87,7 @@ export default function AvailabilityCalendar({ onSelect }) {
     }
   };
 
-  const handleBlockDate = async () => {
-    if (!selectedDay) return;
-
-    const res = await fetch("/api/block-date", {
-      method: "POST",
-      body: JSON.stringify({ date: selectedDay }),
-      headers: { "Content-Type": "application/json" },
-    });
-
-    if (res.ok) {
-      alert("✅ Day blocked successfully.");
-      const updated = await fetchAvailability();
-      setBookedDates(updated); // ✅ rebind updated map
-      setCalendarKey(() => Math.random().toString(36).substring(2));
- // 🔁 force DayPicker rerender
-      setSelectedDay(null);
-      setTimeout(() => {
-        setSelectedDay(selectedDay); // or rebuild new Date(selectedDay)
-      }, 50);
-    }
-
-  };
-
-  const handleUnblockDate = async () => {
-    if (!selectedDay) return;
-
-    const res = await fetch("/api/block-date", {
-      method: "DELETE",
-      body: JSON.stringify({ date: selectedDay }),
-      headers: { "Content-Type": "application/json" },
-    });
-
-    if (res.ok) {
-      alert("✅ Day unblocked successfully.");
-
-      // Wipe + deselect first to clear UI state
-      setBookedDates({});
-      setSelectedDay(null);
-
-      // 🔁 Force full remount via totally new key
-      const newKey = Math.random().toString(36).substring(2);
-      setCalendarKey(newKey);
-
-      // 🕒 Slight delay before rehydrating
-      setTimeout(async () => {
-        const updated = await fetchAvailability();
-        setBookedDates({ ...updated }); // force state change
-
-        const fresh = new Date(selectedDay);
-        const refreshedStr = fresh.toISOString().split("T")[0];
-        setSelectedDay(refreshedStr); // retrigger modifier
-      }, 100);
-    } else {
-      const error = await res.json();
-      alert(`⚠️ ${error.error}`);
-    }
-  };
-
-
-
-
-
-
-
+  
 
   const modifiers = {
     fullyBooked: (date) => {
@@ -136,7 +103,7 @@ export default function AvailabilityCalendar({ onSelect }) {
     blockedByAdmin: (date) => {
       const key = date.toISOString().split("T")[0];
       const isBlocked = bookedDates[key]?.blockedByAdmin === true;
-      console.log("🔍 modifier check:", key, isBlocked);
+    //   console.log("🔍 modifier check:", key, isBlocked);
       return isBlocked;
     },
   };
@@ -191,23 +158,6 @@ export default function AvailabilityCalendar({ onSelect }) {
           )}
         </div>
       )}
-
-      {/* {selectedDay && (
-        <div className="mt-2 flex justify-end">
-          {bookedDates[selectedDay]?.blockedByAdmin ? (
-            <button
-              onClick={handleUnblockDate}
-              className="btn btn-sm btn-accent"
-            >
-              ✅ Unblock This Day
-            </button>
-          ) : (
-            <button onClick={handleBlockDate} className="btn btn-sm btn-error">
-              ⛔ Block This Day
-            </button>
-          )}
-        </div>
-      )} */}
     </div>
   );
 }

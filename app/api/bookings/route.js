@@ -28,12 +28,6 @@ export async function POST(req) {
     const overnightBlockEnd = new Date("2025-08-02");
     overnightBlockEnd.setHours(23, 59, 59, 999);
 
-    console.log("🗓️ Blocking overnight bookings between:");
-    console.log("Start:", overnightBlockStart.toISOString());
-    console.log("End:", overnightBlockEnd.toISOString());
-
-
-
     if (isOvernightService) {
       if (
         requestedDate >= overnightBlockStart &&
@@ -52,6 +46,59 @@ export async function POST(req) {
       }
     }
 
+    // ⛔️ Prevent booking if admin has blocked this day
+    const startOfDay = new Date(requestedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(requestedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const isBlocked = await prisma.blockedDate.findFirst({
+      where: {
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        service: lowerService, // <- good
+      },
+    });
+
+    if (isBlocked) {
+      return NextResponse.json(
+        {
+          error: "This date is unavailable due to an admin block.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // ⛔️ Check against admin-blocked overnights in the DB
+    // if (isOvernightService) {
+    //   const startOfDay = new Date(requestedDate);
+    //   startOfDay.setHours(0, 0, 0, 0);
+    //   const endOfDay = new Date(requestedDate);
+    //   endOfDay.setHours(23, 59, 59, 999);
+
+    //   const isBlocked = await prisma.blockedDate.findFirst({
+    //     where: {
+    //       date: {
+    //         gte: startOfDay,
+    //         lte: endOfDay,
+    //       },
+    //       service: "overnight",
+    //     },
+    //   });
+
+    //   if (isBlocked) {
+    //     console.log(
+    //       "🚫 BLOCKED: Overnight booking rejected due to admin block."
+    //     );
+    //     return NextResponse.json(
+    //       { error: "Overnight bookings are not allowed on this date." },
+    //       { status: 403 }
+    //     );
+    //   }
+    // }
 
     // ⛔️ Block out the whole day for Overnight
     if (service === "Overnight") {
