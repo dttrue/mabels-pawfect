@@ -24,6 +24,7 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.56.4",
     "react-hot-toast": "^2.5.2",
+    "react-multi-date-picker": "^4.5.2",
     "resend": "^4.2.0"
   },
   "devDependencies": {

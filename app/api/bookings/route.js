@@ -9,16 +9,9 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req) {
   try {
-    const { fullName, email, phone, address, pets, service, date, notes } =
+    const { fullName, email, phone, address, pets, service, notes, entries } =
       await req.json();
 
-    const requestedDate = new Date(date);
-    if (isNaN(requestedDate.getTime())) {
-      return NextResponse.json(
-        { error: "Invalid or missing date." },
-        { status: 400 }
-      );
-    }
 
     // 🚫 Block Overnight bookings from June 27 to August 2
     const lowerService = service.toLowerCase();
@@ -28,49 +21,8 @@ export async function POST(req) {
     const overnightBlockEnd = new Date("2025-08-02");
     overnightBlockEnd.setHours(23, 59, 59, 999);
 
-    if (isOvernightService) {
-      if (
-        requestedDate >= overnightBlockStart &&
-        requestedDate <= overnightBlockEnd
-      ) {
-        console.log("🚫 BLOCKED: Attempted overnight during blackout range.");
-        return NextResponse.json(
-          {
-            error:
-              "Overnight bookings are unavailable from June 27 to August 2. Please select a different date or service.",
-          },
-          { status: 400 }
-        );
-      } else {
-        console.log("✅ ALLOWED: Overnight, but outside of blackout range.");
-      }
-    }
+  
 
-    // ⛔️ Prevent booking if admin has blocked this day
-    const startOfDay = new Date(requestedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(requestedDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const isBlocked = await prisma.blockedDate.findFirst({
-      where: {
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-        service: lowerService, // <- good
-      },
-    });
-
-    if (isBlocked) {
-      return NextResponse.json(
-        {
-          error: "This date is unavailable due to an admin block.",
-        },
-        { status: 409 }
-      );
-    }
 
     // ⛔️ Check against admin-blocked overnights in the DB
     // if (isOvernightService) {
@@ -100,77 +52,122 @@ export async function POST(req) {
     //   }
     // }
 
-    // ⛔️ Block out the whole day for Overnight
-    if (service === "Overnight") {
-      const startOfDay = new Date(requestedDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(requestedDate);
-      endOfDay.setHours(23, 59, 59, 999);
+  
 
-      const existingOvernight = await prisma.booking.findFirst({
-        where: {
-          status: "accepted",
-          service: "Overnight",
-          date: { gte: startOfDay, lte: endOfDay },
-        },
-      });
-
-      if (existingOvernight) {
-        return NextResponse.json(
-          { error: "An overnight is already booked for this day." },
-          { status: 409 }
-        );
-      }
-    } else {
-      // 🕒 Buffer check (15 mins before/after)
-      const bufferMs = 15 * 60 * 1000;
-      const requestedStart = new Date(requestedDate.getTime() - bufferMs);
-      const requestedEnd = new Date(requestedDate.getTime() + bufferMs);
-
-      const conflict = await prisma.booking.findFirst({
-        where: {
-          status: "accepted",
-          date: { gte: requestedStart, lte: requestedEnd },
-        },
-      });
-
-      if (conflict) {
-        return NextResponse.json(
-          { error: "This time is already booked. Please select another time." },
-          { status: 409 }
-        );
-      }
-    }
-
-    // ⏰ Enforce 6am–11pm policy
-    const hours = requestedDate.getHours();
-    if (hours < 6 || hours >= 23) {
+    // 🚫 Block out the whole day for Overnight
+    if (!Array.isArray(entries) || entries.length === 0) {
       return NextResponse.json(
-        { error: "Bookings must be scheduled between 6:00 AM and 11:00 PM." },
+        { error: "At least one booking date is required." },
         { status: 400 }
       );
     }
 
-    const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+    const successfulBookings = [];
+    const failedDates = [];
 
-    const booking = await prisma.booking.create({
-      data: {
-        fullName,
-        email,
-        phone,
-        address,
-        pets,
-        service,
-        date: requestedDate,
-        notes,
-        status: "pending",
-        token,
-        expiresAt,
-      },
-    });
+    for (const { date, time } of entries) {
+      const requestedDate = new Date(`${date}T${time}`);
+
+      // 1. Blocked overnight range
+      if (
+        isOvernightService &&
+        requestedDate >= overnightBlockStart &&
+        requestedDate <= overnightBlockEnd
+      ) {
+        failedDates.push({ date, reason: "Blocked overnight range" });
+        continue;
+      }
+
+      // 2. Admin blocked date check
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const isBlocked = await prisma.blockedDate.findFirst({
+        where: {
+          date: { gte: startOfDay, lte: endOfDay },
+          service: lowerService,
+        },
+      });
+      if (isBlocked) {
+        failedDates.push({ date, reason: "Admin blocked this day" });
+        continue;
+      }
+
+      // 3. Conflict check (overnight or 15-min buffer)
+      const existingBookings = await prisma.booking.findMany({
+  where: {
+    service,
+    status: "accepted",
+  },
+});
+
+const hasConflict = existingBookings.some((booking) => {
+  if (!Array.isArray(booking.entries)) return false;
+
+  return booking.entries.some((entry) => {
+    const booked = new Date(`${entry.date}T${entry.time}`);
+    const bufferMs = 15 * 60 * 1000;
+
+    return (
+      Math.abs(booked.getTime() - requestedDate.getTime()) <= bufferMs
+    );
+  });
+});
+
+if (hasConflict) {
+  failedDates.push({
+    date,
+    reason: "Time conflict with another booking",
+  });
+  continue;
+}
+
+
+      // 4. Time bounds check
+      const hour = requestedDate.getHours();
+      if (hour < 6 || hour >= 23) {
+        failedDates.push({ date, reason: "Outside 6 AM – 11 PM window" });
+        continue;
+      }
+
+      // ✅ Passed all checks → Create
+      const token = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+      const booking = await prisma.booking.create({
+        data: {
+          fullName,
+          email,
+          phone,
+          address,
+          pets,
+          service,
+          entries: [{ date, time }],
+          notes,
+          status: "pending",
+          token,
+          expiresAt,
+        },
+      });
+
+      successfulBookings.push(booking);
+    }
+
+    // 5. Send email
+    if (!successfulBookings.length) {
+      return NextResponse.json(
+        {
+          error: "All selected dates failed validation.",
+          failedDates,
+        },
+        { status: 400 }
+      );
+    }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const token = successfulBookings[0]?.token;
     const acceptUrl = `${baseUrl}/api/bookings/${token}/accept`;
     const declineUrl = `${baseUrl}/decline/${token}`;
 
@@ -183,7 +180,36 @@ export async function POST(req) {
         <p><strong>Name:</strong> ${fullName}</p>
         <p><strong>Phone:</strong> ${phone}</p>
         <p><strong>Service:</strong> ${service}</p>
-        <p><strong>Date:</strong> ${requestedDate.toLocaleString()}</p>
+        <p><strong>Dates Requested:</strong></p>
+    <ul>
+  ${successfulBookings
+    .flatMap((b) =>
+      (b.entries || []).map((entry) => {
+        const date = entry?.date
+          ? new Date(entry.date).toLocaleDateString("en-US", {
+              weekday: "short",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })
+          : "Invalid date";
+
+        const [hour, minute] = entry?.time?.split(":") || [];
+        const time = hour
+          ? new Date(0, 0, 0, hour, minute).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          : "Invalid time";
+
+        return `<li>${date} at ${time}</li>`;
+      })
+    )
+    .join("")}
+</ul>
+
+
+
         <p><strong>Address:</strong> ${address}</p>
         <p><strong>Notes:</strong> ${notes || "None"}</p>
         <ul>
@@ -212,17 +238,16 @@ export async function POST(req) {
 
     console.log("📬 Booking email result:", emailResult);
 
-    if (!booking.email) {
-      return NextResponse.json(
-        { error: "Booking email not found." },
-        { status: 400 }
-      );
-    }
-
-    return Response.json(booking, { status: 201 });
+    return NextResponse.json(
+      {
+        bookings: successfulBookings,
+        failedDates,
+      },
+      { status: 201 }
+    );
   } catch (err) {
     console.error("POST error:", err);
-    return Response.json(
+    return NextResponse.json(
       { error: "Failed to create booking" },
       { status: 500 }
     );
@@ -232,9 +257,9 @@ export async function POST(req) {
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany();
-    return Response.json(bookings, { status: 200 });
+    return NextResponse.json(bookings, { status: 200 });
   } catch (err) {
-    return Response.json(
+    return NextResponse.json(
       { error: "Failed to fetch bookings" },
       { status: 500 }
     );

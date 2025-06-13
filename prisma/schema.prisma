@@ -21,15 +21,17 @@ model Booking {
   email      String   
   phone      String
   address    String
-  pets       Json
+  pets       Json     // Already stores array of pet data
   service    String
-  date       DateTime
+  entries Json?
+    // NEW: Array of { date: string, time: string }
   status     String   @default("pending")
   notes      String?
-  token      String?  @unique // <-- Add @unique here
+  token      String?  @unique
   expiresAt  DateTime?
   createdAt  DateTime @default(now())
 }
+
 
 model Review {
   id        String   @id @default(uuid())

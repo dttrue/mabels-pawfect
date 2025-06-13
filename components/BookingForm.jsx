@@ -4,9 +4,11 @@ import toast from "react-hot-toast";
 import { useState, useEffect } from "react";
 import PetForm from "@/components/PetForm";
 import { useRouter } from "next/navigation";
-import AvailabilityCalendar from "./AvailabilityCalendar";
-import generateDefaultTimeSlots from "@/utils/generateDefaultTimeSlots";
 import { serviceOptions } from "@/lib/servicesData";
+import BookingMultiDatePicker from "@/components/booking/BookingMultiDatePicker";
+import ModernAvailabilityCalendar from "@/components/ModernAvailabilityCalendar";
+import generateDefaultTimeSlots from "@/utils/generateDefaultTimeSlots";
+
 export default function BookingForm() {
   const [form, setForm] = useState({
     fullName: "",
@@ -25,8 +27,8 @@ export default function BookingForm() {
         additionalNotes: "",
       },
     ],
+    entries: [],
     service: "",
-    date: "", // this will become full ISO
     notes: "",
   });
   
@@ -89,11 +91,12 @@ useEffect(() => {
     e.preventDefault();
     setSubmitting(true);
 
-    if (!form.date) {
-      setErrorMessage("Please select a date and time.");
+    if (!form.entries || form.entries.length === 0) {
+      setErrorMessage("Please select at least one date and time.");
       setSubmitting(false);
       return;
     }
+
 
     const payload = {
       fullName: form.fullName,
@@ -102,8 +105,8 @@ useEffect(() => {
       address: form.address,
       pets: form.pets,
       service: form.service,
-      date: form.date,
       notes: form.notes,
+      entries: form.entries,
     };
 
     try {
@@ -135,7 +138,6 @@ useEffect(() => {
             },
           ],
           service: "",
-          date: "",
           notes: "",
         });
         setSelectedDay(null);
@@ -247,45 +249,16 @@ useEffect(() => {
             for special requests.
           </div>
 
-          {/* 📅 Calendar */}
-          <AvailabilityCalendar
-            onSelect={(day, slots) => {
-              setSelectedDay(day);
-
-              const usableSlots =
-                slots.length > 0 ? slots : generateDefaultTimeSlots(6, 24); // 6 AM to 11 PM
-
-              setAvailableSlots(usableSlots);
-              setForm((prev) => ({ ...prev, date: "" })); // clear old value
+          {/* 📅 Date Selector */}
+          <BookingMultiDatePicker
+            onChange={(entries) => {
+              setForm((prev) => ({
+                ...prev,
+                entries, // [{ date: "2025-06-15", time: "10:00" }]
+              }));
             }}
           />
 
-          {/* 🕒 Time Selector */}
-          {availableSlots?.length > 0 && selectedDay && (
-            <div className="mt-4">
-              <label className="block mb-2 text-sm font-medium text-gray-900">
-                Select a Time Slot
-              </label>
-              <select
-                className="select select-bordered w-full"
-                onChange={(e) => {
-                  const fullISO = new Date(
-                    `${selectedDay}T${e.target.value}:00`
-                  );
-
-                  setForm((prev) => ({ ...prev, date: fullISO.toISOString() }));
-                }}
-                required
-              >
-                <option value="">-- Choose a time --</option>
-                {availableSlots.map((slot, i) => (
-                  <option key={i} value={slot.value}>
-                    {slot.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Notes */}
           <div>
