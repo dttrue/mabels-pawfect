@@ -1,5 +1,7 @@
 // components/BookingMultiDatePicker.jsx
 
+// components/BookingMultiDatePicker.jsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,23 +17,38 @@ export default function BookingMultiDatePicker({
 
   const timeSlots = generateDefaultTimeSlots(6, 23, 30); // 6:00 AM – 11:00 PM
 
-  // Format ISO strings from selected dates
+  // Sync selectedDates with timesByDate and emit formatted entries
+  // 🧩 Sync timesByDate keys to match selectedDates
   useEffect(() => {
-    const updated = {};
+    const updated = { ...timesByDate };
+    let changed = false;
+
     selectedDates.forEach((d) => {
       const iso = new Date(d).toISOString().split("T")[0];
-      updated[iso] = timesByDate[iso] || "";
+      if (!(iso in updated)) {
+        updated[iso] = "";
+        changed = true;
+      }
     });
 
-    setTimesByDate(updated);
-
-    const entries = Object.entries(updated).map(([date, time]) => ({
-      date,
-      time,
-    }));
-
-    onChange?.(entries);
+    if (changed) {
+      setTimesByDate(updated);
+    }
   }, [selectedDates]);
+
+  // ✅ Emit final entries once timesByDate is stable
+  useEffect(() => {
+    const entries = Object.entries(timesByDate).map(([date, time]) => {
+      const matchedSlot = timeSlots.find((slot) => slot.value === time);
+      return {
+        date,
+        time: matchedSlot?.label || "",
+      };
+    });
+
+    
+    onChange?.(entries);
+  }, [timesByDate]);
 
   const handleTimeChange = (date, time) => {
     setTimesByDate((prev) => ({
@@ -55,7 +72,7 @@ export default function BookingMultiDatePicker({
           value={selectedDates}
           onChange={setSelectedDates}
           format="YYYY-MM-DD"
-          numberOfMonths={1} // 📱 Better for mobile
+          numberOfMonths={1}
           calendarPosition="bottom-left"
           className="rounded-xl shadow-md w-full bg-pinky-50 text-pinky-700 border-pinky-300 border transition-all duration-200"
           mapDays={({ date }) => {
@@ -64,7 +81,7 @@ export default function BookingMultiDatePicker({
               return {
                 disabled: true,
                 style: {
-                  backgroundColor: "#FAD1E8", // pinky-200
+                  backgroundColor: "#FAD1E8",
                   color: "#999",
                   textDecoration: "line-through",
                 },
@@ -110,4 +127,3 @@ export default function BookingMultiDatePicker({
     </div>
   );
 }
-

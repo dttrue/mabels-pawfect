@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { Resend } from "resend";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
+import { formatDateWithTime } from "@/utils/formatDateTime";
 
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -21,39 +22,8 @@ export async function POST(req) {
     const overnightBlockEnd = new Date("2025-08-02");
     overnightBlockEnd.setHours(23, 59, 59, 999);
 
-  
-
-
-    // ⛔️ Check against admin-blocked overnights in the DB
-    // if (isOvernightService) {
-    //   const startOfDay = new Date(requestedDate);
-    //   startOfDay.setHours(0, 0, 0, 0);
-    //   const endOfDay = new Date(requestedDate);
-    //   endOfDay.setHours(23, 59, 59, 999);
-
-    //   const isBlocked = await prisma.blockedDate.findFirst({
-    //     where: {
-    //       date: {
-    //         gte: startOfDay,
-    //         lte: endOfDay,
-    //       },
-    //       service: "overnight",
-    //     },
-    //   });
-
-    //   if (isBlocked) {
-    //     console.log(
-    //       "🚫 BLOCKED: Overnight booking rejected due to admin block."
-    //     );
-    //     return NextResponse.json(
-    //       { error: "Overnight bookings are not allowed on this date." },
-    //       { status: 403 }
-    //     );
-    //   }
-    // }
 
   
-
     // 🚫 Block out the whole day for Overnight
     if (!Array.isArray(entries) || entries.length === 0) {
       return NextResponse.json(
@@ -66,6 +36,7 @@ export async function POST(req) {
     const failedDates = [];
 
     for (const { date, time } of entries) {
+      console.log("📥 Processing entry:", { date, time });
       const requestedDate = new Date(`${date}T${time}`);
 
       // 1. Blocked overnight range
@@ -116,6 +87,8 @@ const hasConflict = existingBookings.some((booking) => {
   });
 });
 
+
+
 if (hasConflict) {
   failedDates.push({
     date,
@@ -123,6 +96,13 @@ if (hasConflict) {
   });
   continue;
 }
+
+if (!time) {
+  console.log("⛔️ Skipping entry due to missing time:", { date, time });
+  failedDates.push({ date, reason: "Missing time" });
+  continue;
+}
+
 
 
       // 4. Time bounds check
@@ -135,6 +115,8 @@ if (hasConflict) {
       // ✅ Passed all checks → Create
       const token = crypto.randomUUID();
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+      
 
       const booking = await prisma.booking.create({
         data: {
@@ -185,28 +167,17 @@ if (hasConflict) {
   ${successfulBookings
     .flatMap((b) =>
       (b.entries || []).map((entry) => {
-        const date = entry?.date
-          ? new Date(entry.date).toLocaleDateString("en-US", {
-              weekday: "short",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })
-          : "Invalid date";
+        const formatted =
+          entry?.date && entry?.time
+            ? formatDateWithTime(entry.date, entry.time)
+            : "Invalid Date";
 
-        const [hour, minute] = entry?.time?.split(":") || [];
-        const time = hour
-          ? new Date(0, 0, 0, hour, minute).toLocaleTimeString("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-            })
-          : "Invalid time";
-
-        return `<li>${date} at ${time}</li>`;
+        return `<li>${formatted}</li>`;
       })
     )
     .join("")}
 </ul>
+
 
 
 
