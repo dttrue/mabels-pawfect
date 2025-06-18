@@ -5,7 +5,6 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { formatDateWithTime } from "@/utils/formatDateTime";
 
-
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req) {
@@ -13,8 +12,6 @@ export async function POST(req) {
     const { fullName, email, phone, address, pets, service, notes, entries } =
       await req.json();
 
-
-    // 🚫 Block Overnight bookings from June 27 to August 2
     const lowerService = service.toLowerCase();
     const isOvernightService = lowerService.includes("overnight");
 
@@ -22,9 +19,6 @@ export async function POST(req) {
     const overnightBlockEnd = new Date("2025-08-02");
     overnightBlockEnd.setHours(23, 59, 59, 999);
 
-
-  
-    // 🚫 Block out the whole day for Overnight
     if (!Array.isArray(entries) || entries.length === 0) {
       return NextResponse.json(
         { error: "At least one booking date is required." },
@@ -32,14 +26,13 @@ export async function POST(req) {
       );
     }
 
-    const successfulBookings = [];
     const failedDates = [];
+    const validEntries = [];
 
     for (const { date, time } of entries) {
-      console.log("📥 Processing entry:", { date, time });
       const requestedDate = new Date(`${date}T${time}`);
 
-      // 1. Blocked overnight range
+      // 1. Overnight block
       if (
         isOvernightService &&
         requestedDate >= overnightBlockStart &&
@@ -49,7 +42,7 @@ export async function POST(req) {
         continue;
       }
 
-      // 2. Admin blocked date check
+      // 2. Admin blocked date
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(date);
@@ -61,84 +54,55 @@ export async function POST(req) {
           service: lowerService,
         },
       });
+
       if (isBlocked) {
         failedDates.push({ date, reason: "Admin blocked this day" });
         continue;
       }
 
-      // 3. Conflict check (overnight or 15-min buffer)
+      // 3. Conflict check (15-minute buffer)
       const existingBookings = await prisma.booking.findMany({
-  where: {
-    service,
-    status: "accepted",
-  },
-});
+        where: {
+          service,
+          status: "accepted",
+        },
+      });
 
-const hasConflict = existingBookings.some((booking) => {
-  if (!Array.isArray(booking.entries)) return false;
+      const hasConflict = existingBookings.some((booking) => {
+        if (!Array.isArray(booking.entries)) return false;
+        return booking.entries.some((entry) => {
+          const booked = new Date(`${entry.date}T${entry.time}`);
+          const bufferMs = 15 * 60 * 1000;
+          return (
+            Math.abs(booked.getTime() - requestedDate.getTime()) <= bufferMs
+          );
+        });
+      });
 
-  return booking.entries.some((entry) => {
-    const booked = new Date(`${entry.date}T${entry.time}`);
-    const bufferMs = 15 * 60 * 1000;
+      if (hasConflict) {
+        failedDates.push({
+          date,
+          reason: "Time conflict with another booking",
+        });
+        continue;
+      }
 
-    return (
-      Math.abs(booked.getTime() - requestedDate.getTime()) <= bufferMs
-    );
-  });
-});
+      if (!time) {
+        failedDates.push({ date, reason: "Missing time" });
+        continue;
+      }
 
-
-
-if (hasConflict) {
-  failedDates.push({
-    date,
-    reason: "Time conflict with another booking",
-  });
-  continue;
-}
-
-if (!time) {
-  console.log("⛔️ Skipping entry due to missing time:", { date, time });
-  failedDates.push({ date, reason: "Missing time" });
-  continue;
-}
-
-
-
-      // 4. Time bounds check
       const hour = requestedDate.getHours();
       if (hour < 6 || hour >= 23) {
         failedDates.push({ date, reason: "Outside 6 AM – 11 PM window" });
         continue;
       }
 
-      // ✅ Passed all checks → Create
-      const token = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
-
-      
-
-      const booking = await prisma.booking.create({
-        data: {
-          fullName,
-          email,
-          phone,
-          address,
-          pets,
-          service,
-          entries: [{ date, time }],
-          notes,
-          status: "pending",
-          token,
-          expiresAt,
-        },
-      });
-
-      successfulBookings.push(booking);
+      // ✅ Passed all checks
+      validEntries.push({ date, time });
     }
 
-    // 5. Send email
-    if (!successfulBookings.length) {
+    if (!validEntries.length) {
       return NextResponse.json(
         {
           error: "All selected dates failed validation.",
@@ -148,70 +112,99 @@ if (!time) {
       );
     }
 
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+    const booking = await prisma.booking.create({
+      data: {
+        fullName,
+        email,
+        phone,
+        address,
+        pets,
+        service,
+        entries: validEntries,
+        notes,
+        status: "pending",
+        token,
+        expiresAt,
+      },
+    });
+
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const token = successfulBookings[0]?.token;
     const acceptUrl = `${baseUrl}/api/bookings/${token}/accept`;
-    const declineUrl = `${baseUrl}/decline/${token}`;
+    const declineUrl = `${baseUrl}/api/bookings/${token}/decline`;
 
     const emailResult = await resend.emails.send({
       from: "Mabel's Pawfect <no-reply@mabelspawfectpetservices.com>",
-      to: "Therainbowniche@gmail.com",
-      subject: "New Booking Request",
+      to: "danielrtorres.dt@gmail.com",
+      subject: `New Booking Request from ${fullName} at ${new Date().toLocaleTimeString()}`,
       html: `
         <h2>🐾 New Booking Request</h2>
         <p><strong>Name:</strong> ${fullName}</p>
         <p><strong>Phone:</strong> ${phone}</p>
         <p><strong>Service:</strong> ${service}</p>
         <p><strong>Dates Requested:</strong></p>
-    <ul>
-  ${successfulBookings
-    .flatMap((b) =>
-      (b.entries || []).map((entry) => {
-        const formatted =
-          entry?.date && entry?.time
-            ? formatDateWithTime(entry.date, entry.time)
-            : "Invalid Date";
-
-        return `<li>${formatted}</li>`;
-      })
-    )
-    .join("")}
-</ul>
-
-
-
-
+        <ul>
+          ${validEntries
+            .map((entry) => {
+              const formatted =
+                entry?.date && entry?.time
+                  ? formatDateWithTime(entry.date, entry.time)
+                  : "Invalid Date";
+              return `<li>${formatted}</li>`;
+            })
+            .join("")}
+        </ul>
         <p><strong>Address:</strong> ${address}</p>
         <p><strong>Notes:</strong> ${notes || "None"}</p>
         <ul>
           ${pets
             .map(
               (p) => `
-            <li>
-              <strong>${p.name}</strong> (${p.dob || "DOB not provided"})<br/>
-              Vaccinations: ${p.vaccinations || "N/A"}<br/>
-              Medical: ${p.medicalConditions || "N/A"}<br/>
-              Feeding: ${p.feedingSchedule || "N/A"}<br/>
-              Walks: ${p.walkSchedule || "N/A"}<br/>
-              Vet: ${p.vetInfo || "N/A"}<br/>
-              Notes: ${p.additionalNotes || "None"}
-            </li><br/>`
+              <li>
+                <strong>${p.name}</strong> (${p.dob || "DOB not provided"})<br/>
+                Vaccinations: ${p.vaccinations || "N/A"}<br/>
+                Medical: ${p.medicalConditions || "N/A"}<br/>
+                Feeding: ${p.feedingSchedule || "N/A"}<br/>
+                Walks: ${p.walkSchedule || "N/A"}<br/>
+                Vet: ${p.vetInfo || "N/A"}<br/>
+                Notes: ${p.additionalNotes || "None"}
+              </li><br/>`
             )
             .join("")}
         </ul>
-        <hr />
-        <p>
-          <a href="${acceptUrl}" style="color:green;font-weight:bold;">✅ Accept Booking</a> |
-          <a href="${declineUrl}" style="color:red;font-weight:bold;">❌ Decline Booking</a>
-        </p>
+        <hr/>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+          <tr>
+            <td bgcolor="#28a745" style="border-radius:5px;">
+              <a href="${acceptUrl}" target="_blank" style="display:inline-block;padding:12px 24px;font-family:sans-serif;font-size:16px;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:5px;">
+                ✅ Accept Booking
+              </a>
+            </td>
+          </tr>
+        </table>
+        <br/>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+          <tr>
+            <td bgcolor="#dc3545" style="border-radius:5px;">
+              <a href="${declineUrl}" target="_blank" style="display:inline-block;padding:12px 24px;font-family:sans-serif;font-size:16px;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:5px;">
+                ❌ Decline Booking
+              </a>
+            </td>
+          </tr>
+        </table>
       `,
     });
 
     console.log("📬 Booking email result:", emailResult);
+    console.log("📧 Email links:");
+    console.log("✅ Accept:", acceptUrl);
+    console.log("❌ Decline:", declineUrl);
 
     return NextResponse.json(
       {
-        bookings: successfulBookings,
+        bookings: [booking],
         failedDates,
       },
       { status: 201 }
@@ -220,18 +213,6 @@ if (!time) {
     console.error("POST error:", err);
     return NextResponse.json(
       { error: "Failed to create booking" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET() {
-  try {
-    const bookings = await prisma.booking.findMany();
-    return NextResponse.json(bookings, { status: 200 });
-  } catch (err) {
-    return NextResponse.json(
-      { error: "Failed to fetch bookings" },
       { status: 500 }
     );
   }
