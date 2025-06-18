@@ -7,7 +7,6 @@ const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req, { params }) {
-  console.log("Token received:", params.token);
   const { token } = params;
   const { message } = await req.json();
 
@@ -25,9 +24,9 @@ export async function POST(req, { params }) {
         status: "declined",
         notes: message,
       },
+      include: { entries: true }, // ✅ Ensure entries are loaded
     });
 
-    // 🔥 Send email to the client
     await resend.emails.send({
       from: "mabel@mabelspawfectpetservices.com",
       to: booking.email,
@@ -37,19 +36,18 @@ export async function POST(req, { params }) {
         <p>Unfortunately, your booking request has been declined.</p>
         <p><strong>Reason:</strong> ${message}</p>
         <p>The following date(s) have been declined:</p>
-<ul>
-  ${booking.entries
-    .map((entry) => {
-      if (!entry?.date || !entry?.time) return "<li>Invalid date</li>";
-      const formatted = new Date(
-        `${entry.date}T${entry.time}`
-      ).toLocaleString();
-      return `<li>${formatted}</li>`;
-    })
-    .join("")}
-</ul>
-<p>We appreciate your interest and hope to connect another time.</p>
-
+        <ul>
+          ${booking.entries
+            .map((entry) => {
+              if (!entry?.date || !entry?.time) return "<li>Invalid date</li>";
+              const formatted = new Date(
+                `${entry.date}T${entry.time}`
+              ).toLocaleString();
+              return `<li>${formatted}</li>`;
+            })
+            .join("")}
+        </ul>
+        <p>We appreciate your interest and hope to connect another time.</p>
         <br/>
         <p>Warm wishes,</p>
         <p>🐾 Mabel's Pawfect Team</p>
@@ -58,7 +56,7 @@ export async function POST(req, { params }) {
 
     return NextResponse.json({ message: "Declined and email sent." });
   } catch (err) {
-    console.error("Decline error:", err);
+    console.error("Decline POST error:", err);
     return NextResponse.json(
       { error: "Failed to decline booking" },
       { status: 500 }
@@ -76,6 +74,7 @@ export async function GET(req, { params }) {
         status: "declined",
         notes: "Declined via email link",
       },
+      include: { entries: true }, // ✅ Ensure entries are loaded
     });
 
     await resend.emails.send({
@@ -87,19 +86,18 @@ export async function GET(req, { params }) {
         <p>Your booking request has been declined.</p>
         <p><strong>Reason:</strong> Declined via email link</p>
         <p>The following date(s) have been declined:</p>
-<ul>
-  ${booking.entries
-    .map((entry) => {
-      if (!entry?.date || !entry?.time) return "<li>Invalid date</li>";
-      const formatted = new Date(
-        `${entry.date}T${entry.time}`
-      ).toLocaleString();
-      return `<li>${formatted}</li>`;
-    })
-    .join("")}
-</ul>
-<p>We appreciate your interest and hope to connect another time.</p>
-
+        <ul>
+          ${booking.entries
+            .map((entry) => {
+              if (!entry?.date || !entry?.time) return "<li>Invalid date</li>";
+              const formatted = new Date(
+                `${entry.date}T${entry.time}`
+              ).toLocaleString();
+              return `<li>${formatted}</li>`;
+            })
+            .join("")}
+        </ul>
+        <p>We appreciate your interest and hope to connect another time.</p>
         <br/>
         <p>Warm wishes,</p>
         <p>🐾 Mabel's Pawfect Team</p>
