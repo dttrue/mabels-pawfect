@@ -67,6 +67,8 @@ export async function POST(req, { params }) {
 export async function GET(req, { params }) {
   const { token } = params;
 
+  console.log("📩 Decline triggered via email link for token:", token);
+
   try {
     const booking = await prisma.booking.update({
       where: { token },
@@ -74,8 +76,24 @@ export async function GET(req, { params }) {
         status: "declined",
         notes: "Declined via email link",
       },
-      include: { entries: true }, // ✅ Ensure entries are loaded
     });
+
+    console.log("📦 Booking found:", booking);
+
+    const declinedDates =
+      Array.isArray(booking.entries) && booking.entries.length > 0
+        ? booking.entries
+            .map((entry) => {
+              if (!entry?.date || !entry?.time) return "<li>Invalid date</li>";
+              const formatted = new Date(
+                `${entry.date}T${entry.time}`
+              ).toLocaleString();
+              return `<li>${formatted}</li>`;
+            })
+            .join("")
+        : "<li>No valid booking dates found</li>";
+
+    console.log("📆 Declined Dates HTML:", declinedDates);
 
     await resend.emails.send({
       from: "mabel@mabelspawfectpetservices.com",
@@ -86,17 +104,7 @@ export async function GET(req, { params }) {
         <p>Your booking request has been declined.</p>
         <p><strong>Reason:</strong> Declined via email link</p>
         <p>The following date(s) have been declined:</p>
-        <ul>
-          ${booking.entries
-            .map((entry) => {
-              if (!entry?.date || !entry?.time) return "<li>Invalid date</li>";
-              const formatted = new Date(
-                `${entry.date}T${entry.time}`
-              ).toLocaleString();
-              return `<li>${formatted}</li>`;
-            })
-            .join("")}
-        </ul>
+        <ul>${declinedDates}</ul>
         <p>We appreciate your interest and hope to connect another time.</p>
         <br/>
         <p>Warm wishes,</p>
@@ -104,17 +112,21 @@ export async function GET(req, { params }) {
       `,
     });
 
+    console.log("📨 Decline email sent to:", booking.email);
+
     return new Response(
       `<html><body><h2>✅ Booking successfully declined.</h2></body></html>`,
       { headers: { "Content-Type": "text/html" }, status: 200 }
     );
   } catch (err) {
-    console.error("Decline GET error:", err);
+    console.error("❌ Decline GET error:", err);
+
     return new Response(
       `<html><body><h2>⚠️ Something went wrong while declining this booking. Please contact support.</h2></body></html>`,
       { headers: { "Content-Type": "text/html" }, status: 500 }
     );
   }
 }
+
 
 
