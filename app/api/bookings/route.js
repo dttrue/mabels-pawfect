@@ -137,7 +137,7 @@ export async function POST(req) {
 
     const emailResult = await resend.emails.send({
       from: "Mabel's Pawfect <no-reply@mabelspawfectpetservices.com>",
-      to: "therainbowniche@gmail.com",
+      to: "danielrtorres.dt@gmail.com",
       subject: `New Booking Request from ${fullName} at ${new Date().toLocaleTimeString()}`,
       html: `
         <h2>🐾 New Booking Request</h2>

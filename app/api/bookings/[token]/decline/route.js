@@ -87,28 +87,41 @@ export async function GET(req, { params }) {
 
     console.log("📌 Booking declined in DB for:", booking.fullName);
 
-    const formattedDates = booking.entries
-      .map((entry) => {
-        if (!entry?.date || !entry?.time) return "<li>Invalid date</li>";
-        const local = new Date(`${entry.date}T${entry.time}`).toLocaleString();
-        return `<li>${local}</li>`;
+    // Log all entries once
+    console.log(
+      "🧾 Raw booking.entries:",
+      JSON.stringify(booking.entries, null, 2)
+    );
+
+    const formattedDates = (booking.entries || [])
+      .map((entry, i) => {
+        console.log(`📅 Entry ${i}:`, entry); // Log each individual entry
+
+        const { date, time } = entry || {};
+        if (!date || !time) return "<li>⚠️ Missing date or time</li>";
+
+        const iso = `${date}T${time}`;
+        const readable = new Date(iso).toLocaleString();
+
+        return `<li>${readable}</li>`;
       })
       .join("");
 
-    console.log("📅 Declined Dates:", formattedDates);
-
+    // Email
     await resend.emails.send({
       from: "mabel@mabelspawfectpetservices.com",
       to: booking.email,
-      subject: "Booking Declined ❌",
+      subject: "Booking Confirmed ✅",
       html: `
-        <h2>Hi ${booking.fullName},</h2>
-        <p>Your booking was <strong>declined</strong>.</p>
-        <p>Declined Date(s):</p>
-        <ul>${formattedDates}</ul>
-        <p>We appreciate your interest and hope to connect another time.</p>
-        <p>🐾 Mabel’s Pawfect Team</p>
-      `,
+    <h2>Hi ${booking.fullName},</h2>
+    <p>Your booking was ${
+      booking.status === "declined" ? "declined" : "accepted"
+    }.</p>
+    <p>Scheduled Date(s):</p>
+    <ul>${formattedDates}</ul>
+    <p>Thank you for choosing Mabel’s Pawfect!</p>
+    <p>🐾 The Mabel’s Pawfect Team</p>
+  `,
     });
 
     console.log("📧 Decline email sent to:", booking.email);
