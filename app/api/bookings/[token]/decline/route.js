@@ -86,8 +86,6 @@ export async function GET(req, { params }) {
     }
 
     console.log("📌 Booking declined in DB for:", booking.fullName);
-
-    // Log all entries once
     console.log(
       "🧾 Raw booking.entries:",
       JSON.stringify(booking.entries, null, 2)
@@ -95,7 +93,7 @@ export async function GET(req, { params }) {
 
     const formattedDates = (booking.entries || [])
       .map((entry, i) => {
-        console.log(`📅 Entry ${i}:`, entry); // Log each individual entry
+        console.log(`📅 Entry ${i}:`, entry);
 
         const { date, time } = entry || {};
         if (!date || !time) return "<li>⚠️ Missing date or time</li>";
@@ -107,27 +105,26 @@ export async function GET(req, { params }) {
       })
       .join("");
 
-    // Email
+    // 🔥 Send email to the client
     await resend.emails.send({
       from: "mabel@mabelspawfectpetservices.com",
       to: booking.email,
-      subject: "Booking Confirmed ✅",
+      subject: "Booking Declined ❌",
       html: `
-    <h2>Hi ${booking.fullName},</h2>
-    <p>Your booking was ${
-      booking.status === "declined" ? "declined" : "accepted"
-    }.</p>
-    <p>Scheduled Date(s):</p>
-    <ul>${formattedDates}</ul>
-    <p>Thank you for choosing Mabel’s Pawfect!</p>
-    <p>🐾 The Mabel’s Pawfect Team</p>
-  `,
+        <h2>Hi ${booking.fullName},</h2>
+        <p>Your booking has been <strong>declined</strong>.</p>
+        <p>Scheduled Date(s):</p>
+        <ul>${formattedDates}</ul>
+        <p>We appreciate your interest and hope to connect again in the future.</p>
+        <br/>
+        <p>🐾 Mabel’s Pawfect Team</p>
+      `,
     });
 
     console.log("📧 Decline email sent to:", booking.email);
 
     return new Response(
-      `<html><body><h2> Booking successfully declined.</h2></body></html>`,
+      `<html><body><h2>✅ Booking successfully declined.</h2></body></html>`,
       {
         headers: { "Content-Type": "text/html" },
         status: 200,
@@ -144,6 +141,7 @@ export async function GET(req, { params }) {
     );
   }
 }
+
 
 
 

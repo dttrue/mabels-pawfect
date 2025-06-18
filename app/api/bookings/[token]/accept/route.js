@@ -18,20 +18,18 @@ export async function GET(req, { params }) {
 
     if (!booking) {
       console.error("❌ Booking not found for token:", token);
-      return NextResponse.json({ error: "Booking not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Booking not found." },
+        { status: 404 }
+      );
     }
-
-    const firstEntry = booking.entries?.[0];
-    const readableDate =
-      firstEntry?.date && firstEntry?.time
-        ? new Date(`${firstEntry.date}T${firstEntry.time}`).toLocaleString()
-        : "Unknown date";
-
-    console.log("📅 First entry readable date:", readableDate);
 
     if (booking.expiresAt && new Date(booking.expiresAt) < new Date()) {
       console.warn("⏰ Booking link expired.");
-      return NextResponse.json({ error: "This link has expired." }, { status: 410 });
+      return NextResponse.json(
+        { error: "This link has expired." },
+        { status: 410 }
+      );
     }
 
     if (booking.status === "accepted" || booking.status === "declined") {
@@ -48,7 +46,6 @@ export async function GET(req, { params }) {
     });
 
     console.log("✅ Booking marked as accepted in database.");
-    
     console.log(
       "🧾 Raw booking.entries:",
       JSON.stringify(booking.entries, null, 2)
@@ -56,7 +53,7 @@ export async function GET(req, { params }) {
 
     const formattedDates = (booking.entries || [])
       .map((entry, i) => {
-        console.log(`📅 Entry ${i}:`, entry); // Log each individual entry
+        console.log(`📅 Entry ${i}:`, entry);
 
         const { date, time } = entry || {};
         if (!date || !time) return "<li>⚠️ Missing date or time</li>";
@@ -68,21 +65,18 @@ export async function GET(req, { params }) {
       })
       .join("");
 
-    // Email
     await resend.emails.send({
       from: "mabel@mabelspawfectpetservices.com",
       to: booking.email,
       subject: "Booking Confirmed ✅",
       html: `
-    <h2>Hi ${booking.fullName},</h2>
-    <p>Your booking was ${
-      booking.status === "declined" ? "declined" : "accepted"
-    }.</p>
-    <p>Scheduled Date(s):</p>
-    <ul>${formattedDates}</ul>
-    <p>Thank you for choosing Mabel’s Pawfect!</p>
-    <p>🐾 The Mabel’s Pawfect Team</p>
-  `,
+        <h2>Hi ${booking.fullName},</h2>
+        <p>Your booking has been <strong>accepted</strong>!</p>
+        <p>Scheduled Date(s):</p>
+        <ul>${formattedDates}</ul>
+        <p>Thank you for choosing Mabel’s Pawfect!</p>
+        <p>🐾 The Mabel’s Pawfect Team</p>
+      `,
     });
 
     console.log("📧 Confirmation email sent to:", booking.email);
@@ -98,5 +92,6 @@ export async function GET(req, { params }) {
     );
   }
 }
+
 
 
