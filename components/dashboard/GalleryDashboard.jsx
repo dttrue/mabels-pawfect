@@ -1,8 +1,8 @@
 // components/dashboard/GalleryDashboard.jsx
 "use client";
 
-import GalleryList from "@/components/dashboard/gallery/GalleryList";
-import GalleryUploadForm from "@/components/dashboard/gallery/GalleryUploadForm";
+import GalleryList from "@/archive/gallery/GalleryList";
+import GalleryUploadForm from "@/archive/gallery/GalleryUploadForm";
 import { useState } from "react";
 
 export default function GalleryDashboard() {
