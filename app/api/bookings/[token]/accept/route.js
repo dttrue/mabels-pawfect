@@ -55,15 +55,25 @@ export async function GET(req, { params }) {
       .map((entry, i) => {
         console.log(`📅 Entry ${i}:`, entry);
 
-        const { date, time } = entry || {};
-        if (!date || !time) return "<li>⚠️ Missing date or time</li>";
+        const date = entry?.date?.trim();
+        const time = entry?.time?.trim();
 
-        const iso = `${date}T${time}`;
-        const readable = new Date(iso).toLocaleString();
+        if (!date || !time || time === "null") {
+          return `<li>⚠️ Invalid or missing date/time (entry ${i})</li>`;
+        }
 
-        return `<li>${readable}</li>`;
+        const isoString = `${date}T${time}`;
+        const parsedDate = new Date(isoString);
+
+        if (isNaN(parsedDate.getTime())) {
+          console.warn(`❌ Invalid Date object from ISO string:`, isoString);
+          return `<li>⚠️ Could not parse date for entry ${i}</li>`;
+        }
+
+        return `<li>${parsedDate.toLocaleString()}</li>`;
       })
       .join("");
+
 
     await resend.emails.send({
       from: "mabel@mabelspawfectpetservices.com",
