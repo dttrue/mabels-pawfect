@@ -54,23 +54,11 @@ export async function GET(req, { params }) {
     const formattedDates = (booking.entries || [])
       .map((entry, i) => {
         console.log(`📅 Entry ${i}:`, entry);
-        console.log(
-          `🔍 typeof date:`,
-          typeof entry?.date,
-          `value:`,
-          entry?.date
-        );
-        console.log(
-          `🔍 typeof time:`,
-          typeof entry?.time,
-          `value:`,
-          entry?.time
-        );
 
         const date = entry?.date?.trim();
         const time = entry?.time?.trim();
 
-        if (!date || !time || time === "null" || date === "null") {
+        if (!date || !time || time === "null") {
           return `<li>⚠️ Invalid or missing date/time (entry ${i})</li>`;
         }
 
@@ -85,7 +73,6 @@ export async function GET(req, { params }) {
         return `<li>${parsedDate.toLocaleString()}</li>`;
       })
       .join("");
-
 
 
     await resend.emails.send({
