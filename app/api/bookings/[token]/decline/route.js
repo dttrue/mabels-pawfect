@@ -114,7 +114,7 @@ export async function GET(req, { params }) {
     console.log("📧 Decline email sent to:", booking.email);
 
     return new Response(
-      `<html><body><h2>✅ Booking successfully declined.</h2></body></html>`,
+      `<html><body><h2> Booking successfully declined.</h2></body></html>`,
       {
         headers: { "Content-Type": "text/html" },
         status: 200,
