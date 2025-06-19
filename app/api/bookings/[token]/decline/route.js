@@ -66,7 +66,6 @@ export async function POST(req, { params }) {
 
 export async function GET(req, { params }) {
   const { token } = params;
-  console.log("📥 Decline GET called with token:", token);
 
   try {
     const booking = await prisma.booking.update({
@@ -93,27 +92,14 @@ export async function GET(req, { params }) {
 
     const formattedDates = (booking.entries || [])
       .map((entry, i) => {
-        console.log(`📅 Entry ${i}:`, entry);
-
-        const date = entry?.date?.trim();
-        const time = entry?.time?.trim();
-
-        if (!date || !time || time === "null") {
-          return `<li>⚠️ Invalid or missing date/time (entry ${i})</li>`;
-        }
-
-        const isoString = `${date}T${time}`;
-        const parsedDate = new Date(isoString);
-
-        if (isNaN(parsedDate.getTime())) {
-          console.warn(`❌ Invalid Date object from ISO string:`, isoString);
-          return `<li>⚠️ Could not parse date for entry ${i}</li>`;
-        }
-
-        return `<li>${parsedDate.toLocaleString()}</li>`;
+        if (!entry?.date || !entry?.time)
+          return `<li>⚠️ Invalid date for entry ${i}</li>`;
+        const formatted = new Date(
+          `${entry.date}T${entry.time}`
+        ).toLocaleString();
+        return `<li>${formatted}</li>`;
       })
       .join("");
-
 
     // 🔥 Send email to the client
     await resend.emails.send({
@@ -123,7 +109,7 @@ export async function GET(req, { params }) {
       html: `
         <h2>Hi ${booking.fullName},</h2>
         <p>Your booking has been <strong>declined</strong>.</p>
-        <p>Scheduled Date(s):</p>
+        <p>Declined Date(s):</p>
         <ul>${formattedDates}</ul>
         <p>We appreciate your interest and hope to connect again in the future.</p>
         <br/>
@@ -151,6 +137,7 @@ export async function GET(req, { params }) {
     );
   }
 }
+
 
 
 

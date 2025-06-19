@@ -9,7 +9,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function GET(req, { params }) {
   const { token } = params;
-  console.log("📥 Accept GET called with token:", token);
+  
 
   try {
     const booking = await prisma.booking.findUnique({
@@ -53,27 +53,14 @@ export async function GET(req, { params }) {
 
     const formattedDates = (booking.entries || [])
       .map((entry, i) => {
-        console.log(`📅 Entry ${i}:`, entry);
-
-        const date = entry?.date?.trim();
-        const time = entry?.time?.trim();
-
-        if (!date || !time || time === "null") {
-          return `<li>⚠️ Invalid or missing date/time (entry ${i})</li>`;
-        }
-
-        const isoString = `${date}T${time}`;
-        const parsedDate = new Date(isoString);
-
-        if (isNaN(parsedDate.getTime())) {
-          console.warn(`❌ Invalid Date object from ISO string:`, isoString);
-          return `<li>⚠️ Could not parse date for entry ${i}</li>`;
-        }
-
-        return `<li>${parsedDate.toLocaleString()}</li>`;
+        if (!entry?.date || !entry?.time)
+          return `<li>⚠️ Invalid date for entry ${i}</li>`;
+        const formatted = new Date(
+          `${entry.date}T${entry.time}`
+        ).toLocaleString();
+        return `<li>${formatted}</li>`;
       })
       .join("");
-
 
     await resend.emails.send({
       from: "mabel@mabelspawfectpetservices.com",
