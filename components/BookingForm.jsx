@@ -6,8 +6,7 @@ import PetForm from "@/components/PetForm";
 import { useRouter } from "next/navigation";
 import { serviceOptions } from "@/lib/servicesData";
 import BookingMultiDatePicker from "@/components/booking/BookingMultiDatePicker";
-import ModernAvailabilityCalendar from "@/components/ModernAvailabilityCalendar";
-import generateDefaultTimeSlots from "@/utils/generateDefaultTimeSlots";
+
 
 export default function BookingForm() {
   const [form, setForm] = useState({
@@ -31,7 +30,7 @@ export default function BookingForm() {
     service: "",
     notes: "",
   });
-  
+
   const [blockedDates, setBlockedDates] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -40,16 +39,46 @@ export default function BookingForm() {
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
 
-// Load all blocked overnights
-useEffect(() => {
-  const fetchBlocked = async () => {
-    const res = await fetch("/api/blocked-dates?service=overnight");
-    const data = await res.json();
-    setBlockedDates(data); // Assuming it's a list of ISO strings like "2025-06-18"
-  };
+  // Load all blocked overnights
+  useEffect(() => {
+    const fetchBlocked = async () => {
+      const res = await fetch("/api/blocked-dates?service=overnight");
+      const data = await res.json();
+      setBlockedDates(data); // Assuming it's a list of ISO strings like "2025-06-18"
+    };
 
-  fetchBlocked();
-}, []);
+    fetchBlocked();
+  }, []);
+
+  // ⏪ Load from localStorage on first render
+  useEffect(() => {
+    const saved = localStorage.getItem("bookingInfo");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setForm((prev) => ({
+          ...prev,
+          ...parsed,
+          pets: parsed.pets || prev.pets,
+          entries: parsed.entries || [],
+        }));
+      } catch (err) {
+        console.warn("⚠️ Failed to load saved booking data:", err);
+        localStorage.removeItem("bookingInfo");
+      }
+    }
+  }, []);
+
+  // 💾 Save to localStorage when form updates
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      localStorage.setItem("bookingInfo", JSON.stringify(form));
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [form]);
+
+  
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -97,7 +126,6 @@ useEffect(() => {
       return;
     }
 
-
     const payload = {
       fullName: form.fullName,
       email: form.email,
@@ -120,6 +148,7 @@ useEffect(() => {
         setSuccess(true);
         setErrorMessage("");
         setTimeout(() => setSuccess(false), 5000);
+        localStorage.removeItem("bookingInfo"); // 🧼 clear saved form
         setForm({
           fullName: "",
           phone: "",
@@ -139,6 +168,7 @@ useEffect(() => {
           ],
           service: "",
           notes: "",
+          entries: [],
         });
         setSelectedDay(null);
         setAvailableSlots([]);
@@ -163,7 +193,6 @@ useEffect(() => {
           data.error || "Something went wrong. Please try again."
         );
       }
-
     } catch (err) {
       console.error(err);
       alert("Server error.");
@@ -259,7 +288,6 @@ useEffect(() => {
             }}
           />
 
-
           {/* Notes */}
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-900">
@@ -306,13 +334,47 @@ useEffect(() => {
             + Add Another Pet
           </button>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full btn btn-primary"
-          >
-            {submitting ? "Submitting..." : "Submit Booking"}
-          </button>
+          <div className="flex flex-col space-y-3">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary w-full h-12 text-base"
+            >
+              📩 Submit Booking
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("bookingInfo");
+                setForm({
+                  fullName: "",
+                  phone: "",
+                  email: "",
+                  address: "",
+                  pets: [
+                    {
+                      name: "",
+                      dob: "",
+                      vaccinations: "",
+                      medicalConditions: "",
+                      vetInfo: "",
+                      feedingSchedule: "",
+                      walkSchedule: "",
+                      additionalNotes: "",
+                    },
+                  ],
+                  entries: [],
+                  service: "",
+                  notes: "",
+                });
+                toast.success("Saved booking info cleared.");
+              }}
+              className="btn btn-outline w-full h-12 text-base"
+            >
+              🧹 Clear Saved Info
+            </button>
+          </div>
 
           {errorMessage && (
             <div className="p-4 text-sm text-red-800 bg-red-100 rounded-lg shadow-md">
