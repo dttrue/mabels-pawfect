@@ -74,7 +74,7 @@ export async function GET(req, { params }) {
       `,
     });
 
-    console.log("📧 Confirmation email sent to:", booking.email);
+  
 
     return NextResponse.json({
       message: "Booking accepted and confirmation email sent.",
