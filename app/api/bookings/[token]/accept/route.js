@@ -69,8 +69,6 @@ export async function GET(req, { params }) {
       html: `
         <h2>Hi ${booking.fullName},</h2>
         <p>Your booking has been <strong>accepted</strong>!</p>
-        <p>Scheduled Date(s):</p>
-        <ul>${formattedDates}</ul>
         <p>Thank you for choosing Mabel’s Pawfect!</p>
         <p>🐾 The Mabel’s Pawfect Team</p>
       `,

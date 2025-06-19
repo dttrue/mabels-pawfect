@@ -109,8 +109,6 @@ export async function GET(req, { params }) {
       html: `
         <h2>Hi ${booking.fullName},</h2>
         <p>Your booking has been <strong>declined</strong>.</p>
-        <p>Declined Date(s):</p>
-        <ul>${formattedDates}</ul>
         <p>We appreciate your interest and hope to connect again in the future.</p>
         <br/>
         <p>🐾 Mabel’s Pawfect Team</p>
