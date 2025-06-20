@@ -1,12 +1,13 @@
 // components/BookingForm.jsx
 "use client";
 import toast from "react-hot-toast";
-import { useState, useEffect } from "react";
-import PetForm from "@/components/PetForm";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { serviceOptions } from "@/lib/servicesData";
+import PetForm from "@/components/PetForm";
 import BookingMultiDatePicker from "@/components/booking/BookingMultiDatePicker";
-
+import { serviceOptions } from "@/lib/servicesData";
+import BookingIntroModal from "@/components/modals/BookingIntroModal";
+import { set } from "react-hook-form";
 
 export default function BookingForm() {
   const [form, setForm] = useState({
@@ -37,39 +38,59 @@ export default function BookingForm() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showIntroModal, setShowIntroModal] = useState(false);
   const router = useRouter();
+  const [formLoaded, setFormLoaded] = useState(false);
+  const [bookingRestored, setBookingRestored] = useState(false);
+
+  const isFormActuallyEmpty =
+    bookingRestored &&
+    !form.fullName &&
+    !form.email &&
+    !form.phone &&
+    !form.address &&
+    !form.service &&
+    !form.notes &&
+    (!form.entries || form.entries.length === 0) &&
+    form.pets.length === 1 &&
+    Object.values(form.pets[0]).every((val) => val === "");
+
 
   // Load all blocked overnights
   useEffect(() => {
     const fetchBlocked = async () => {
       const res = await fetch("/api/blocked-dates?service=overnight");
       const data = await res.json();
-      setBlockedDates(data); // Assuming it's a list of ISO strings like "2025-06-18"
+      setBlockedDates(data);
     };
 
     fetchBlocked();
   }, []);
 
-  // ⏪ Load from localStorage on first render
+  // Load from localStorage on first render
   useEffect(() => {
-    const saved = localStorage.getItem("bookingInfo");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setForm((prev) => ({
-          ...prev,
-          ...parsed,
-          pets: parsed.pets || prev.pets,
-          entries: parsed.entries || [],
-        }));
-      } catch (err) {
-        console.warn("⚠️ Failed to load saved booking data:", err);
-        localStorage.removeItem("bookingInfo");
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("bookingInfo");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setForm((prev) => ({
+            ...prev,
+            ...parsed,
+            pets: parsed.pets || prev.pets,
+            entries: parsed.entries || [],
+          }));
+        } catch (err) {
+          console.warn("⚠️ Failed to load saved booking data:", err);
+          localStorage.removeItem("bookingInfo");
+        }
       }
+      setBookingRestored(true);
+      setFormLoaded(true);
     }
   }, []);
 
-  // 💾 Save to localStorage when form updates
+  // Save to localStorage when form updates
   useEffect(() => {
     const timeout = setTimeout(() => {
       localStorage.setItem("bookingInfo", JSON.stringify(form));
@@ -77,7 +98,17 @@ export default function BookingForm() {
     return () => clearTimeout(timeout);
   }, [form]);
 
-  
+  // Show intro modal if form is empty and user hasn't dismissed it
+  useEffect(() => {
+    if (formLoaded && bookingRestored && typeof window !== "undefined") {
+      const hideIntro = localStorage.getItem("hideBookingIntro") === "true";
+      if (!hideIntro && isFormActuallyEmpty) {
+        setShowIntroModal(true);
+      }
+    }
+  }, [formLoaded, bookingRestored, isFormActuallyEmpty]);
+
+
 
 
   const handleChange = (e) => {
@@ -148,7 +179,7 @@ export default function BookingForm() {
         setSuccess(true);
         setErrorMessage("");
         setTimeout(() => setSuccess(false), 5000);
-        localStorage.removeItem("bookingInfo"); // 🧼 clear saved form
+        localStorage.removeItem("bookingInfo");
         setForm({
           fullName: "",
           phone: "",
@@ -175,8 +206,6 @@ export default function BookingForm() {
         router.push("/thank-you");
       } else {
         const data = await res.json();
-
-        // 🔥 Show toast if it's the overnight blackout message
         if (
           data?.error?.includes(
             "Overnight bookings are unavailable from June 27"
@@ -188,7 +217,6 @@ export default function BookingForm() {
             `⚠️ ${data.error || "Something went wrong. Please try again."}`
           );
         }
-
         setErrorMessage(
           data.error || "Something went wrong. Please try again."
         );
@@ -202,6 +230,8 @@ export default function BookingForm() {
   };
 
   return (
+<>
+    {showIntroModal && <BookingIntroModal onClose={() => setShowIntroModal(false)} />}
     <div className="w-full px-4 py-10 max-w-4xl mx-auto">
       <div className="bg-white shadow-lg rounded-xl p-6 space-y-6">
         <h1 className="text-3xl font-bold text-center text-gray-900">
@@ -394,6 +424,7 @@ export default function BookingForm() {
         </form>
       </div>
     </div>
+    </>
   );
 }
 
