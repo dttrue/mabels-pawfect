@@ -1,18 +1,32 @@
-'use client';
-import { useEffect, useState } from "react";
-import memorials from "@/lib/memoriamData";
+// 
 
+"use client";
+import { useEffect, useState } from "react";
 
 export default function MemoriamCarousel() {
+  const [memorials, setMemorials] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
+    fetch("/api/admin/gallery")
+      .then((res) => res.json())
+      .then((data) => {
+        const filtered = data.filter(
+          (img) => img.category === "MEMORIAM" && !img.deletedAt
+        );
+        setMemorials(filtered);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (memorials.length === 0) return;
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % memorials.length);
     }, 6000);
-
     return () => clearInterval(interval);
-  }, []);
+  }, [memorials]);
+
+  if (memorials.length === 0) return null;
 
   const currentPet = memorials[currentIndex];
 
@@ -22,15 +36,17 @@ export default function MemoriamCarousel() {
         <div className="relative w-full max-w-xs mx-auto rounded-lg overflow-hidden shadow-md aspect-[4/5] bg-gray-100">
           <div className="absolute inset-0 transition-opacity duration-1000 ease-in-out">
             <img
-              src={currentPet.image}
-              alt={currentPet.name}
+              src={currentPet.imageUrl}
+              alt={currentPet.altText || currentPet.caption || "Memorial Pet"}
               className="w-full h-full object-contain"
             />
             <div className="absolute inset-0 bg-black/30 flex flex-col justify-start items-center text-white px-4 pt-4">
-              <h3 className="text-lg font-bold mb-1">{currentPet.name}</h3>
-              {currentPet.tribute && (
+              <h3 className="text-lg font-bold mb-1">
+                {currentPet.altText || "A Beloved Friend"}
+              </h3>
+              {currentPet.caption && (
                 <p className="text-xs text-center italic text-pink-100">
-                  {currentPet.tribute}
+                  {currentPet.caption}
                 </p>
               )}
             </div>

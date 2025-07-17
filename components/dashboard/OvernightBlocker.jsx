@@ -23,9 +23,20 @@ export default function OvernightBlocker() {
   const isBlocked = (date) => blockedDates.includes(date);
 
   const handleToggle = async () => {
+    if (!selectedDate) {
+      toast.error("⚠️ Please select a date first.");
+      return;
+    }
+
     setLoading(true);
 
     const method = isBlocked(selectedDate) ? "DELETE" : "POST";
+
+    // ✅ Add this log here
+    console.log("📤 Sending request to block/unblock:", {
+      method,
+      date: selectedDate,
+    });
 
     const res = await fetch("/api/blocked-dates", {
       method,
@@ -38,12 +49,10 @@ export default function OvernightBlocker() {
         method === "DELETE" ? "✅ Date unblocked." : "✅ Date blocked."
       );
 
-      // 🧠 Save the unblocked date so we can strike it through temporarily
       if (method === "DELETE") {
         const formatted = new Date(selectedDate).toISOString().split("T")[0];
         setJustUnblockedDate(formatted);
 
-        // Wait 1500ms to show strike-through before re-fetching list
         setTimeout(async () => {
           await fetchBlockedDates();
           setJustUnblockedDate(null);
@@ -58,6 +67,7 @@ export default function OvernightBlocker() {
 
     setLoading(false);
   };
+
 
 
 

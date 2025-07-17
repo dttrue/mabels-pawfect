@@ -63,27 +63,27 @@ model BlockedDate {
 }
 
 
-model ProviderGallery {
-  id          String        @id @default(uuid())
-  providerId  String
-  provider    ProviderUser  @relation(fields: [providerId], references: [id])
-  imageUrl    String
-  altText     String?
-  caption     String?
-  publicId    String        @unique
-  deletedAt   DateTime?
-  createdAt   DateTime      @default(now())
+enum GalleryCategory {
+  HAPPY
+  MEMORIAM
 }
 
-model ProviderUser {
-  id         String   @id @default(uuid())
-  clerkId    String   @unique
-  email      String   @unique
-  imageUrl   String?  // Optional: avatar for admin dashboard
-  name       String 
-  gallery    ProviderGallery[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model Gallery {
+  id        String   @id @default(uuid())
+  imageUrl  String
+  altText   String?
+  caption   String?
+  publicId  String   @unique
+  category  GalleryCategory @default(HAPPY)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("ProviderGallery")
 }
+
+
+
+
+
 
 

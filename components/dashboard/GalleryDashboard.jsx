@@ -1,9 +1,8 @@
-// components/dashboard/GalleryDashboard.jsx
 "use client";
 
-import GalleryList from "@/archive/gallery/GalleryList";
-import GalleryUploadForm from "@/archive/gallery/GalleryUploadForm";
 import { useState } from "react";
+import GalleryList from "@/components/dashboard/gallery/GalleryList";
+import GalleryUploader from "@/components/dashboard/GalleryUploader";
 
 export default function GalleryDashboard() {
   const [refreshKey, setRefreshKey] = useState(Date.now());
@@ -14,7 +13,7 @@ export default function GalleryDashboard() {
 
   return (
     <div className="space-y-6">
-      <GalleryUploadForm onUploadComplete={handleUploadComplete} />
+      <GalleryUploader onUploadComplete={handleUploadComplete} />
       <GalleryList key={refreshKey} />
     </div>
   );

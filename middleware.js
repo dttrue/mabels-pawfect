@@ -3,20 +3,25 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
-const allowedIds = ["user_2xYcBxcVUeYD9RmUOhCdEErW4ef"]; // Your real Clerk ID
+const allowedIds = [
+  "user_2xYcBxcVUeYD9RmUOhCdEErW4ef", // Daniel
+  "user_2xbPOkF9DIJJQFVuQk0QbjBw5bC", // Bridget
+];
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isAdminRoute(req)) return;
 
-  const { userId } = await auth(); // ✅ NOTICE: async + await
+  const { userId } = await auth(); // Await the auth object
 
   console.log("🪪 Clerk Middleware User ID:", userId);
   console.log("🧪 allowedIds:", allowedIds);
   console.log("🧪 Match found?", allowedIds.includes(userId));
-  if (userId !== "user_2xYcBxcVUeYD9RmUOhCdEErW4ef") {
+
+  if (!allowedIds.includes(userId)) {
     return NextResponse.redirect(new URL("/not-authorized", req.url));
   }
 });
+
 
 
 

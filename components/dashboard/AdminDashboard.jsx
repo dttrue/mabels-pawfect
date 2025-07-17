@@ -6,6 +6,8 @@ import axios from "axios";
 import NewsletterAdminForm from "@/components/dashboard/NewsletterAdminForm";
 import ImagePreviewModal from "@/components/modals/ImagePreviewModal";
 import OvernightBlocker from "@/components/dashboard/OvernightBlocker";
+import GalleryDashboard from "@/components/dashboard/GalleryDashboard";
+
 
 export default function AdminDashboard() {
   const [newsletters, setNewsletters] = useState([]);
@@ -104,6 +106,14 @@ export default function AdminDashboard() {
 
       {/* NEW Overnight blocking tool */}
       <OvernightBlocker />
+
+      {/* NEW Gallery Manager Section */}
+      <div className="mt-16 border-t pt-12">
+        <h2 className="text-xl font-semibold mb-4 text-center">
+          📸 Manage Gallery
+        </h2>
+        <GalleryDashboard />
+      </div>
     </div>
   );
 }

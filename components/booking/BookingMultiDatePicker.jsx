@@ -1,24 +1,23 @@
 // components/BookingMultiDatePicker.jsx
 
-// components/BookingMultiDatePicker.jsx
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import DatePicker from "react-multi-date-picker";
 import generateDefaultTimeSlots from "@/utils/generateDefaultTimeSlots";
 
 export default function BookingMultiDatePicker({
   onChange,
   blockedDates = [],
+   service = "",
 }) {
   const [selectedDates, setSelectedDates] = useState([]);
   const [timesByDate, setTimesByDate] = useState({});
 
   const timeSlots = generateDefaultTimeSlots(6, 23, 30); // 6:00 AM – 11:00 PM
 
-  // Sync selectedDates with timesByDate and emit formatted entries
-  // 🧩 Sync timesByDate keys to match selectedDates
+  const blockedSet = useMemo(() => new Set(blockedDates), [blockedDates]);
+
   useEffect(() => {
     const updated = { ...timesByDate };
     let changed = false;
@@ -36,7 +35,6 @@ export default function BookingMultiDatePicker({
     }
   }, [selectedDates]);
 
-  // ✅ Emit final entries once timesByDate is stable
   useEffect(() => {
     const entries = Object.entries(timesByDate).map(([date, time]) => {
       const matchedSlot = timeSlots.find((slot) => slot.value === time);
@@ -46,7 +44,6 @@ export default function BookingMultiDatePicker({
       };
     });
 
-    
     onChange?.(entries);
   }, [timesByDate]);
 
@@ -70,26 +67,93 @@ export default function BookingMultiDatePicker({
         <DatePicker
           multiple
           value={selectedDates}
-          onChange={setSelectedDates}
+          onChange={(dates) => {
+            const normalizedService =
+              typeof service === "object"
+                ? service.label?.toLowerCase?.() || ""
+                : service?.toLowerCase?.() || "";
+
+            const isOvernight = normalizedService.includes("overnight sitting");
+
+            console.log("📅 Selected Dates:", dates);
+            console.log("🔍 Service:", normalizedService);
+            console.log("🛑 Blocked Dates:", blockedDates);
+            console.log("🌙 Is Overnight:", isOvernight);
+            console.log("💬 Raw Service:", service);
+            console.log("🧽 Normalized:", normalizedService);
+            console.log("🪓 Cleaned:", cleanLabel);
+
+
+            // Filter out blocked dates only if overnight
+            const filteredDates = isOvernight
+              ? dates.filter((date) => {
+                  const iso = new Date(date).toISOString().split("T")[0];
+                  const isBlocked = blockedDates.includes(iso);
+                  console.log(`🧪 Checking date ${iso} → Blocked?`, isBlocked);
+                  return !isBlocked;
+                })
+              : dates;
+
+            console.log("✅ Final Allowed Dates:", filteredDates);
+
+            setSelectedDates(filteredDates);
+          }}
           format="YYYY-MM-DD"
-          numberOfMonths={1}
+          numberOfMonths={2}
           calendarPosition="bottom-left"
+          minDate={new Date()}
+          maxDate={new Date(new Date().setMonth(new Date().getMonth() + 6))}
           className="rounded-xl shadow-md w-full bg-pinky-50 text-pinky-700 border-pinky-300 border transition-all duration-200"
           mapDays={({ date }) => {
             const iso = date?.toDate?.().toISOString().split("T")[0];
-            if (blockedDates.includes(iso)) {
+
+            let normalizedService = "";
+
+            if (typeof service === "object") {
+              normalizedService = service.label?.toLowerCase?.() || "";
+            } else if (typeof service === "string") {
+              normalizedService = service.toLowerCase();
+            }
+
+
+            const isOvernight =
+              normalizedService.includes("overnight") &&
+              normalizedService.includes("cat");
+
+
+
+
+            const isBlocked = blockedDates.includes(iso);
+
+            if (isOvernight && isBlocked) {
+              console.log(
+                "⛔️ Disabling blocked overnight date on calendar:",
+                iso
+              );
               return {
                 disabled: true,
                 style: {
-                  backgroundColor: "#FAD1E8",
-                  color: "#999",
+                  color: "#bbb",
                   textDecoration: "line-through",
+                  fontSize: "0.8rem",
                 },
+                content: (
+                  <div className="flex flex-col items-center justify-center text-[10px] text-gray-500">
+                    <span>{date.day}</span>
+                    <span className="text-red-500">📛</span>
+                  </div>
+                ),
               };
             }
+
             return {};
           }}
         />
+
+        <p className="text-sm mt-2 text-gray-600">
+          <span className="inline-block mr-1">📛</span>Unavailable for overnight
+          bookings
+        </p>
       </div>
 
       {Object.keys(timesByDate).length > 0 && (
