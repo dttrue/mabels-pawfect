@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import ToggleSection from "@/components/common/ToggleSection";
 
 export default function OvernightBlocker() {
   const [blockedDates, setBlockedDates] = useState([]);
@@ -74,13 +75,11 @@ export default function OvernightBlocker() {
   return (
     <div className="mt-10 space-y-4">
       <h2 className="text-lg font-bold">📅 Overnight Booking Control</h2>
-
       <input
         type="date"
         className="input input-bordered"
         onChange={(e) => setSelectedDate(e.target.value)}
       />
-
       {selectedDate && (
         <button
           disabled={loading}
@@ -96,28 +95,29 @@ export default function OvernightBlocker() {
               : "Block Overnight"}
         </button>
       )}
-
       {/* Show a small preview of currently blocked dates */}
+    
       {blockedDates.length > 0 && (
-        <div className="text-sm text-gray-600 mt-4">
-          <p className="font-medium mb-1">Currently Blocked Dates:</p>
-          <ul className="list-disc list-inside space-y-1">
-            {console.log("🧾 Blocked Dates Rendering:", blockedDates)}
-            {blockedDates.map((d) => {
-              const isUnblocked = d === justUnblockedDate;
-              return (
-                <li
-                  key={d}
-                  className={`transition-all duration-300 ${
-                    isUnblocked ? "line-through text-gray-400" : ""
-                  }`}
-                >
-                  📌 {d}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <ToggleSection title="Blocked Dates">
+          <div className="text-sm text-gray-600">
+            <ul className="list-disc list-inside space-y-1">
+              {console.log("🧾 Blocked Dates Rendering:", blockedDates)}
+              {blockedDates.map((d) => {
+                const isUnblocked = d === justUnblockedDate;
+                return (
+                  <li
+                    key={d}
+                    className={`transition-all duration-300 ${
+                      isUnblocked ? "line-through text-gray-400" : ""
+                    }`}
+                  >
+                    📌 {d}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </ToggleSection>
       )}
     </div>
   );

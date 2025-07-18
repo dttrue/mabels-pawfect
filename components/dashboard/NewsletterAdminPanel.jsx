@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import NewsletterAdminForm from "./NewsletterAdminForm";
+import ToggleSection from "@/components/common/ToggleSection";
 
 export default function NewsletterAdminPanel() {
   const [newsletters, setNewsletters] = useState([]);
@@ -49,24 +50,30 @@ export default function NewsletterAdminPanel() {
       ) : newsletters.length === 0 ? (
         <p>No newsletters found.</p>
       ) : (
-        <ul className="space-y-4">
-          {newsletters.map((n) => (
-            <li key={n.id} className="border rounded-lg p-4 shadow-sm">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-bold text-lg">{n.title}</h3>
-                  <p className="text-sm text-gray-600">{n.description}</p>
-                </div>
-                <button
-                  onClick={() => handleDelete(n.id)}
-                  className="btn btn-error btn-sm"
-                >
-                  🗑 Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <ToggleSection title="Current Newsletters">
+          {newsletters.length === 0 ? (
+            <p>No newsletters found.</p>
+          ) : (
+            <ul className="space-y-4">
+              {newsletters.map((n) => (
+                <li key={n.id} className="border rounded-lg p-4 shadow-sm">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-lg">{n.title}</h3>
+                      <p className="text-sm text-gray-600">{n.description}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(n.id)}
+                      className="btn btn-error btn-sm"
+                    >
+                      🗑 Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ToggleSection>
       )}
     </div>
   );
