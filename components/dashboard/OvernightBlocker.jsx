@@ -101,7 +101,7 @@ export default function OvernightBlocker() {
         <ToggleSection title="Blocked Dates">
           <div className="text-sm text-gray-600">
             <ul className="list-disc list-inside space-y-1">
-              {console.log("🧾 Blocked Dates Rendering:", blockedDates)}
+             
               {blockedDates.map((d) => {
                 const isUnblocked = d === justUnblockedDate;
                 return (

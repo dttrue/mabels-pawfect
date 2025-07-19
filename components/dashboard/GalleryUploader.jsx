@@ -10,6 +10,11 @@ export default function GalleryUploader({ onUploadComplete }) {
   const [caption, setCaption] = useState("");
   const [category, setCategory] = useState("HAPPY");
   const [loading, setLoading] = useState(false);
+  const [keywords, setKeywords] = useState("");
+  const MAX_KEYWORDS = 10;
+  const MAX_ALT_LENGTH = 125;
+
+
 
   const handleUpload = async () => {
     if (!imageFile) {
@@ -89,8 +94,52 @@ export default function GalleryUploader({ onUploadComplete }) {
         placeholder="Alt text"
         value={altText}
         onChange={(e) => setAltText(e.target.value)}
+        maxLength={MAX_ALT_LENGTH}
         className="input input-bordered w-full"
       />
+
+      <p
+        className={`text-sm mt-1 ${
+          altText.length > MAX_ALT_LENGTH * 0.9
+            ? "text-red-500 font-semibold"
+            : "text-gray-500"
+        }`}
+      >
+        {altText.length} / {MAX_ALT_LENGTH} characters
+      </p>
+
+      <input
+        type="text"
+        name="keywords"
+        value={keywords}
+        onChange={(e) => setKeywords(e.target.value)}
+        onBlur={() => {
+          const sanitized = keywords
+            .split(",")
+            .map((kw) => kw.trim().toLowerCase())
+            .filter((kw) => kw.length > 0);
+
+          if (sanitized.length > MAX_KEYWORDS) {
+            alert(`⚠️ Max ${MAX_KEYWORDS} keywords allowed.`);
+            setKeywords(sanitized.slice(0, MAX_KEYWORDS).join(", "));
+          } else {
+            setKeywords(sanitized.join(", "));
+          }
+        }}
+        placeholder="e.g. happy, small dog, black lab"
+        className="input input-bordered w-full"
+      />
+
+      <p
+        className={`text-sm mt-1 ${
+          keywords.split(",").length > MAX_KEYWORDS
+            ? "text-red-500 font-semibold"
+            : "text-gray-500"
+        }`}
+      >
+        {keywords.split(",").length} / {MAX_KEYWORDS} keywords
+      </p>
+
       <input
         type="text"
         placeholder="Caption (optional)"
@@ -98,6 +147,8 @@ export default function GalleryUploader({ onUploadComplete }) {
         onChange={(e) => setCaption(e.target.value)}
         className="input input-bordered w-full"
       />
+
+      
       <select
         value={category}
         onChange={(e) => setCategory(e.target.value)}

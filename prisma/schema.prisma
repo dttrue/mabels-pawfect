@@ -75,6 +75,7 @@ model Gallery {
   caption   String?
   publicId  String   @unique
   category  GalleryCategory @default(HAPPY)
+  keywords  String[]        @default([])
   deletedAt DateTime?
   createdAt DateTime @default(now())
 

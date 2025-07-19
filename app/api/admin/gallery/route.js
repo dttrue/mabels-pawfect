@@ -24,6 +24,7 @@ export async function POST(req) {
     const caption = formData.get("caption");
     const altText = formData.get("altText");
     const category = formData.get("category");
+    const keywordsRaw = formData.get("keywords"); // ✅ New field
 
     if (!file || typeof file !== "object") {
       return NextResponse.json({ error: "Missing file" }, { status: 400 });
@@ -54,6 +55,15 @@ export async function POST(req) {
       );
     }
 
+    // ✅ Sanitize keywords string (comma-separated, lowercase, trimmed)
+    const keywords = keywordsRaw
+      ? keywordsRaw
+          .split(",")
+          .map((kw) => kw.trim().toLowerCase())
+          .filter((kw) => kw.length > 0)
+          .slice(0, 10) // max 10
+      : [];
+
     const newImage = await prisma.gallery.create({
       data: {
         imageUrl: data.secure_url,
@@ -61,6 +71,8 @@ export async function POST(req) {
         caption: caption || null,
         altText: altText || null,
         category: category || "HAPPY",
+        // ✅ Assuming you've added this field in your schema
+        keywords: keywords.join(", "),
       },
     });
 
@@ -70,3 +82,4 @@ export async function POST(req) {
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }
+

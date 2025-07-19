@@ -19,7 +19,7 @@ export async function POST(req) {
       where: { isActive: true },
     });
 
-    if (activeCount >= 4) {
+    if (activeCount >= 8) {
       const oldest = await prisma.newsletter.findFirst({
         where: { isActive: true },
         orderBy: { createdAt: "asc" },
