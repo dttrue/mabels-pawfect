@@ -50,7 +50,7 @@ export async function GET() {
     const newsletters = await prisma.newsletter.findMany({
       where: { isActive: true },
       orderBy: { createdAt: "desc" },
-      take: 4,
+      take: 8,
     });
 
     return NextResponse.json(newsletters);
