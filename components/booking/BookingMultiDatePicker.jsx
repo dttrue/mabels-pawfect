@@ -6,6 +6,8 @@ import { useState, useEffect, useMemo } from "react";
 import DatePicker from "react-multi-date-picker";
 import generateDefaultTimeSlots from "@/utils/generateDefaultTimeSlots";
 
+
+
 export default function BookingMultiDatePicker({
   onChange,
   blockedDates = [],
@@ -75,13 +77,13 @@ export default function BookingMultiDatePicker({
 
             const isOvernight = normalizedService.includes("overnight sitting");
 
-            console.log("📅 Selected Dates:", dates);
-            console.log("🔍 Service:", normalizedService);
-            console.log("🛑 Blocked Dates:", blockedDates);
-            console.log("🌙 Is Overnight:", isOvernight);
-            console.log("💬 Raw Service:", service);
-            console.log("🧽 Normalized:", normalizedService);
-            console.log("🪓 Cleaned:", cleanLabel);
+            // console.log("📅 Selected Dates:", dates);
+            // console.log("🔍 Service:", normalizedService);
+            // console.log("🛑 Blocked Dates:", blockedDates);
+            // console.log("🌙 Is Overnight:", isOvernight);
+            // console.log("💬 Raw Service:", service);
+            // console.log("🧽 Normalized:", normalizedService);
+           
 
 
             // Filter out blocked dates only if overnight
