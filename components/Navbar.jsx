@@ -32,8 +32,8 @@ export default function Navbar() {
             <Link href="/reviews" className="hover:text-pink-600">
               Reviews
             </Link>
-            <Link href="/newsletter" className="hover:text-pink-600">
-              Newsletter
+            <Link href="/donations" className="hover:text-pink-600">
+              Donations
             </Link>
             <Link href="/about" className="hover:text-pink-600">
               About
@@ -106,8 +106,8 @@ export default function Navbar() {
               </Link>
             </li>
             <li>
-              <Link href="/newsletter" onClick={toggleMobileMenu}>
-                Newsletter
+              <Link href="/donations" onClick={toggleMobileMenu}>
+                Donations
               </Link>
             </li>
             <li>

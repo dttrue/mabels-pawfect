@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { Resend } from "resend";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
-import { formatDateWithTime } from "@/utils/formatDateTime";
+import { generateBookingRequestEmail } from "@/lib/emails/generateBookingRequestEmail";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -32,7 +32,6 @@ export async function POST(req) {
     for (const { date, time } of entries) {
       const requestedDate = new Date(`${date}T${time}`);
 
-      // 1. Overnight block
       if (
         isOvernightService &&
         requestedDate >= overnightBlockStart &&
@@ -42,7 +41,6 @@ export async function POST(req) {
         continue;
       }
 
-      // 2. Admin blocked date
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(date);
@@ -60,7 +58,6 @@ export async function POST(req) {
         continue;
       }
 
-      // 3. Conflict check (15-minute buffer)
       const existingBookings = await prisma.booking.findMany({
         where: {
           service,
@@ -98,7 +95,6 @@ export async function POST(req) {
         continue;
       }
 
-      // ✅ Passed all checks
       validEntries.push({ date, time });
     }
 
@@ -135,71 +131,27 @@ export async function POST(req) {
     const acceptUrl = `${baseUrl}/api/bookings/${token}/accept`;
     const declineUrl = `${baseUrl}/api/bookings/${token}/decline`;
 
+    const html = generateBookingRequestEmail({
+      fullName,
+      phone,
+      address,
+      service,
+      entries: validEntries,
+      pets,
+      notes,
+      acceptUrl,
+      declineUrl,
+    });
+
     const emailResult = await resend.emails.send({
       from: "Mabel's Pawfect <no-reply@mabelspawfectpetservices.com>",
       to: "therainbowniche@gmail.com",
       subject: `New Booking Request from ${fullName} at ${new Date().toLocaleTimeString()}`,
-      html: `
-        <h2>🐾 New Booking Request</h2>
-        <p><strong>Name:</strong> ${fullName}</p>
-        <p><strong>Phone:</strong> ${phone}</p>
-        <p><strong>Service:</strong> ${service}</p>
-        <p><strong>Dates Requested:</strong></p>
-        <ul>
-          ${validEntries
-            .map((entry) => {
-              const formatted =
-                entry?.date && entry?.time
-                  ? formatDateWithTime(entry.date, entry.time)
-                  : "Invalid Date";
-              return `<li>${formatted}</li>`;
-            })
-            .join("")}
-        </ul>
-        <p><strong>Address:</strong> ${address}</p>
-        <p><strong>Notes:</strong> ${notes || "None"}</p>
-        <ul>
-          ${pets
-            .map(
-              (p) => `
-              <li>
-                <strong>${p.name}</strong> (${p.dob || "DOB not provided"})<br/>
-                Vaccinations: ${p.vaccinations || "N/A"}<br/>
-                Medical: ${p.medicalConditions || "N/A"}<br/>
-                Feeding: ${p.feedingSchedule || "N/A"}<br/>
-                Walks: ${p.walkSchedule || "N/A"}<br/>
-                Vet: ${p.vetInfo || "N/A"}<br/>
-                Notes: ${p.additionalNotes || "None"}
-              </li><br/>`
-            )
-            .join("")}
-        </ul>
-        <hr/>
-        <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-          <tr>
-            <td bgcolor="#28a745" style="border-radius:5px;">
-              <a href="${acceptUrl}" target="_blank" style="display:inline-block;padding:12px 24px;font-family:sans-serif;font-size:16px;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:5px;">
-                ✅ Accept Booking
-              </a>
-            </td>
-          </tr>
-        </table>
-        <br/>
-        <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-          <tr>
-            <td bgcolor="#dc3545" style="border-radius:5px;">
-              <a href="${declineUrl}" target="_blank" style="display:inline-block;padding:12px 24px;font-family:sans-serif;font-size:16px;color:#ffffff;text-decoration:none;font-weight:bold;border-radius:5px;">
-                ❌ Decline Booking
-              </a>
-            </td>
-          </tr>
-        </table>
-      `,
+      html,
     });
 
     console.log("📬 Booking email result:", emailResult);
-    console.log("📧 Email links:");
-    console.log("✅ Accept:", acceptUrl);
+    console.log("📧 Accept:", acceptUrl);
     console.log("❌ Decline:", declineUrl);
 
     return NextResponse.json(

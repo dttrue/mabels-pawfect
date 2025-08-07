@@ -48,10 +48,14 @@ model Newsletter {
   title       String
   description String?
   imageUrl    String
-  fileUrl     String?   // Optional downloadable PDF
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
+  altText     String?          // ✅ NEW
+  fileUrl     String?
+  publicId    String?          // ✅ NEW
+  keywords    String[] @default([]) // ✅ NEW
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }
+
 
 model BlockedDate {
   id        String   @id @default(uuid())

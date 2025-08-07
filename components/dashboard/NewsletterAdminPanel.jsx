@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import NewsletterAdminForm from "./NewsletterAdminForm";
 import ToggleSection from "@/components/common/ToggleSection";
+import Image from "next/image";
 
 export default function NewsletterAdminPanel() {
   const [newsletters, setNewsletters] = useState([]);
@@ -51,28 +52,57 @@ export default function NewsletterAdminPanel() {
         <p>No newsletters found.</p>
       ) : (
         <ToggleSection title="Current Newsletters">
-          {newsletters.length === 0 ? (
-            <p>No newsletters found.</p>
-          ) : (
-            <ul className="space-y-4">
-              {newsletters.map((n) => (
-                <li key={n.id} className="border rounded-lg p-4 shadow-sm">
-                  <div className="flex justify-between items-center">
+          <ul className="space-y-4">
+            {newsletters.map((n) => (
+              <li
+                key={n.id}
+                className="border rounded-lg p-4 bg-base-200 shadow-sm flex flex-col sm:flex-row gap-4"
+              >
+                {n.imageUrl && (
+                  <Image
+                    src={n.imageUrl}
+                    alt={n.altText || "Newsletter image"}
+                    width={160}
+                    height={200}
+                    className="w-full sm:w-40 h-auto object-cover rounded"
+                    loading="lazy"
+                    priority={n.isFeatured}
+                  />
+                )}
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between items-start gap-2">
                     <div>
                       <h3 className="font-bold text-lg">{n.title}</h3>
                       <p className="text-sm text-gray-600">{n.description}</p>
                     </div>
                     <button
                       onClick={() => handleDelete(n.id)}
-                      className="btn btn-error btn-sm"
+                      className="btn btn-sm btn-error"
                     >
                       🗑 Delete
                     </button>
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
+
+                  {n.fileUrl && (
+                    <a
+                      href={n.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 underline inline-block"
+                    >
+                      📄 View PDF
+                    </a>
+                  )}
+
+                  {n.keywords?.length > 0 && (
+                    <p className="text-xs text-gray-500 italic">
+                      Keywords: {n.keywords.join(", ")}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </ToggleSection>
       )}
     </div>

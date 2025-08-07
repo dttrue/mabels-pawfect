@@ -2,11 +2,20 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// 🚀 POST /api/newsletters → Upload a new newsletter
+// 🚀 POST /api/newsletters
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { title, description, imageUrl, fileUrl, isActive = true } = body;
+    const {
+      title,
+      description,
+      imageUrl,
+      fileUrl,
+      isActive = true,
+      altText,
+      publicId,
+      keywords,
+    } = body;
 
     if (!title || !imageUrl) {
       return NextResponse.json(
@@ -15,6 +24,7 @@ export async function POST(req) {
       );
     }
 
+    // Keep max of 8 active newsletters
     const activeCount = await prisma.newsletter.count({
       where: { isActive: true },
     });
@@ -33,24 +43,47 @@ export async function POST(req) {
       }
     }
 
-    const newNewsletter = await prisma.newsletter.create({
-      data: { title, description, imageUrl, fileUrl, isActive },
+    const created = await prisma.newsletter.create({
+      data: {
+        title,
+        description,
+        imageUrl,
+        fileUrl,
+        isActive,
+        altText,
+        publicId,
+        keywords: Array.isArray(keywords)
+          ? keywords
+          : typeof keywords === "string"
+            ? keywords.split(",").map((kw) => kw.trim())
+            : [],
+      },
     });
 
-    return NextResponse.json(newNewsletter);
+    return NextResponse.json(created);
   } catch (err) {
     console.error("Newsletter creation failed:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-// ✅ GET /api/newsletters → Fetch the 4 most recent active newsletters
+// ✅ GET /api/newsletters → For homepage carousel
 export async function GET() {
   try {
     const newsletters = await prisma.newsletter.findMany({
       where: { isActive: true },
       orderBy: { createdAt: "desc" },
-      take: 8,
+      take: 3, // 🔧 Show only 3 in carousel
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        imageUrl: true,
+        altText: true,
+        fileUrl: true,
+        createdAt: true,
+        keywords: true,
+      },
     });
 
     return NextResponse.json(newsletters);
@@ -59,4 +92,5 @@ export async function GET() {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
 

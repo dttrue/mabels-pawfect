@@ -1,8 +1,8 @@
-// 
+// components/gallery/MemoriamCarousel.jsx
 
 "use client";
 import { useEffect, useState } from "react";
-
+import Image from "next/image";
 export default function MemoriamCarousel() {
   const [memorials, setMemorials] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -35,10 +35,13 @@ export default function MemoriamCarousel() {
       <div className="max-w-2xl mx-auto text-center">
         <div className="relative w-full max-w-xs mx-auto rounded-lg overflow-hidden shadow-md aspect-[4/5] bg-gray-100">
           <div className="absolute inset-0 transition-opacity duration-1000 ease-in-out">
-            <img
+            <Image
               src={currentPet.imageUrl}
               alt={currentPet.altText || currentPet.caption || "Memorial Pet"}
-              className="w-full h-full object-contain"
+              fill
+              className="object-contain"
+              sizes="(max-width: 768px) 100vw, 50vw"
+              loading="lazy"
             />
             <div className="absolute inset-0 bg-black/30 flex flex-col justify-start items-center text-white px-4 pt-4">
               <h3 className="text-lg font-bold mb-1">

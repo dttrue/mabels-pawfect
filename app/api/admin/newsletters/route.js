@@ -11,6 +11,9 @@ export async function POST(req) {
       imageUrl,
       fileUrl,
       isActive = true,
+      altText,
+      publicId,
+      keywords, // expect this to be an array (["cat safety", "spring tips"])
     } = await req.json();
 
     if (!title || !imageUrl) {
@@ -21,7 +24,20 @@ export async function POST(req) {
     }
 
     const created = await prisma.newsletter.create({
-      data: { title, description, imageUrl, fileUrl, isActive },
+      data: {
+        title,
+        description,
+        imageUrl,
+        fileUrl,
+        isActive,
+        altText,
+        publicId,
+        keywords: Array.isArray(keywords)
+          ? keywords
+          : typeof keywords === "string"
+          ? keywords.split(",").map((kw) => kw.trim())
+          : [],
+      },
     });
 
     return NextResponse.json(created);
@@ -30,6 +46,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
 
 // ❌ DELETE - Remove Newsletter by ID
 export async function DELETE(req) {

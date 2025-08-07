@@ -1,6 +1,9 @@
 // components/NewsletterUploadPage.jsx
+"use client";
+
 import React from "react";
-import  prisma  from "@/lib/prisma";
+import Link from "next/link";
+import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic"; // ensures SSR pulls latest data
 
@@ -36,14 +39,31 @@ export default async function NewslettersPage() {
                 <label htmlFor={`modal-${n.id}`}>
                   <img
                     src={n.imageUrl}
-                    alt={n.title}
+                    alt={n.altText || n.title}
                     className="w-full h-auto object-cover cursor-pointer hover:opacity-80 transition"
                   />
                 </label>
               </figure>
               <div className="card-body">
-                <h2 className="card-title">{n.title}</h2>
-                <p>{n.description}</p>
+                <h2 className="card-title">
+                  <Link
+                    href={`/newsletter/${n.id}`}
+                    className="hover:underline hover:text-pink-600"
+                  >
+                    {n.title}
+                  </Link>
+                </h2>
+                {n.description && <p>{n.description}</p>}
+                {n.keywords?.length > 0 && (
+                  <div className="mt-2">
+                    <span className="text-sm text-gray-400">Tags:</span>{" "}
+                    {n.keywords.map((k, i) => (
+                      <span key={i} className="badge badge-outline mr-1">
+                        {k}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {n.fileUrl && (
                   <a
                     href={n.fileUrl}
@@ -55,6 +75,7 @@ export default async function NewslettersPage() {
                   </a>
                 )}
               </div>
+
               {/* Modal */}
               <input
                 type="checkbox"
@@ -66,7 +87,7 @@ export default async function NewslettersPage() {
                   <h3 className="font-bold text-lg mb-4">{n.title}</h3>
                   <img
                     src={n.imageUrl}
-                    alt={n.title}
+                    alt={n.altText || n.title}
                     className="w-full h-auto rounded object-contain"
                   />
                   <div className="modal-action">

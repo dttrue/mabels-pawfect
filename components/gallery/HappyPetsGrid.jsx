@@ -1,7 +1,7 @@
 // components/HappyPetsGrid.jsx
 "use client";
 import { useEffect, useState } from "react";
-
+import Image from "next/image";
 export default function HappyPetsGrid() {
   const [images, setImages] = useState([]);
 
@@ -26,12 +26,15 @@ export default function HappyPetsGrid() {
           {images.map((image) => (
             <div
               key={image.id}
-              className="overflow-hidden rounded-lg shadow-md"
+              className="relative h-64 overflow-hidden rounded-lg shadow-md"
             >
-              <img
+              <Image
                 src={image.imageUrl}
                 alt={image.altText || "Happy pet"}
-                className="w-full h-64 object-cover transition-transform duration-300 hover:scale-105"
+                fill
+                className="object-cover transition-transform duration-300 hover:scale-105 rounded-lg"
+                sizes="(max-width: 768px) 100vw, 33vw"
+                priority
               />
             </div>
           ))}

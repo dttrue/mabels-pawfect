@@ -5,6 +5,7 @@ import ServicesPreview from "@/components/ServicesPreview";
 import TestimonialsSection from "@/components/TestimonialsSection";
 import FinalCTA from "@/components/FinalCTA";
 import SeasonalSpecial from "@/components/SeasonalSpecial"; // 👈 Add this import
+import NewsletterCarousel from "@/components/newsletter/NewsletterCarousel";
 import Link from "next/link";
 
 export default function Home() {
@@ -22,6 +23,10 @@ export default function Home() {
 
       <ServicesPreview />
       <TestimonialsSection />
+
+      {/* 📬 New: Newsletter Carousel */}
+      <NewsletterCarousel />
+
       <FinalCTA />
 
       {/* ✅ Sticky Book Now button for mobile only */}
