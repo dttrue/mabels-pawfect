@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import MemberProfile from "./dashboard/MemberProfile";
@@ -11,20 +12,33 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white border-b shadow-md fixed top-0 w-full z-50">
+      <nav
+        id="site-nav"
+        className="bg-white border-b shadow-md fixed top-0 w-full z-50"
+      >
         <div className="max-w-screen-xl mx-auto flex items-center justify-between px-4 py-3 md:py-4">
-          {/* Logo */}
-          <Link
-            href="/"
-            className="text-2xl font-bold text-pink-600 flex items-center gap-2"
-          >
-            🐾 Mabel’s Pawfect
+          <Link href="/" className="flex items-center gap-2">
+            <Image
+              src="/images/logo-halloween.jpg"
+              alt="Mabel’s Pawfect Pet Services Logo"
+              width={48}
+              height={48}
+              className="w-auto h-auto rounded-md"
+              priority
+            />
+
+            <span className="text-lg font-bold text-pink-600">
+              Mabel’s Pawfect Pet Services
+            </span>
           </Link>
 
           {/* Desktop Nav Links (md and up) */}
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-700 font-medium">
             <Link href="/services" className="hover:text-pink-600">
               Services
+            </Link>
+            <Link href="/pricing" className="hover:text-pink-600">
+              Pricing
             </Link>
             <Link href="/gallery" className="hover:text-pink-600">
               Gallery
@@ -93,6 +107,11 @@ export default function Navbar() {
             <li>
               <Link href="/services" onClick={toggleMobileMenu}>
                 Services
+              </Link>
+            </li>
+            <li>
+              <Link href="/pricing" onClick={toggleMobileMenu}>
+                Pricing
               </Link>
             </li>
             <li>

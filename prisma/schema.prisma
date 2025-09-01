@@ -60,11 +60,12 @@ model Newsletter {
 model BlockedDate {
   id        String   @id @default(uuid())
   date      DateTime
-  service   String   @default("overnight") // 🟢 this fixes the migration issue
+  service   String   @default("overnight")
   createdAt DateTime @default(now())
 
   @@unique([date, service])
 }
+
 
 
 enum GalleryCategory {

@@ -1,59 +1,68 @@
 // components/BookingMultiDatePicker.jsx
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import DatePicker from "react-multi-date-picker";
 import generateDefaultTimeSlots from "@/utils/generateDefaultTimeSlots";
 
-
-
 export default function BookingMultiDatePicker({
   onChange,
-  blockedDates = [],
-   service = "",
+  blockedDates = [], // ["2025-09-16", ...] — already normalized from API
+  service = "",
 }) {
   const [selectedDates, setSelectedDates] = useState([]);
   const [timesByDate, setTimesByDate] = useState({});
 
   const timeSlots = generateDefaultTimeSlots(6, 23, 30); // 6:00 AM – 11:00 PM
 
+  // Fast membership checks
   const blockedSet = useMemo(() => new Set(blockedDates), [blockedDates]);
 
+  // Local YYYY-MM-DD (no TZ drift)
+  const ymd = (d) => {
+    const pad = (n) => String(n).padStart(2, "0");
+    const dt = d instanceof Date ? d : new Date(d);
+    return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+  };
+
+  // Normalize the service label
+  const normalizedService =
+    typeof service === "object"
+      ? service.label?.toLowerCase?.() || ""
+      : service?.toLowerCase?.() || "";
+
+  // ONE key path for both Dogs & Cats
+  const isOvernight = normalizedService.includes("overnight");
+
+  // Keep times dict in sync with selected dates
   useEffect(() => {
     const updated = { ...timesByDate };
     let changed = false;
 
     selectedDates.forEach((d) => {
-      const iso = new Date(d).toISOString().split("T")[0];
-      if (!(iso in updated)) {
-        updated[iso] = "";
+      const key = ymd(d); // local
+      if (!(key in updated)) {
+        updated[key] = "";
         changed = true;
       }
     });
 
-    if (changed) {
-      setTimesByDate(updated);
-    }
+    if (changed) setTimesByDate(updated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDates]);
 
+  // Emit up to parent when times change
   useEffect(() => {
     const entries = Object.entries(timesByDate).map(([date, time]) => {
-      const matchedSlot = timeSlots.find((slot) => slot.value === time);
-      return {
-        date,
-        time: matchedSlot?.label || "",
-      };
+      const matched = timeSlots.find((slot) => slot.value === time);
+      return { date, time: matched?.label || "" };
     });
-
     onChange?.(entries);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timesByDate]);
 
   const handleTimeChange = (date, time) => {
-    setTimesByDate((prev) => ({
-      ...prev,
-      [date]: time,
-    }));
+    setTimesByDate((prev) => ({ ...prev, [date]: time }));
   };
 
   return (
@@ -66,39 +75,18 @@ export default function BookingMultiDatePicker({
           Choose all dates you’d like to book. Then assign a time to each one
           below.
         </p>
+
         <DatePicker
           multiple
           value={selectedDates}
           onChange={(dates) => {
-            const normalizedService =
-              typeof service === "object"
-                ? service.label?.toLowerCase?.() || ""
-                : service?.toLowerCase?.() || "";
+            // react-multi-date-picker gives DateObject; use .toDate() for JS Date
+            const list = Array.isArray(dates) ? dates : [];
+            const filtered = isOvernight
+              ? list.filter((d) => !blockedSet.has(ymd(d?.toDate?.() ?? d)))
+              : list;
 
-            const isOvernight = normalizedService.includes("overnight sitting");
-
-            // console.log("📅 Selected Dates:", dates);
-            // console.log("🔍 Service:", normalizedService);
-            // console.log("🛑 Blocked Dates:", blockedDates);
-            // console.log("🌙 Is Overnight:", isOvernight);
-            // console.log("💬 Raw Service:", service);
-            // console.log("🧽 Normalized:", normalizedService);
-           
-
-
-            // Filter out blocked dates only if overnight
-            const filteredDates = isOvernight
-              ? dates.filter((date) => {
-                  const iso = new Date(date).toISOString().split("T")[0];
-                  const isBlocked = blockedDates.includes(iso);
-                  console.log(`🧪 Checking date ${iso} → Blocked?`, isBlocked);
-                  return !isBlocked;
-                })
-              : dates;
-
-            console.log("✅ Final Allowed Dates:", filteredDates);
-
-            setSelectedDates(filteredDates);
+            setSelectedDates(filtered);
           }}
           format="YYYY-MM-DD"
           numberOfMonths={2}
@@ -107,31 +95,10 @@ export default function BookingMultiDatePicker({
           maxDate={new Date(new Date().setMonth(new Date().getMonth() + 6))}
           className="rounded-xl shadow-md w-full bg-pinky-50 text-pinky-700 border-pinky-300 border transition-all duration-200"
           mapDays={({ date }) => {
-            const iso = date?.toDate?.().toISOString().split("T")[0];
+            const iso = ymd(date?.toDate?.() ?? date);
+            const disabled = isOvernight && blockedSet.has(iso);
 
-            let normalizedService = "";
-
-            if (typeof service === "object") {
-              normalizedService = service.label?.toLowerCase?.() || "";
-            } else if (typeof service === "string") {
-              normalizedService = service.toLowerCase();
-            }
-
-
-            const isOvernight =
-              normalizedService.includes("overnight") &&
-              normalizedService.includes("cat");
-
-
-
-
-            const isBlocked = blockedDates.includes(iso);
-
-            if (isOvernight && isBlocked) {
-              console.log(
-                "⛔️ Disabling blocked overnight date on calendar:",
-                iso
-              );
+            if (disabled) {
               return {
                 disabled: true,
                 style: {
@@ -147,7 +114,6 @@ export default function BookingMultiDatePicker({
                 ),
               };
             }
-
             return {};
           }}
         />
