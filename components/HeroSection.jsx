@@ -7,7 +7,7 @@ export default function HeroSection({ isSummer }) {
       {/* Image First */}
       <div className="animate-fade-in">
         <img
-          src="/images/hero.jpg"
+          src="/images/halloween-hero.jpg"
           alt="Friendly dog and cat"
           className="w-full max-w-4xl mx-auto rounded-lg shadow-lg"
         />
