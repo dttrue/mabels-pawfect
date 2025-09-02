@@ -27,7 +27,7 @@ export default function Navbar() {
               priority
             />
 
-            <span className="text-lg font-bold text-pink-600">
+            <span className="text-lg font-bold text-pink-600 ">
               Mabel’s Pawfect Pet Services
             </span>
           </Link>
