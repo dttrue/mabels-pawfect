@@ -1,9 +1,12 @@
 // tailwind.config.js
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./app/**/*.{js,ts,jsx,tsx}",
-    "./components/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/flowbite-react/**/*.{js,ts,jsx,tsx}",
+    "./app/**/*.{js,jsx,ts,tsx}",
+    "./components/**/*.{js,jsx,ts,tsx}",
+    "./pages/**/*.{js,jsx,ts,tsx}", // optional if you have /pages
+    "./node_modules/flowbite/**/*.js", // <-- add this
+    "./node_modules/flowbite-react/lib/esm/**/*.js",
   ],
   theme: {
     extend: {

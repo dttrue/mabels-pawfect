@@ -8,8 +8,9 @@ import ImagePreviewModal from "@/components/modals/ImagePreviewModal";
 import OvernightBlocker from "@/components/dashboard/OvernightBlocker";
 import GalleryDashboard from "@/components/dashboard/GalleryDashboard";
 import ToggleSection from "@/components/common/ToggleSection";
-
-
+import ShopUploader from "@/components/dashboard/ShopUploader";    
+import ContestUploader from "@/components/admin/ContestUploader";
+import ContestList from "@/components/admin/ContestList";
 export default function AdminDashboard() {
   const [newsletters, setNewsletters] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,9 +53,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-12 max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-center">🛠️ Admin Dashboard</h1>
-
       <NewsletterAdminForm onSuccess={fetchNewsletters} />
-
       <div>
         <h2 className="text-xl font-semibold mb-4">📋 Current Newsletters</h2>
         {loading ? (
@@ -98,17 +97,14 @@ export default function AdminDashboard() {
           </ToggleSection>
         )}
       </div>
-
       {previewImage && (
         <ImagePreviewModal
           image={previewImage}
           onClose={() => setPreviewImage(null)}
         />
       )}
-
       {/* NEW Overnight blocking tool */}
       <OvernightBlocker />
-
       {/* NEW Gallery Manager Section */}
       {/* NEW Gallery Manager Section */}
       <div className="mt-16 border-t pt-12">
@@ -116,6 +112,20 @@ export default function AdminDashboard() {
           <GalleryDashboard />
         </ToggleSection>
       </div>
+      {/* Shop Product Images */}+{" "}
+      <div className="mt-16 border-t pt-12">
+        {" "}
+        <ToggleSection title="🧸 Upload Toy Shop Images" defaultOpen={false}>
+          <ShopUploader />+{" "}
+        </ToggleSection>{" "}
+      </div>
+      {/* Contest Uploader */}
+      <ToggleSection title="🎃 Contest Uploads" defaultOpen={false}>
+        <ContestUploader slug="halloween-2025" />
+      </ToggleSection>
+      <ToggleSection title="🎃 Contest Entries" defaultOpen={false}>
+        <ContestList slug="halloween-2025" />
+      </ToggleSection>
     </div>
   );
 }
