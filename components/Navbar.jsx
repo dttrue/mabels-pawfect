@@ -19,7 +19,7 @@ export default function Navbar() {
         <div className="max-w-screen-xl mx-auto flex items-center justify-between px-4 py-3 md:py-4">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/images/thanksgiving-logo.jpg"
+              src="/images/thanksgiving-logo-2025.jpg"
               alt="Mabel’s Pawfect Pet Services Logo"
               width={48}
               height={48}
