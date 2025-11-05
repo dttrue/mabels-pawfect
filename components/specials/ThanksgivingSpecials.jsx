@@ -25,7 +25,7 @@ export default function ThanksgivingSpecials({
           >
             {title}
           </h2>
-          <p className="mt-2 text-sm md:text-base text-amber-100/85">
+          <p className="mt-2 text-[13px] md:text-base text-amber-100/90 drop-shadow-[0_1px_0_rgba(0,0,0,.35)]">
             {subtitle}
           </p>
 
