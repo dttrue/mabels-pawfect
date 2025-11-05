@@ -5,10 +5,10 @@ import toast from "react-hot-toast";
 
 export default function ShopUploader({ onUploadComplete, productId }) {
   const [imageFile, setImageFile] = useState(null);
-  const [altText, setAltText] = useState("");
+  const [alt, setAlt] = useState(""); // ← alt (schema)
   const [caption, setCaption] = useState("");
+  const [keywordsText, setKeywordsText] = useState(""); // UI as CSV
   const [loading, setLoading] = useState(false);
-  const [keywords, setKeywords] = useState("");
 
   const MAX_KEYWORDS = 10;
   const MAX_ALT_LENGTH = 125;
@@ -18,17 +18,19 @@ export default function ShopUploader({ onUploadComplete, productId }) {
     [imageFile]
   );
 
+  function parseKeywords(input) {
+    return String(input || "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+      .slice(0, MAX_KEYWORDS);
+  }
+
   async function handleUpload() {
-    if (!imageFile) {
-      toast.error("Please select an image");
-      return;
-    }
+    if (!imageFile) return toast.error("Please select an image");
+    if (!alt.trim()) return toast.error("Alt text is required");
 
-    console.log("🚀 ENV DEBUG:", {
-      cloud: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD,
-      preset: process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_PRESET,
-    });
-
+    // --- Cloudinary unsigned upload ---
     const formData = new FormData();
     formData.append("file", imageFile);
     formData.append(
@@ -36,14 +38,10 @@ export default function ShopUploader({ onUploadComplete, productId }) {
       process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_PRESET
     );
 
-    // Keep shop assets organized
     const root = (
       process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_ROOT || "pawfect/shop/products"
     ).replace(/\/+$/, "");
     formData.append("folder", root);
-
-    // Optional: deterministic public_id from filename
-    // comment this out if you want Cloudinary’s random IDs
     formData.append(
       "public_id",
       `${root}/${slugify(filenameTitle || "image")}`
@@ -51,14 +49,11 @@ export default function ShopUploader({ onUploadComplete, productId }) {
 
     setLoading(true);
     try {
-      // 1) Upload to Cloudinary (UNSIGNED)
       const cloudRes = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
         { method: "POST", body: formData }
       );
-      console.log("📤 Cloudinary response:", cloudRes);
       const cloudData = await cloudRes.json();
-      console.log("✅ Cloudinary response:", cloudData);
 
       if (!cloudRes.ok || !cloudData?.public_id || !cloudData?.secure_url) {
         throw new Error(
@@ -66,17 +61,17 @@ export default function ShopUploader({ onUploadComplete, productId }) {
         );
       }
 
-      // 2) Persist to DB
+      // --- Persist in DB ---
       const payload = {
         imageUrl: cloudData.secure_url,
-        publicId: cloudData.public_id, // preferred for <CldImage>
-        altText,
-        caption,
-        keywords, // keep if you later store these
-        productId: productId || undefined, // optional link to a product
+        publicId: cloudData.public_id,
+        alt, // ← schema field
+        caption: caption || null,
+        keywords: parseKeywords(keywordsText), // ← array<string>
+        productId: productId || undefined,
       };
 
-      const dbRes = await fetch("/api/admin/shop/upload", {
+      const dbRes = await fetch("/api/admin/shop/images", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -84,11 +79,14 @@ export default function ShopUploader({ onUploadComplete, productId }) {
       const body = await dbRes.json().catch(() => ({}));
       if (!dbRes.ok) throw new Error(body?.error || "DB insert failed");
 
-      toast.success("Product image uploaded!");
+      toast.success(
+        productId ? "Image uploaded to product!" : "Image uploaded!"
+      );
+      // reset
       setImageFile(null);
-      setAltText("");
+      setAlt("");
       setCaption("");
-      setKeywords("");
+      setKeywordsText("");
       onUploadComplete?.(body.image || body);
     } catch (err) {
       console.error("🛑 Shop upload error:", err);
@@ -97,6 +95,8 @@ export default function ShopUploader({ onUploadComplete, productId }) {
       setLoading(false);
     }
   }
+
+  const kwCount = parseKeywords(keywordsText).length;
 
   return (
     <div className="space-y-4 border p-4 rounded bg-base-200">
@@ -108,44 +108,29 @@ export default function ShopUploader({ onUploadComplete, productId }) {
 
       <input
         type="text"
-        placeholder="Alt text"
-        value={altText}
-        onChange={(e) => setAltText(e.target.value)}
+        placeholder="Alt text (required)"
+        value={alt}
+        onChange={(e) => setAlt(e.target.value)}
         maxLength={MAX_ALT_LENGTH}
         className="input input-bordered w-full"
       />
       <p
-        className={`text-sm mt-1 ${
-          altText.length > MAX_ALT_LENGTH * 0.9
-            ? "text-red-500 font-semibold"
-            : "text-gray-500"
-        }`}
+        className={`text-sm mt-1 ${alt.length > MAX_ALT_LENGTH * 0.9 ? "text-red-500 font-semibold" : "text-gray-500"}`}
       >
-        {altText.length} / {MAX_ALT_LENGTH} characters
+        {alt.length} / {MAX_ALT_LENGTH} characters
       </p>
 
       <input
         type="text"
         name="keywords"
-        value={keywords}
-        onChange={(e) => setKeywords(e.target.value)}
-        onBlur={() => {
-          const sanitized = keywords
-            .split(",")
-            .map((kw) => kw.trim().toLowerCase())
-            .filter(Boolean);
-          if (sanitized.length > MAX_KEYWORDS) {
-            alert(`⚠️ Max ${MAX_KEYWORDS} keywords allowed.`);
-            setKeywords(sanitized.slice(0, MAX_KEYWORDS).join(", "));
-          } else {
-            setKeywords(sanitized.join(", "));
-          }
-        }}
-        placeholder="e.g. durable, squeaky, small dog"
+        value={keywordsText}
+        onChange={(e) => setKeywordsText(e.target.value)}
+        onBlur={() => setKeywordsText(parseKeywords(keywordsText).join(", "))}
+        placeholder="e.g. donut, squeaky, small dog"
         className="input input-bordered w-full"
       />
       <p className="text-sm mt-1 text-gray-500">
-        {keywords.split(",").filter(Boolean).length} / {MAX_KEYWORDS} keywords
+        {kwCount} / {MAX_KEYWORDS} keywords
       </p>
 
       <input

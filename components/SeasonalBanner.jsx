@@ -1,32 +1,30 @@
+// components/SeasonalBanner.jsx
+
 "use client";
 import { useEffect, useState } from "react";
 
 export default function SeasonalBanner({
-  title = "🎃 Halloween Specials",
-  subtitle = "Out of Office Oct 27–31 • Book early!",
-  link = "/price",
-  id = "seasonal-banner-2025-10",
+  title = "🦃 Thanksgiving Specials",
+  subtitle = "Seasonal pricing through Nov 30",
+  link = "/pricing-seasonal",
+  id = "seasonal-banner-2025-11",
   dismissible = true,
 
-  // navbar height to sit UNDER it (tailor to your nav height)
   offsetTop = 64,
-
-  // behavior
-  sticky = true, // sticky under the navbar (recommended)
-  fixed = false, // set true if you prefer fixed; a spacer will be added
+  sticky = true,
+  fixed = false,
   compactScrollY = 12,
 
-  // theme
-  bg = "bg-gradient-to-r from-[#0d0d0f] via-black to-[#0d0d0f]",
-  fg = "text-[#FFE8B0]",
-  accent = "bg-[#FF6A00]",
+  // Autumn palette
+  bg = "bg-gradient-to-r from-[#3b1f0e] via-[#5a2e0f] to-[#3b1f0e]",
+  fg = "text-amber-100",
+  accent = "bg-amber-400",
   showAccent = true,
   className = "",
 }) {
   const [hidden, setHidden] = useState(false);
   const [compact, setCompact] = useState(false);
 
-  // restore dismissed state
   useEffect(() => {
     if (!dismissible) return;
     if (typeof window !== "undefined") {
@@ -34,7 +32,6 @@ export default function SeasonalBanner({
     }
   }, [dismissible, id]);
 
-  // shrink on scroll
   useEffect(() => {
     const onScroll = () => setCompact(window.scrollY > compactScrollY);
     onScroll();
@@ -45,7 +42,7 @@ export default function SeasonalBanner({
   if (hidden) return null;
 
   const placement = sticky
-    ? `sticky top-[${offsetTop}px]` // sits under navbar, scrolls with page
+    ? `sticky top-[${offsetTop}px]`
     : fixed
       ? "fixed top-0 left-0 w-full"
       : "";
@@ -55,7 +52,6 @@ export default function SeasonalBanner({
 
   return (
     <>
-      {/* optional spacer if you choose fixed */}
       {fixed && <div style={{ height: offsetTop }} aria-hidden />}
 
       <div
@@ -63,8 +59,7 @@ export default function SeasonalBanner({
         aria-label={title}
         className={[
           placement,
-          "z-40", // below nav (use nav z-50+)
-          "w-full border-b border-white/10",
+          "z-40 w-full border-b border-white/10",
           bg,
           fg,
           "px-3 sm:px-4",
@@ -87,12 +82,12 @@ export default function SeasonalBanner({
           {/* Left: title + subtitle */}
           <a href={link} className="group flex-1 min-w-0 text-center">
             <div className="leading-snug flex items-center justify-center gap-1">
-              <span className="inline-block animate-pumpkin" aria-hidden>
-                🎃
+              <span className="inline-block animate-turkey" aria-hidden>
+                🦃
               </span>
               <div className="truncate">
                 <div className="font-semibold text-sm sm:text-base tracking-wide truncate">
-                  {title.replace("🎃 ", "")}
+                  {title.replace("🦃 ", "")}
                 </div>
                 {subtitle && (
                   <div className="text-xs sm:text-sm opacity-90 mt-0.5 underline decoration-transparent underline-offset-2 group-hover:decoration-current transition-[text-decoration-color] truncate">
@@ -105,14 +100,14 @@ export default function SeasonalBanner({
 
           {/* Right: CTA + trailing icon */}
           <div className="flex items-center gap-2 w-auto sm:w-[220px] justify-end">
-            <span aria-hidden className="text-sm sm:text-base animate-web-sway">
-              🕸️
+            <span aria-hidden className="text-sm sm:text-base animate-leaf">
+              🍁
             </span>
             <a
               href={link}
-              className="shrink-0 inline-flex items-center justify-center rounded-md px-3.5 py-2 text-xs sm:text-sm font-semibold bg-[#FF6A00] text-black hover:bg-[#ff7d1f] ring-1 ring-black/10 shadow-sm"
+              className="shrink-0 inline-flex items-center justify-center rounded-md px-3.5 py-2 text-xs sm:text-sm font-semibold bg-amber-400 text-black hover:bg-amber-300 ring-1 ring-black/10 shadow-sm"
             >
-              See Fall Pricing
+              See Holiday Pricing
             </a>
           </div>
 
@@ -144,33 +139,32 @@ export default function SeasonalBanner({
       {/* animations */}
       <style jsx>{`
         @media (prefers-reduced-motion: no-preference) {
-          @keyframes pumpkinPulse {
+          @keyframes turkeyBob {
             0%,
             100% {
-              transform: scale(1);
-              filter: drop-shadow(0 0 0 rgba(255, 106, 0, 0));
+              transform: translateY(0);
             }
             50% {
-              transform: scale(1.15);
-              filter: drop-shadow(0 0 6px rgba(255, 106, 0, 0.6));
+              transform: translateY(-2px);
             }
           }
-          .animate-pumpkin {
-            animation: pumpkinPulse 2.5s ease-in-out infinite;
+          .animate-turkey {
+            animation: turkeyBob 2.2s ease-in-out infinite;
+            display: inline-block;
             transform-origin: center;
           }
 
-          @keyframes webSway {
+          @keyframes leafSway {
             0%,
             100% {
               transform: translateX(0) rotate(0deg);
             }
             50% {
-              transform: translateX(2px) rotate(2deg);
+              transform: translateX(2px) rotate(-3deg);
             }
           }
-          .animate-web-sway {
-            animation: webSway 3s ease-in-out infinite;
+          .animate-leaf {
+            animation: leafSway 3s ease-in-out infinite;
             display: inline-block;
             transform-origin: 50% 0%;
           }

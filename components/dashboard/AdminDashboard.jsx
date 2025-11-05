@@ -8,14 +8,30 @@ import ImagePreviewModal from "@/components/modals/ImagePreviewModal";
 import OvernightBlocker from "@/components/dashboard/OvernightBlocker";
 import GalleryDashboard from "@/components/dashboard/GalleryDashboard";
 import ToggleSection from "@/components/common/ToggleSection";
-import ShopUploader from "@/components/dashboard/ShopUploader";    
+import ProductAndImageUploader from "@/components/dashboard/ProductAndImageUploader";
+ 
 import ContestUploader from "@/components/admin/ContestUploader";
 import ContestList from "@/components/admin/ContestList";
+import ShopImageList from "@/components/dashboard/ShopImageList";
+import HighlightUploader from "@/components/dashboard/HighlightUploader";
+import { HighlightsList } from "@/components/dashboard/HighlightsList";
+
 export default function AdminDashboard() {
   const [newsletters, setNewsletters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  
+  // For images section
+  const [productIdFilterInput, setProductIdFilterInput] = useState("");
+  const [productIdFilter, setProductIdFilter] = useState(""); // applied filter
+  const [imagesVersion, setImagesVersion] = useState(0); // bumps to refresh list
+
+  function handleUploadComplete() {
+    // bump the list key so ShopImageList reloads
+    setImagesVersion((v) => v + 1);
+  }
+
 
 
   const fetchNewsletters = async () => {
@@ -53,6 +69,8 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-12 max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-center">🛠️ Admin Dashboard</h1>
+
+      {/* Newsletters */}
       <NewsletterAdminForm onSuccess={fetchNewsletters} />
       <div>
         <h2 className="text-xl font-semibold mb-4">📋 Current Newsletters</h2>
@@ -97,35 +115,91 @@ export default function AdminDashboard() {
           </ToggleSection>
         )}
       </div>
+
       {previewImage && (
         <ImagePreviewModal
           image={previewImage}
           onClose={() => setPreviewImage(null)}
         />
       )}
-      {/* NEW Overnight blocking tool */}
+
+      {/* Overnight blocking tool */}
       <OvernightBlocker />
-      {/* NEW Gallery Manager Section */}
-      {/* NEW Gallery Manager Section */}
+
+      {/* Gallery Manager */}
       <div className="mt-16 border-t pt-12">
         <ToggleSection title="📸 Manage Gallery" defaultOpen={true}>
           <GalleryDashboard />
         </ToggleSection>
       </div>
-      {/* Shop Product Images */}+{" "}
+
+      {/* 🧸 Product + Image Uploader */}
       <div className="mt-16 border-t pt-12">
-        {" "}
-        <ToggleSection title="🧸 Upload Toy Shop Images" defaultOpen={false}>
-          <ShopUploader />+{" "}
-        </ToggleSection>{" "}
+        <ToggleSection title="🧸 Add New Products & Images" defaultOpen={false}>
+          <ProductAndImageUploader onUploadComplete={handleUploadComplete} />
+        </ToggleSection>
       </div>
-      {/* Contest Uploader */}
+
+      {/* 🖼️ Manage Shop Images */}
+      <div className="mt-16 border-t pt-12">
+        <ToggleSection title="🖼️ Manage Shop Images" defaultOpen={false}>
+          <div>
+            <div className="flex items-end gap-2 mb-3">
+              <label className="form-control w-full">
+                <span className="label-text">
+                  Filter by Product ID (optional)
+                </span>
+                <input
+                  type="text"
+                  className="input input-bordered w-full"
+                  placeholder="Paste a productId to filter"
+                  value={productIdFilterInput}
+                  onChange={(e) => setProductIdFilterInput(e.target.value)}
+                />
+              </label>
+              <button
+                className="btn btn-outline"
+                onClick={() => setProductIdFilter(productIdFilterInput.trim())}
+              >
+                Apply
+              </button>
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setProductIdFilterInput("");
+                  setProductIdFilter("");
+                }}
+              >
+                Clear
+              </button>
+            </div>
+
+            <ShopImageList
+              key={`shoplist-${imagesVersion}-${productIdFilter || "all"}`}
+              productId={productIdFilter || undefined}
+            />
+          </div>
+        </ToggleSection>
+      </div>
+
+      {/* Contest */}
       <ToggleSection title="🎃 Contest Uploads" defaultOpen={false}>
         <ContestUploader slug="halloween-2025" />
       </ToggleSection>
+
       <ToggleSection title="🎃 Contest Entries" defaultOpen={false}>
         <ContestList slug="halloween-2025" />
       </ToggleSection>
+
+                
+      <ToggleSection title="🎥 Upload Highlight" defaultOpen={true}>
+        <HighlightUploader />
+      </ToggleSection>
+
+      <ToggleSection title="🎥 Current Highlights" defaultOpen={false}>
+        <HighlightsList />
+      </ToggleSection>
     </div>
   );
+
 }

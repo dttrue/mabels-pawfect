@@ -102,33 +102,35 @@ model Product {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
 
-  images     ProductImage[]
-  // ✅ this needs Category model defined (above)
-  categories Category[] // implicit M2M (no relation args)
-  variants   Variant[]
-  inventory  Inventory[]
-  cartItems  CartItem[] // back-relation of CartItem.product
-
-  // ✅ opposite side of Gallery.products
-  galleries Gallery[]
+  images      ProductImage[]
+  categories  Category[]   // M2M – join rows cleaned automatically
+  variants    Variant[]
+  inventory   Inventory[]
+  cartItems   CartItem[]
+  galleries   Gallery[]    // M2M – join rows cleaned automatically
 }
 
 model ProductImage {
-  id        String   @id @default(cuid())
-  productId String? // ← optional
-  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  productId  String?
+  product    Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  url       String
-  publicId  String // ← add
-  alt       String?
-  caption   String? // ← optional
-  sort      Int      @default(0)
-  createdAt DateTime @default(now()) // ← helpful
+  url        String
+  publicId   String   @unique
+  alt        String?
+  caption    String?
+  keywords   String[] @default([])
+  sort       Int      @default(0)
 
-  @@unique([publicId]) // optional but nice to avoid dupes
+  createdAt  DateTime @default(now())
+  deletedAt  DateTime?
+
   @@index([productId])
+  @@index([deletedAt])
 }
+
 
 model Inventory {
   id        String   @id @default(cuid())
@@ -223,4 +225,22 @@ model ContestVote {
 
   @@unique([entryId, ipHash], name: "one_vote_per_entry_per_ip")
   @@index([contestId])
+}
+
+model Highlight {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  type       String   // "video" | "image"
+  publicId   String   // Cloudinary public_id (no extension)
+  url        String   // canonical mp4 url
+  posterUrl  String?  // derived poster (jpg)
+  startSec   Int?     // optional: where to start playback
+
+  // 👇 soft-delete + audit
+  deletedAt  DateTime?
+  deletedBy  String?   // user id/email if you want
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }

@@ -17,7 +17,9 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const { isHalloween, isFall, isSummer } = getSeasonFlags("halloween");
+  const { isHalloween, isFall, isSummer, isThanksgiving } =
+    getSeasonFlags("thanksgiving");
+  
 
   return (
     <html lang="en">
@@ -33,19 +35,17 @@ export default function RootLayout({ children }) {
         <CartProvider>
           <Navbar />
 
-          {isHalloween && (
+          {isThanksgiving && (
             <NavAwareBanner
-              {...THEME_MAP.halloween}
-              id="banner-2025-halloween"
-              title="🎃 Halloween Specials"
-              subtitle="Out of Office Oct 27–31 • Book early!"
+              {...THEME_MAP.thanksgiving}
+              id="banner-2025-thanksgiving"
+              title="🦃 Thanksgiving Specials"
+              subtitle="Seasonal pricing through Nov 30"
               link="/pricing-seasonal"
               dismissible={false}
-              bg="bg-black bg-gradient-to-r from-[#0d0d0f] via-[#0a0a0a] to-black"
-              leadIcon="🎃"
-              showBatDivider
+              leadIcon="🦃"
               showTrailIcon
-              trailIcon="🕸️"
+              trailIcon="🍁"
             />
           )}
 
