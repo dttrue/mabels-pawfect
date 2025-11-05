@@ -59,7 +59,7 @@ export default function WinnerPage() {
             <ul className="space-y-2 text-sm text-amber-100/85">
               <li>📮 Outfit: USPS-inspired postman costume</li>
               <li>📅 Event: Mabel’s Pawfect Pet Services – Halloween 2025</li>
-              <li>🍬 Prize: Treat bundle + feature on our site & socials</li>
+              <li>🍬 Prize: One toy + free 30-minute walk</li>
             </ul>
 
             <div className="flex flex-wrap gap-3">
