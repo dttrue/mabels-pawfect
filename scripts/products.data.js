@@ -4,7 +4,7 @@ const CATEGORIES = [
   { slug: "cat", name: "Cat" },
   { slug: "holiday", name: "Holiday" },
   { slug: "plush", name: "Plush" },
-  { slug: "chew", name: "Chew" },
+  { slug: "chew toys", name: "Chew Toys" },
   { slug: "interactive", name: "Interactive" },
   { slug: "bundle", name: "Bundle / Set" },
 ];

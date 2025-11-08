@@ -1,25 +1,27 @@
 // app/shop/page.js
-// app/(site)/shop/page.jsx
 import ShopGrid from "@/components/shop/ShopGrid";
 
 export default async function ShopPage({ searchParams }) {
-  const {
-    c = "",        // category slugs, comma-separated (e.g. "dog,plush")
-    q = "",        // text search
-    stock = "",    // "1" = in-stock only
-  } = searchParams ?? {};
+  const c = (searchParams?.c ?? "").trim(); // e.g. "dog,interactive,chew,bundle-set"
+  const q = (searchParams?.q ?? "").trim();
+  const stock = (searchParams?.stock ?? "").trim(); // "1" when checked
 
-  const selected = c ? c.split(",").filter(Boolean) : [];
+  // decode + split
+  const selected = c
+    ? c
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    : [];
   const inStockOnly = stock === "1";
 
   return (
     <ShopGrid
       title="Shop"
       showBackLink
-      selectedCategories={selected}
+      selectedCategories={selected} // slugs only
       query={q}
       inStockOnly={inStockOnly}
     />
   );
 }
-

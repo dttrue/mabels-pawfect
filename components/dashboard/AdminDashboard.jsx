@@ -15,6 +15,8 @@ import ContestList from "@/components/admin/ContestList";
 import ShopImageList from "@/components/dashboard/ShopImageList";
 import HighlightUploader from "@/components/dashboard/HighlightUploader";
 import { HighlightsList } from "@/components/dashboard/HighlightsList";
+import InventoryAdminPanel from "@/components/dashboard/InventoryAdminPanel";
+import InventoryAdminPanelList from "@/components/dashboard/InventoryAdminPanelList";
 
 export default function AdminDashboard() {
   const [newsletters, setNewsletters] = useState([]);
@@ -191,7 +193,6 @@ export default function AdminDashboard() {
         <ContestList slug="halloween-2025" />
       </ToggleSection>
 
-                
       <ToggleSection title="🎥 Upload Highlight" defaultOpen={true}>
         <HighlightUploader />
       </ToggleSection>
@@ -199,6 +200,27 @@ export default function AdminDashboard() {
       <ToggleSection title="🎥 Current Highlights" defaultOpen={false}>
         <HighlightsList />
       </ToggleSection>
+
+      {/* 📦 Inventory Admin */}
+      <div className="mt-16 border-t pt-12">
+        <ToggleSection
+          title="📦 Inventory Admin (Full Panel)"
+          defaultOpen={false}
+        >
+          <InventoryAdminPanel />
+        </ToggleSection>
+
+        <ToggleSection
+          title="📋 Quick Adjust Inventory List"
+          defaultOpen={false}
+        >
+          <InventoryAdminPanelList
+            onReload={() => {
+              /* optional toast */
+            }}
+          />
+        </ToggleSection>
+      </div>
     </div>
   );
 
