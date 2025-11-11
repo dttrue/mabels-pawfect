@@ -68,6 +68,13 @@ export async function POST(req) {
   const shipping_options = standardRate
     ? [{ shipping_rate: standardRate }]
     : [];
+const rateEnv = process.env.STRIPE_RATE_STANDARD;
+console.log(
+  "[checkout] STRIPE_RATE_STANDARD (raw):",
+  JSON.stringify(rateEnv),
+  "len:",
+  (rateEnv || "").length
+);
 
   // Preflight verify shipping rate to catch typos/mode mismatches
   if (standardRate) {
