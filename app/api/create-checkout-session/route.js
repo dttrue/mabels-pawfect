@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const acct = await stripe.accounts.retrieve();
+console.log("[checkout] using stripe account:", acct.id);
 
 // Build base URL from request Host (fallback to NEXT_PUBLIC_APP_URL or localhost)
 function getAppBase() {
