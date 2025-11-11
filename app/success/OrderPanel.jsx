@@ -1,4 +1,3 @@
-// components/shop/OrderPanel.jsx
 "use client";
 import { useEffect, useRef, useState } from "react";
 
@@ -7,11 +6,18 @@ function fmt(cents = 0, currency = "USD") {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency });
 }
 
+function safeJSON(s) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
+
 function parseAddress(order) {
-  // Accept either { address: {...} } or { addressJson: string }
   const a =
-    (order && order.address) ||
-    (order && typeof order.addressJson === "string"
+    order?.address ??
+    (typeof order?.addressJson === "string"
       ? safeJSON(order.addressJson)
       : null);
   if (!a) return "";
@@ -26,23 +32,13 @@ function parseAddress(order) {
     .join(", ");
 }
 
-function safeJSON(s) {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
-}
-
 export default function OrderPanel({ sessionId = "", initialOrder = null }) {
   const [order, setOrder] = useState(initialOrder);
-  const [tries, setTries] = useState(0); // max 12
+  const [tries, setTries] = useState(0);
   const timer = useRef(null);
 
-  // Poll until webhook writes the order (max ~12s)
   useEffect(() => {
     if (order || !sessionId) return;
-
     let cancelled = false;
 
     async function fetchOnce() {
@@ -51,49 +47,40 @@ export default function OrderPanel({ sessionId = "", initialOrder = null }) {
           `/api/orders/by-session?session_id=${encodeURIComponent(sessionId)}`,
           { cache: "no-store" }
         );
-        if (!cancelled && r.ok) {
+        if (r.ok) {
           const json = await r.json();
-          if (json) {
-            setOrder(json);
+          const next = json?.order ?? json ?? null; // <-- unwrap here
+          if (!cancelled && next) {
+            setOrder(next);
             return;
           }
         }
-      } catch {
-        // ignore and retry
-      }
+      } catch {}
       if (!cancelled && tries < 12) {
         timer.current = setTimeout(() => setTries((t) => t + 1), 1000);
       }
     }
 
     fetchOnce();
-
     return () => {
       cancelled = true;
       if (timer.current) clearTimeout(timer.current);
     };
-    // Only depend on sessionId and tries to step the polling;
-    // don't include 'order' or we'll cancel early.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, tries]);
+  }, [sessionId, tries, !!order]);
 
   if (!sessionId) {
     return (
       <div className="alert alert-warning">
-        <span>
-          Missing session id. If you paid, your order is safe—please contact
-          support.
-        </span>
+        Missing session id. If you paid, your order is safe—please contact
+        support.
       </div>
     );
   }
-
   if (!order) {
     return (
       <div className="alert alert-info">
-        <span>
-          We’re finalizing your order. This will update automatically.
-        </span>
+        We’re finalizing your order. This will update automatically.
       </div>
     );
   }
