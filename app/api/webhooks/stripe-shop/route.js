@@ -8,27 +8,24 @@ import prisma from "@/lib/prisma";
 import { Resend } from "resend";
 import { generateOrderEmail } from "@/lib/emails/generateOrderEmail";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req) {
   const sig = (await headers()).get("stripe-signature");
   const raw = await req.text();
 
-  // Optional: log Stripe account + key mode
+  // Optional: quick sanity about key/account
   try {
     const acct = await stripe.accounts.retrieve();
     console.log("[STRIPE SERVER]", {
-      keyMode: process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_")
+      mode: process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_")
         ? "TEST"
         : "LIVE",
       account: acct.id,
     });
   } catch (e) {
-    console.warn(
-      "[STRIPE SERVER] account retrieve failed (non-fatal):",
-      e?.message
-    );
+    console.warn("[STRIPE SERVER] account retrieve failed:", e?.message);
   }
 
   let event;
@@ -51,28 +48,31 @@ export async function POST(req) {
   }
 
   const session = event.data.object;
-  console.log("[SHOP WH] session:", {
-    id: session.id,
-    payment_status: session.payment_status,
-  });
-
   if (session.payment_status !== "paid") {
+    console.log("[SHOP WH] skipped: session not paid");
     return NextResponse.json({ skipped: "not paid" });
   }
 
   const cartId = session.metadata?.cartId || null;
 
-  // 1) Pull purchased line items (expand product metadata)
+  // Pull customer + shipping details (preferred shipping, fallback to customer)
+  const customerEmail = session.customer_details?.email ?? null;
+  const customerPhone = session.customer_details?.phone ?? null;
+  const customerName = session.customer_details?.name ?? null;
+  const shippingName = session.shipping_details?.name ?? customerName ?? null;
+  const shippingAddress =
+    session.shipping_details?.address ??
+    session.customer_details?.address ??
+    null;
+
+  // Line items with expanded product metadata (for productId/variantId)
   const { data: lineItems } = await stripe.checkout.sessions.listLineItems(
     session.id,
-    {
-      limit: 100,
-      expand: ["data.price.product"],
-    }
+    { expand: ["data.price.product"], limit: 100 }
   );
 
   console.log(
-    "[SHOP WH] lineItems:",
+    "[SHOP WH] items:",
     lineItems.map((li) => ({
       desc: li.description,
       qty: li.quantity,
@@ -80,51 +80,53 @@ export async function POST(req) {
     }))
   );
 
-  // 2) Customer + shipping
-  const customer = session.customer_details || {};
-  const shipping = session.shipping_details || {};
+  // Idempotent order upsert
+  const order = await prisma.order.upsert({
+    where: { stripeSessionId: session.id }, // requires @unique
+    update: {}, // retries = no-op
+    create: {
+      stripeSessionId: session.id,
+      stripePaymentIntentId: session.payment_intent?.toString() ?? null,
 
-  // 3) Upsert Order (idempotent on retries)
-  let order;
-  try {
-    order = await prisma.order.upsert({
-      where: { stripeSessionId: session.id }, // requires @unique
-      update: {}, // retries become no-op
-      create: {
-        stripeSessionId: session.id,
-        stripePaymentIntentId: session.payment_intent?.toString() ?? null,
-        email: customer.email ?? null,
-        phone: customer.phone ?? null,
-        name: shipping.name || customer.name || null,
-        addressJson: shipping.address ? JSON.stringify(shipping.address) : null,
-        subtotalCents: session.amount_subtotal ?? 0,
-        totalCents: session.amount_total ?? 0,
-        currency: session.currency || "usd",
-        items: {
-          create: lineItems.map((li) => {
-            const meta = li.price?.product?.metadata ?? {};
-            const qty = li.quantity ?? 1;
-            const unit = li.amount_subtotal / (qty || 1);
-            return {
-              productId: meta.productId || null,
-              variantId: meta.variantId || null, // default handled below
-              title: li.description,
-              qty,
-              priceCents: Math.round(unit),
-            };
-          }),
-        },
+      email: customerEmail,
+      phone: customerPhone,
+      name: shippingName || customerName || null,
+      addressJson: shippingAddress ? JSON.stringify(shippingAddress) : null,
+
+      subtotalCents: session.amount_subtotal ?? 0,
+      totalCents: session.amount_total ?? 0,
+      currency: (session.currency || "usd").toLowerCase(),
+
+      items: {
+        create: lineItems.map((li) => {
+          const qty = li.quantity ?? 1;
+          const perUnit = Math.round(
+            (li.amount_subtotal ?? 0) / Math.max(1, qty)
+          );
+          const meta = li.price?.product?.metadata ?? {};
+          return {
+            productId: meta.productId || null,
+            variantId: meta.variantId || null, // allow null = default
+            title: li.description || li.price?.product?.name || "Item",
+            qty,
+            priceCents: perUnit,
+          };
+        }),
       },
-      include: { items: true },
-    });
-  } catch (e) {
-    console.error("[SHOP WH] order upsert failed:", e);
-    return NextResponse.json({ error: "order upsert failed" }, { status: 500 });
-  }
+    },
+    include: { items: true },
+  });
 
-  // 3.5) If this was a retry (existing order), bail before inventory/email/cart
+  console.log("[SHOP WH] order upsert ✓", {
+    id: order.id,
+    email: order.email,
+    total: order.totalCents,
+    items: order.items.length,
+  });
+
+  // If this was a retry, stop before inventory/emails/cart
   if (order.createdAt.getTime() !== order.updatedAt.getTime()) {
-    console.log("[SHOP WH] deduped (order already exists):", order.id);
+    console.log("[SHOP WH] deduped (already existed):", order.id);
     return NextResponse.json({
       ok: true,
       type: "shop",
@@ -133,7 +135,7 @@ export async function POST(req) {
     });
   }
 
-  // 4) Decrement inventory per line item
+  // Decrement inventory per line item
   for (const li of lineItems) {
     const meta = li.price?.product?.metadata ?? {};
     const productId = meta.productId;
@@ -141,10 +143,7 @@ export async function POST(req) {
     const qty = li.quantity ?? 1;
 
     if (!productId) {
-      console.warn(
-        "[SHOP WH] missing productId in metadata for item:",
-        li.description
-      );
+      console.warn("[SHOP WH] missing productId in metadata:", li.description);
       continue;
     }
     const variantId = await ensureVariantId(productId, rawVariantId);
@@ -178,28 +177,25 @@ export async function POST(req) {
         qty,
         err: e,
       });
-      // Do not throw: the order itself is already persisted
+      // don’t throw; order already persisted
     }
   }
 
-  // 5) Notify via email (only on first create, not on retries)
+  // Notify (only on first create)
   try {
     const html = generateOrderEmail({ order, items: order.items });
     await resend.emails.send({
       from: "Shop Alerts <no-reply@mabelspawfectpetservices.com>",
-      to: [
-        "therainbowniche@gmail.com", // Bridget
-        "danieltorres.dt@gmail.com", // You (optional)
-      ],
+      to: ["therainbowniche@gmail.com", "danieltorres.dt@gmail.com"],
       subject: `🛍️ New Order #${order.id.slice(0, 8)} · ${(order.totalCents / 100).toFixed(2)} ${order.currency?.toUpperCase() || "USD"}`,
       html,
     });
-    console.log("[SHOP WH] 📬 order email sent:", order.id);
+    console.log("[SHOP WH] 📬 email sent:", order.id);
   } catch (e) {
     console.error("[SHOP WH] email failed:", e);
   }
 
-  // 6) Clear cart
+  // Clear cart
   if (cartId) {
     try {
       await prisma.cartItem.deleteMany({ where: { cartId } });
