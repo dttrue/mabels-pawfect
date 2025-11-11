@@ -1,41 +1,92 @@
+// components/shop/OrderPanel.jsx
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-function fmt(cents, currency = "USD") {
+function fmt(cents = 0, currency = "USD") {
+  if (typeof cents !== "number") return "-";
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency });
 }
 
-export default function OrderPanel({ sessionId, initialOrder }) {
-  const [order, setOrder] = useState(initialOrder);
-  const [tries, setTries] = useState(0);
+function parseAddress(order) {
+  // Accept either { address: {...} } or { addressJson: string }
+  const a =
+    (order && order.address) ||
+    (order && typeof order.addressJson === "string"
+      ? safeJSON(order.addressJson)
+      : null);
+  if (!a) return "";
+  return [
+    a.line1,
+    a.line2,
+    `${a.city ?? ""} ${a.state ?? ""}`.trim(),
+    a.postal_code,
+    a.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
 
-  // Poll until the webhook writes the order (max ~12s)
+function safeJSON(s) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
+
+export default function OrderPanel({ sessionId = "", initialOrder = null }) {
+  const [order, setOrder] = useState(initialOrder);
+  const [tries, setTries] = useState(0); // max 12
+  const timer = useRef(null);
+
+  // Poll until webhook writes the order (max ~12s)
   useEffect(() => {
     if (order || !sessionId) return;
 
     let cancelled = false;
-    async function tick() {
+
+    async function fetchOnce() {
       try {
         const r = await fetch(
           `/api/orders/by-session?session_id=${encodeURIComponent(sessionId)}`,
           { cache: "no-store" }
         );
-        if (r.ok) {
+        if (!cancelled && r.ok) {
           const json = await r.json();
-          if (!cancelled) setOrder(json);
-          return;
+          if (json) {
+            setOrder(json);
+            return;
+          }
         }
-      } catch {}
+      } catch {
+        // ignore and retry
+      }
       if (!cancelled && tries < 12) {
-        setTimeout(tick, 1000);
-        setTries((t) => t + 1);
+        timer.current = setTimeout(() => setTries((t) => t + 1), 1000);
       }
     }
-    tick();
+
+    fetchOnce();
+
     return () => {
       cancelled = true;
+      if (timer.current) clearTimeout(timer.current);
     };
-  }, [order, sessionId, tries]);
+    // Only depend on sessionId and tries to step the polling;
+    // don't include 'order' or we'll cancel early.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, tries]);
+
+  if (!sessionId) {
+    return (
+      <div className="alert alert-warning">
+        <span>
+          Missing session id. If you paid, your order is safe—please contact
+          support.
+        </span>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -47,12 +98,17 @@ export default function OrderPanel({ sessionId, initialOrder }) {
     );
   }
 
+  const shortId = order.id ? String(order.id).slice(0, 8) : "";
+  const currency = (order.currency || "USD").toUpperCase();
+  const items = Array.isArray(order.items) ? order.items : [];
+  const shipTo = parseAddress(order);
+
   return (
     <>
       <section className="card bg-base-100 shadow">
         <div className="card-body">
-          <h2 className="card-title">Order #{order.id.slice(0, 8)}</h2>
-          <div className="text-sm opacity-80">
+          <h2 className="card-title">Order {shortId ? `#${shortId}` : ""}</h2>
+          <div className="text-sm opacity-80 space-y-1">
             <div>
               <b>Name:</b> {order.name ?? "—"}
             </div>
@@ -62,18 +118,9 @@ export default function OrderPanel({ sessionId, initialOrder }) {
             <div>
               <b>Phone:</b> {order.phone ?? "—"}
             </div>
-            {order.address && (
+            {shipTo && (
               <div className="mt-2">
-                <b>Ship to:</b>{" "}
-                {[
-                  order.address.line1,
-                  order.address.line2,
-                  `${order.address.city ?? ""} ${order.address.state ?? ""}`.trim(),
-                  order.address.postal_code,
-                  order.address.country,
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
+                <b>Ship to:</b> {shipTo}
               </div>
             )}
           </div>
@@ -83,19 +130,33 @@ export default function OrderPanel({ sessionId, initialOrder }) {
       <section className="card bg-base-100 shadow mt-6">
         <div className="card-body">
           <h3 className="card-title">Items</h3>
-          <ul className="divide-y">
-            {order.items.map((it) => (
-              <li key={it.id} className="py-2 flex justify-between">
-                <span>
-                  {it.title} <span className="opacity-60">× {it.qty}</span>
-                </span>
-                <span>{fmt(it.priceCents * it.qty, order.currency)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 flex justify-end text-lg font-semibold">
-            Total: {fmt(order.totalCents, order.currency)}
-          </div>
+          {items.length ? (
+            <>
+              <ul className="divide-y">
+                {items.map((it) => {
+                  const lineTotal =
+                    (Number(it?.priceCents) || 0) * (Number(it?.qty) || 0);
+                  return (
+                    <li
+                      key={it.id ?? `${it.title}-${it.qty}`}
+                      className="py-2 flex justify-between"
+                    >
+                      <span>
+                        {it?.title ?? "Item"}{" "}
+                        <span className="opacity-60">× {it?.qty ?? 0}</span>
+                      </span>
+                      <span>{fmt(lineTotal, currency)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-4 flex justify-end text-lg font-semibold">
+                Total: {fmt(Number(order.totalCents) || 0, currency)}
+              </div>
+            </>
+          ) : (
+            <div className="opacity-70">No line items found.</div>
+          )}
         </div>
       </section>
     </>
