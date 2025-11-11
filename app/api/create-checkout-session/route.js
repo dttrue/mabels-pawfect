@@ -6,38 +6,57 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(req) {
   try {
-    const { amount } = await req.json();
-    if (!amount || isNaN(amount) || amount < 1) {
+    const { cartId, items, successUrl, cancelUrl } = await req.json();
+    // items: [{ productId, variantId, name, unitAmount, quantity }]
+
+    if (!cartId || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
-        { error: "Invalid donation amount." },
+        { error: "Missing cart or items" },
         { status: 400 }
       );
     }
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      customer_creation: "always", // <-- ensures email is attached
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: "Rescue Animal Donation",
-              description: "Thank you for supporting stray animals in need.",
-            },
-            unit_amount: Math.round(amount * 100),
-          },
-          quantity: 1,
-        },
+      customer_creation: "if_required",
+      phone_number_collection: { enabled: true },
+      shipping_address_collection: { allowed_countries: ["US", "CA"] },
+
+      // Pre-created Shipping Rates in Stripe Dashboard (ENV contains their IDs)
+      shipping_options: [
+        { shipping_rate: process.env.STRIPE_RATE_STANDARD },
+        { shipping_rate: process.env.STRIPE_RATE_EXPRESS },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/donate-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/donate-cancel`,
+
+      allow_promotion_codes: true,
+
+      line_items: items.map((i) => ({
+        price_data: {
+          currency: "usd",
+          unit_amount: i.unitAmount, // cents
+          product_data: {
+            name: i.name,
+            metadata: {
+              productId: i.productId,
+              variantId: i.variantId || "", // empty string if default
+            },
+          },
+        },
+        quantity: i.quantity,
+      })),
+
+      metadata: {
+        orderType: "shop",
+        cartId,
+      },
+
+      success_url: `${successUrl || process.env.NEXT_PUBLIC_APP_URL + "/shop/thank-you"}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${cancelUrl || process.env.NEXT_PUBLIC_APP_URL + "/shop"}`,
     });
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url }, { status: 200 });
   } catch (err) {
-    console.error("Stripe error:", err);
+    console.error("Stripe (shop) error:", err);
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }

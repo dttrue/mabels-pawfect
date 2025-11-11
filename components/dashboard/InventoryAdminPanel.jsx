@@ -1,3 +1,4 @@
+// components/dashboard/InventoryAdminPanel.jsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -29,6 +30,8 @@ export default function InventoryAdminPanel() {
   );
 }
 
+/* ---------------------------------- hooks --------------------------------- */
+
 function useProducts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +50,8 @@ function useProducts() {
 
   return { items, loading, reload: load };
 }
+
+/* --------------------------------- STOCK ---------------------------------- */
 
 function StockTab() {
   const { items, loading, reload } = useProducts();
@@ -107,25 +112,30 @@ function StockTab() {
       <div className="space-y-4">
         {filtered.map((p) => (
           <div key={p.id} className="border rounded-lg p-3">
-            <div className="font-semibold">{p.title}</div>
-            <div className="text-xs opacity-60">{p.slug}</div>
+            <div className="flex items-center gap-2">
+              <div className="font-semibold">{p.title}</div>
+              <div className="ml-auto text-xs opacity-60">{p.slug}</div>
+            </div>
 
             {p.variants.length ? (
               <>
                 <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {p.variants.map((v) => (
-                    <StockRow
+                    <VariantRow
                       key={v.id}
                       label={v.name}
                       qty={v.onHand}
+                      productId={p.id}
+                      variantId={v.id}
                       onSet={(n, r) => setQty(p.id, v.id, n, r)}
                       onAdjust={(d, r) => adjust(p.id, v.id, d, r)}
                       onDelete={(r) => removeRow(p.id, v.id, r)}
+                      onReload={reload}
                     />
                   ))}
                 </div>
 
-                {/* NEW: inline add-variant form */}
+                {/* inline: add another variant */}
                 <AddVariantInline productId={p.id} onAdded={reload} />
               </>
             ) : (
@@ -137,6 +147,8 @@ function StockTab() {
     </>
   );
 }
+
+/* --------------------------- inline add-variant ---------------------------- */
 
 function AddVariantInline({ productId, onAdded }) {
   const [name, setName] = useState("");
@@ -154,7 +166,7 @@ function AddVariantInline({ productId, onAdded }) {
       });
       if (!res.ok) throw new Error(await res.text());
       setName("");
-      onAdded?.(); // refresh the list
+      onAdded?.();
     } catch (e) {
       alert("Failed to add variant: " + e.message);
     } finally {
@@ -182,15 +194,47 @@ function AddVariantInline({ productId, onAdded }) {
   );
 }
 
-function StockRow({ label, qty, onSet, onAdjust, onDelete }) {
-  const [val, setVal] = useState(qty ?? 0);
-  const [reason, setReason] = useState("");
+/* ------------------------------ variant row ------------------------------- */
 
+function VariantRow({
+  label,
+  qty = 0,
+  onSet,
+  onAdjust,
+  onDelete,
+  productId,
+  variantId,
+  onReload,
+}) {
+  const [val, setVal] = useState(qty);
+  const [reason, setReason] = useState("");
   const canDec = Number.isFinite(val) && val > 0;
+
+  async function doSet() {
+    await onSet(val, reason);
+  }
+
+  async function deleteVariant() {
+    if (
+      !confirm(`Delete variant "${label}"? This also clears inventory & carts.`)
+    )
+      return;
+    const res = await fetch("/api/admin/variants/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, variantId, reason }),
+    });
+    if (!res.ok) {
+      alert("Failed to delete variant");
+      return;
+    }
+    await onReload?.();
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2">
       <div className="badge">{label}</div>
+
       <input
         type="number"
         className="input input-bordered w-24"
@@ -201,7 +245,7 @@ function StockRow({ label, qty, onSet, onAdjust, onDelete }) {
           setVal(Number.isFinite(n) && n >= 0 ? n : 0);
         }}
       />
-      <button className="btn btn-sm" onClick={() => onSet(val, reason)}>
+      <button className="btn btn-sm" onClick={doSet}>
         Set
       </button>
       <button className="btn btn-sm" onClick={() => onAdjust(+1, reason)}>
@@ -214,12 +258,20 @@ function StockRow({ label, qty, onSet, onAdjust, onDelete }) {
       >
         -1
       </button>
+
+      {/* delete inventory row only */}
       <button
         className="btn btn-sm btn-outline"
         onClick={() => onDelete(reason)}
       >
         Delete Row
       </button>
+
+      {/* delete the variant entity */}
+      <button className="btn btn-sm btn-error" onClick={deleteVariant}>
+        Delete Variant
+      </button>
+
       <input
         className="input input-bordered flex-1 min-w-[200px]"
         placeholder="Reason (optional)"
@@ -235,6 +287,8 @@ function StockRow({ label, qty, onSet, onAdjust, onDelete }) {
   );
 }
 
+/* ------------------------------ no variants ------------------------------- */
+
 function NoVariantsBlock({ productId, onReload }) {
   async function addDefaultVariant() {
     const res = await fetch("/api/admin/variants/create-default", {
@@ -246,7 +300,7 @@ function NoVariantsBlock({ productId, onReload }) {
       alert("Failed to create Default variant");
       return;
     }
-    if (typeof onReload === "function") await onReload();
+    await onReload?.();
   }
 
   return (
@@ -261,11 +315,13 @@ function NoVariantsBlock({ productId, onReload }) {
   );
 }
 
+/* -------------------------- placeholder other tabs ------------------------ */
+
 function VariantsTab() {
   return (
     <div className="opacity-70">
-      Variant CRUD UI (create/edit/delete, toggle active, price override) — say
-      the word and I’ll wire this next.
+      Variant CRUD UI (create/edit/delete, toggle active, price override) —
+      happy to wire this next.
     </div>
   );
 }

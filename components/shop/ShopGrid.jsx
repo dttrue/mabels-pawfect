@@ -13,13 +13,11 @@ export default async function ShopGrid({
   query = "",
   inStockOnly = false,
 }) {
-  // Data for chips
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
     select: { slug: true, name: true },
   });
 
-  // Build Prisma WHERE
   const where = {
     active: true,
     deletedAt: null,
@@ -52,15 +50,34 @@ export default async function ShopGrid({
           caption: true,
         },
       },
-      variants: { select: { id: true, name: true, priceCents: true } },
-      inventory: { select: { variantId: true, onHand: true } }, // tiny payload
+      variants: {
+        select: { id: true, name: true, priceCents: true, active: true },
+      },
+      inventory: { select: { variantId: true, onHand: true } }, // variant stock rows
     },
     take: 24,
   });
-  const items = products.map((p) => ({
-    ...p,
-    _price: centsToUSD(p.priceCents),
-  }));
+
+  // Merge variants with inventory counts
+  const items = products.map((p) => {
+    const invMap = Object.fromEntries(
+      p.inventory.map((r) => [r.variantId, r.onHand])
+    );
+    const _variants = (p.variants || [])
+      .filter((v) => v.active !== false) // keep active only
+      .map((v) => ({
+        id: v.id,
+        name: v.name, // "Pink", "Purple", etc.
+        priceCents: v.priceCents ?? p.priceCents, // fallback to product price
+        onHand: invMap[v.id] ?? 0, // 0 if no row
+      }));
+
+    return {
+      ...p,
+      _price: centsToUSD(p.priceCents),
+      _variants, // ← used by ProductCard swatches
+    };
+  });
 
   return (
     <main className="mx-auto w-full max-w-7xl px-3 sm:px-4 pb-20 pt-6 md:pt-8">

@@ -6,7 +6,7 @@ import TestimonialsSection from "@/components/TestimonialsSection";
 import FinalCTA from "@/components/FinalCTA";
 import NewsletterCarousel from "@/components/newsletter/NewsletterCarousel";
 import Link from "next/link";
-
+import ShopCTA from "@/components/home/ShopCTA";
 
 // NEW
 import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
@@ -79,6 +79,9 @@ export default function Home() {
 
       <ServicesPreview />
       <TestimonialsSection />
+      {/* 🛍️ NEW: Shop Call to Action */}
+      <ShopCTA />
+
       <NewsletterCarousel />
       <FinalCTA />
 

@@ -1,118 +1,93 @@
-// app/api/shop/checkout/route.js
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-import { NextResponse } from "next/server";
+// app/api/create-checkout-session/route.js
 import Stripe from "stripe";
-import  prisma  from "@/lib/prisma";
-import {
-  readCartId,
-  ensureCart,
-  cartTotals,
-  CART_COOKIE,
-  COOKIE_MAX_AGE,
-} from "@/lib/cart";
-import { randomBytes } from "crypto";
+import { NextResponse } from "next/server";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-09-30.acacia",
-});
-
-const USD = (cents) => Math.max(0, Math.round(cents)); // guard
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(req) {
-  // ensure cart id exists (and set cookie if new in the response)
-  let cartId = await readCartId();
-  let setCookie = false;
-  if (!cartId) {
-    cartId = randomBytes(16).toString("hex");
-    setCookie = true;
-  }
-  await ensureCart(cartId);
+  try {
+    const { cartId, items, successUrl, cancelUrl } = await req.json();
+    // items: [{ productId, variantId, name, unitAmount, quantity }]
 
-  // load items
-  const items = await prisma.cartItem.findMany({
-    where: { cartId },
-    include: { product: true, variant: true },
-  });
+    if (!cartId || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json(
+        { error: "Missing cart or items" },
+        { status: 400 }
+      );
+    }
 
-  if (!items.length) {
-    return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
-  }
+    // Build base URL from env (live or preview)
+    const appBase =
+      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ||
+      "http://localhost:3000";
 
-  const subtotal = cartTotals(items).subtotalCents;
+    // Mode safety: prevent test key + prod domain (and vice versa)
+    const keyIsTest = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
+    const baseLooksProd =
+      /^https:\/\/(www\.)?mabelspawfectpetservices\.com$/i.test(appBase);
+    if (keyIsTest && baseLooksProd) {
+      return NextResponse.json(
+        { error: "Stripe mode mismatch (test key + prod domain)" },
+        { status: 400 }
+      );
+    }
 
-  // SHIPPING RULE: free at $75+, else $6 flat
-  const FREE_THRESHOLD = 7500; // cents
-  const STANDARD_RATE_CENTS = 600;
+    // Shipping rates (optional: only include ones provided)
+    const shipping_options = []
+      .concat(
+        process.env.STRIPE_RATE_STANDARD
+          ? [{ shipping_rate: process.env.STRIPE_RATE_STANDARD }]
+          : []
+      )
+      .concat(
+        process.env.STRIPE_RATE_EXPRESS
+          ? [{ shipping_rate: process.env.STRIPE_RATE_EXPRESS }]
+          : []
+      );
 
-  const includeFree = subtotal >= FREE_THRESHOLD;
-  const shippingOptions = [];
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
 
-  if (includeFree) {
-    shippingOptions.push({
-      shipping_rate_data: {
-        display_name: "Free shipping",
-        type: "fixed_amount",
-        fixed_amount: { amount: 0, currency: "usd" },
-        delivery_estimate: {
-          minimum: { unit: "business_day", value: 3 },
-          maximum: { unit: "business_day", value: 7 },
+      customer_creation: "if_required",
+      phone_number_collection: { enabled: true },
+      shipping_address_collection: { allowed_countries: ["US", "CA"] },
+      ...(shipping_options.length ? { shipping_options } : {}),
+
+      allow_promotion_codes: true,
+
+      line_items: items.map((i) => ({
+        price_data: {
+          currency: "usd",
+          unit_amount: i.unitAmount, // cents
+          product_data: {
+            name: i.name,
+            metadata: {
+              productId: i.productId,
+              variantId: i.variantId || "", // empty string if default
+            },
+          },
         },
+        quantity: i.quantity,
+      })),
+
+      metadata: {
+        orderType: "shop",
+        cartId,
       },
+
+      // Use provided URLs or fall back to app base
+      success_url:
+        (successUrl || `${appBase}/success`) +
+        `?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl || `${appBase}/shop`,
     });
-  } else {
-    shippingOptions.push({
-      shipping_rate_data: {
-        display_name: "Standard",
-        type: "fixed_amount",
-        fixed_amount: { amount: USD(STANDARD_RATE_CENTS), currency: "usd" },
-        delivery_estimate: {
-          minimum: { unit: "business_day", value: 3 },
-          maximum: { unit: "business_day", value: 7 },
-        },
-      },
-    });
+
+    return NextResponse.json({ url: session.url }, { status: 200 });
+  } catch (err) {
+    console.error("Stripe (shop) error:", err);
+    return NextResponse.json(
+      { error: "Failed to create checkout session" },
+      { status: 500 }
+    );
   }
-
-  // build line items from cart
-  const line_items = items.map((it) => ({
-    quantity: it.qty,
-    price_data: {
-      currency: "usd",
-      unit_amount: USD(it.priceCents),
-      product_data: {
-        name: it.product.title + (it.variant ? ` — ${it.variant.name}` : ""),
-        description: it.product.subtitle ?? undefined,
-      },
-    },
-  }));
-
-  const url = new URL(process.env.NEXT_PUBLIC_SITE_URL || (await req.url));
-  const success_url = `${url.origin}/shop/thank-you?session_id={CHECKOUT_SESSION_ID}`;
-  const cancel_url = `${url.origin}/shop`;
-
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer_email: undefined, // collected at checkout
-    line_items,
-    success_url,
-    cancel_url,
-    allow_promotion_codes: true,
-    shipping_address_collection: { allowed_countries: ["US"] },
-    shipping_options: shippingOptions,
-    metadata: { cartId },
-  });
-
-  const res = NextResponse.json({ url: session.url });
-  if (setCookie) {
-    res.cookies.set(CART_COOKIE, cartId, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: COOKIE_MAX_AGE,
-    });
-  }
-  return res;
 }

@@ -46,6 +46,9 @@ export default function Navbar() {
             <Link href="/reviews" className="hover:text-pink-600">
               Reviews
             </Link>
+            <Link href="/shop" className="hover:text-pink-600">
+              Shop
+            </Link>
             <Link href="/donations" className="hover:text-pink-600">
               Donations
             </Link>
@@ -112,6 +115,11 @@ export default function Navbar() {
             <li>
               <Link href="/pricing" onClick={toggleMobileMenu}>
                 Pricing
+              </Link>
+            </li>
+            <li>
+              <Link href="/shop" onClick={toggleMobileMenu}>
+                Shop
               </Link>
             </li>
             <li>

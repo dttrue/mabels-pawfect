@@ -179,6 +179,46 @@ model InventoryLog {
   @@index([createdAt])
 }
 
+model Order {
+  id                     String   @id @default(cuid())
+  stripeSessionId        String   @unique
+  stripePaymentIntentId  String   @unique
+
+  email         String?
+  phone         String?
+  name          String?
+  addressJson   String?
+  subtotalCents Int
+  totalCents    Int
+  currency      String   @default("usd")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+
+  // relation to Order
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // optional links to your catalog
+  productId   String?
+  variantId   String?
+
+  title       String
+  qty         Int
+  priceCents  Int
+
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+}
+
+
+
 model Cart {
   id        String     @id @default(cuid())
   createdAt DateTime   @default(now())
@@ -258,3 +298,4 @@ enum GalleryCategory {
   HAPPY
   MEMORIAM
 }
+
