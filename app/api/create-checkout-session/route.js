@@ -1,4 +1,4 @@
-// app/api/create-checkout-session/route.js
+// app/api/shop/checkout/route.js  (or create-checkout-session)
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
@@ -6,53 +6,34 @@ import { headers } from "next/headers";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(req) {
-  console.log("========== [checkout] create-checkout-session START ==========");
+  console.log("========== [checkout] START ==========");
 
-  // 🔹 Check which account this key belongs to
+  // Stripe account check (helps detect wrong key/account)
   try {
     const acct = await stripe.accounts.retrieve();
     console.log("[checkout] using Stripe account:", acct.id);
   } catch (err) {
-    console.error(
-      "[checkout] failed to retrieve Stripe account:",
-      err?.message
-    );
+    console.error("[checkout] failed to retrieve account:", err?.message);
   }
 
-  // 🔹 Helper to determine app base URL
-  function getAppBase() {
-    try {
-      const h = headers();
-      const host = h.get("host");
-      const proto = h.get("x-forwarded-proto") || "https";
-      if (host) return `${proto}://${host}`.replace(/\/+$/, "");
-    } catch {}
-    return (
-      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ||
-      "http://localhost:3000"
-    );
-  }
-
-  // 🔹 Parse request JSON
+  // Parse JSON
   let body;
   try {
     body = await req.json();
-    console.log("[checkout] parsed body:", body);
+    console.log("[checkout] body:", body);
   } catch {
-    console.error("[checkout] failed to parse JSON body");
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const { cartId, items, successUrl, cancelUrl } = body || {};
   if (!cartId || !Array.isArray(items) || items.length === 0) {
-    console.error("[checkout] missing cartId or items", { cartId, items });
     return NextResponse.json(
       { error: "Missing cart or items" },
       { status: 400 }
     );
   }
 
-  // 🔹 Validate line items
+  // Validate items
   for (const [idx, i] of items.entries()) {
     if (
       !i ||
@@ -69,17 +50,26 @@ export async function POST(req) {
     }
   }
 
-  const appBase = getAppBase();
+  // Build base URL from awaited headers (Next 15)
+  let appBase =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ||
+    "http://localhost:3000";
+  try {
+    const h = await headers(); // ✅ await required
+    const host = h.get("host");
+    const proto = h.get("x-forwarded-proto") || "https";
+    if (host) appBase = `${proto}://${host}`.replace(/\/+$/, "");
+  } catch {}
   console.log("[checkout] appBase:", appBase);
 
-  // 🔹 Build shipping options
+  // Shipping (single standard rate, optional)
   const standardRate = process.env.STRIPE_RATE_STANDARD?.trim();
-  console.log("[checkout] STRIPE_RATE_STANDARD:", standardRate);
+  console.log("[checkout] STRIPE_RATE_STANDARD:", standardRate || "(none)");
   const shipping_options = standardRate
     ? [{ shipping_rate: standardRate }]
     : [];
 
-  // 🔹 Verify shipping rate before proceeding
+  // Preflight verify shipping rate to catch typos/mode mismatches
   if (standardRate) {
     try {
       const r = await stripe.shippingRates.retrieve(standardRate);
@@ -106,13 +96,12 @@ export async function POST(req) {
     }
   } else {
     console.log(
-      "[checkout] No shipping rate configured — skipping shipping_options"
+      "[checkout] No shipping rate configured; skipping shipping_options"
     );
   }
 
-  // 🔹 Create checkout session
   try {
-    console.log("[checkout] creating Stripe checkout session...");
+    console.log("[checkout] creating Stripe session…");
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_creation: "if_required",
@@ -120,7 +109,6 @@ export async function POST(req) {
       shipping_address_collection: { allowed_countries: ["US", "CA"] },
       ...(shipping_options.length ? { shipping_options } : {}),
       allow_promotion_codes: true,
-
       line_items: items.map((i) => ({
         price_data: {
           currency: "usd",
@@ -135,21 +123,18 @@ export async function POST(req) {
         },
         quantity: i.quantity,
       })),
-
       metadata: { orderType: "shop", cartId: String(cartId) },
-
       success_url:
         (successUrl || `${appBase}/success`) +
         `?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${appBase}/shop`,
     });
 
-    console.log("[checkout] ✅ Stripe session created successfully:", {
+    console.log("[checkout] ✅ session created:", {
       id: session.id,
       url: session.url,
     });
-
-    console.log("========== [checkout] create-checkout-session END ==========");
+    console.log("========== [checkout] END ==========");
     return NextResponse.json({ url: session.url }, { status: 200 });
   } catch (err) {
     const detail = {
@@ -160,9 +145,6 @@ export async function POST(req) {
       http_status: err?.statusCode,
     };
     console.error("[checkout] ❌ Stripe error:", detail);
-    console.log(
-      "========== [checkout] create-checkout-session FAILED =========="
-    );
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }
