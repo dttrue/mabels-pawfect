@@ -1,5 +1,6 @@
 // components/cart/CartSheet.jsx
 "use client";
+
 import { Fragment, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { useCart } from "./CartContext";
@@ -11,38 +12,80 @@ function money(cents) {
   }).format(cents / 100);
 }
 
-function CheckoutButton({ cartIsEmpty }) {
+// ✅ Helper to read cart_id cookie (fallback)
+function getCartIdFromCookie() {
+  const m = document.cookie.match(/(?:^|;\s*)cart_id=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+// ✅ Helper to build items payload safely
+function buildItemsPayload(cart) {
+  return (cart?.items || []).map((it) => ({
+    productId: it.productId || it.product?.id || "",
+    variantId: it.variantId || it.variant?.id || "",
+    name: it.product?.title + (it.variant?.name ? ` (${it.variant.name})` : ""),
+    unitAmount: Math.round(it.priceCents || 0), // cents, integer
+    quantity: Math.max(1, Math.floor(it.qty || 1)),
+  }));
+}
+
+// ✅ Updated CheckoutButton
+function CheckoutButton({ cart, cartIsEmpty }) {
   const [busy, setBusy] = useState(false);
+
+  async function handleCheckout() {
+    try {
+      setBusy(true);
+
+      const cartId = cart?.id || getCartIdFromCookie();
+      const items = buildItemsPayload(cart);
+
+      if (!cartId || items.length === 0) {
+        alert("Your cart is empty or missing an ID.");
+        setBusy(false);
+        return;
+      }
+
+      const payload = {
+        cartId,
+        items,
+        successUrl: `${location.origin}/success`,
+        cancelUrl: `${location.origin}/shop`,
+      };
+
+      const res = await fetch("/api/shop/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data?.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        alert(data?.error || "Checkout failed");
+        setBusy(false);
+      }
+    } catch (e) {
+      console.error("[checkout] client error:", e);
+      alert("Checkout failed");
+      setBusy(false);
+    }
+  }
 
   return (
     <button
       disabled={busy || cartIsEmpty}
-      onClick={async () => {
-        try {
-          setBusy(true);
-          const res = await fetch("/api/shop/checkout", {
-            method: "POST",
-            cache: "no-store",
-          });
-          const data = await res.json();
-          if (res.ok && data?.url) {
-            window.location.href = data.url;
-          } else {
-            alert(data?.error || "Checkout failed");
-            setBusy(false);
-          }
-        } catch (e) {
-          alert("Checkout failed");
-          setBusy(false);
-        }
-      }}
+      onClick={handleCheckout}
       className="mt-3 inline-flex w-full items-center justify-center rounded bg-orange-500 px-4 py-3 font-medium text-white disabled:opacity-60 active:scale-[0.99] transition"
     >
       {busy ? "Redirecting…" : "Checkout"}
     </button>
   );
 }
-
 
 export default function CartSheet() {
   const { open, setOpen, cart, loading, updateQty, remove } = useCart();
@@ -161,8 +204,11 @@ export default function CartSheet() {
                     Taxes & shipping calculated at checkout.
                   </p>
 
-                  {/* Checkout button */}
-                  <CheckoutButton cartIsEmpty={!cart.items?.length} />
+                  {/* ✅ Fixed Checkout button */}
+                  <CheckoutButton
+                    cart={cart}
+                    cartIsEmpty={!cart.items?.length}
+                  />
                 </div>
               </Dialog.Panel>
             </Transition.Child>

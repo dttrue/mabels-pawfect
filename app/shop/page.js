@@ -2,17 +2,15 @@
 import ShopGrid from "@/components/shop/ShopGrid";
 
 export default async function ShopPage({ searchParams }) {
-  const c = (searchParams?.c ?? "").trim(); // e.g. "dog,interactive,chew,bundle-set"
-  const q = (searchParams?.q ?? "").trim();
-  const stock = (searchParams?.stock ?? "").trim(); // "1" when checked
+  // ✅ Await before using
+  const params = await searchParams;
+
+  const c = (params?.c ?? "").trim(); // e.g. "dog,interactive,chew,bundle-set"
+  const q = (params?.q ?? "").trim();
+  const stock = (params?.stock ?? "").trim(); // "1" when checked
 
   // decode + split
-  const selected = c
-    ? c
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean)
-    : [];
+  const selected = c ? c.split(",").filter(Boolean) : [];
   const inStockOnly = stock === "1";
 
   return (
