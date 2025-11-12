@@ -4,39 +4,26 @@ import { NextResponse } from "next/server";
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
-// .env: ADMIN_USER_IDS=user_xxx,user_yyy
-const ADMIN_IDS = (process.env.ADMIN_USER_IDS || "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-// Dev convenience switch (do NOT enable in production)
-const DEV_BYPASS = process.env.ADMIN_DEV_BYPASS === "1";
-
 export default clerkMiddleware((auth, req) => {
-  // Only guard /admin routes
+  // Only guard /admin
   if (!isAdminRoute(req)) return NextResponse.next();
 
-  // If bypass flag is on, let requests through (use only in local/dev)
-  if (DEV_BYPASS) return NextResponse.next();
-
-  // Otherwise require an allowed Clerk userId
-  const { userId } = auth(); // sync accessor
-
+  // Require sign-in, but no allowlist
+  const { userId } = auth();
   if (!userId) {
-    return NextResponse.redirect(new URL("/not-authorized", req.url));
+    const url = new URL("/sign-in", req.url);
+    url.searchParams.set(
+      "redirect_url",
+      req.nextUrl.pathname + req.nextUrl.search
+    );
+    return NextResponse.redirect(url);
   }
 
-  if (ADMIN_IDS.includes(userId)) {
-    return NextResponse.next();
-  }
-
-  return NextResponse.redirect(new URL("/not-authorized", req.url));
+  // Signed-in? Let them through.
+  return NextResponse.next();
 });
 
+// Scope the middleware to /admin only
 export const config = {
-  matcher: [
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    "/(api|trpc)(.*)",
-  ],
+  matcher: ["/admin/:path*"],
 };
