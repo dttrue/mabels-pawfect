@@ -1,12 +1,19 @@
 // app/api/whoami/route.js
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+
+export const runtime = "nodejs";
 
 export async function GET() {
-  const { userId, sessionId, sessionClaims } = auth();
+  const { userId, sessionId, getToken, sessionClaims } = auth();
   return NextResponse.json({
-    userId,
-    sessionId,
-    email: sessionClaims?.email,
+    userId: userId || null,
+    sessionId: sessionId || null,
+    email: sessionClaims?.email || null,
+    env: process.env.NODE_ENV,
+    keyPrefix: (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "").slice(
+      0,
+      7
+    ),
   });
 }
