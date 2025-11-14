@@ -15,27 +15,32 @@ const SWATCH = {
   orange: "bg-orange-500",
   turquoise: "bg-teal-400",
 
-  // 🌀 For multi-color or assorted variants
+  // 🌀 Multi-color
   mixed: "bg-gradient-to-r from-pink-400 via-yellow-400 to-blue-400",
 
-  // 🍦 For dessert-style cat toys
+  // 🍦 Dessert-style
   chocolate: "bg-amber-800",
-  vanilla: "bg-amber-100", // softer contrast for light theme
+  vanilla: "bg-amber-100",
   mint: "bg-emerald-300",
   strawberry: "bg-rose-300",
 
-  // 🎨 For oddball / unique variants
+  // 🎨 Unique
   other: "bg-gradient-to-r from-fuchsia-400 via-cyan-400 to-lime-400",
 
   // ⚙️ Fallback
   default: "bg-gray-400",
 
-  // 🍕 For pizza
+  // 🍕 Pizza
   supreme: "bg-gradient-to-r from-amber-400 via-green-500 to-red-500",
   pepperoni: "bg-gradient-to-r from-red-500 via-amber-300 to-rose-500",
-  "pepperoni-black-olive":
-  "bg-gradient-to-r from-red-600 via-gray-600 to-amber-400",
+  pepperoniBlackOlive:
+    "bg-gradient-to-r from-red-600 via-gray-600 to-amber-400",
+
+  // 🧶 NEW clean slugs
+  redWhite: "bg-gradient-to-r from-red-500 via-red-100 to-white",
+  black: "bg-gray-900",
 };
+
 
 
 

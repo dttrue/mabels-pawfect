@@ -1,9 +1,12 @@
-// app/api/shop/checkout/route.js  (or create-checkout-session)
+// app/api/shop/checkout/route.js
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// ✅ Sales tax rate (NJ) – set STRIPE_TAX_NJ in env when you can
+const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
 
 export async function POST(req) {
   console.log("========== [checkout] START ==========");
@@ -68,13 +71,16 @@ export async function POST(req) {
   const shipping_options = standardRate
     ? [{ shipping_rate: standardRate }]
     : [];
-const rateEnv = process.env.STRIPE_RATE_STANDARD;
-console.log(
-  "[checkout] STRIPE_RATE_STANDARD (raw):",
-  JSON.stringify(rateEnv),
-  "len:",
-  (rateEnv || "").length
-);
+  const rateEnv = process.env.STRIPE_RATE_STANDARD;
+  console.log(
+    "[checkout] STRIPE_RATE_STANDARD (raw):",
+    JSON.stringify(rateEnv),
+    "len:",
+    (rateEnv || "").length
+  );
+
+  // ✅ Log tax rate usage
+  console.log("[checkout] STRIPE_TAX_NJ:", TAX_RATE_NJ || "(none)");
 
   // Preflight verify shipping rate to catch typos/mode mismatches
   if (standardRate) {
@@ -116,6 +122,10 @@ console.log(
       shipping_address_collection: { allowed_countries: ["US", "CA"] },
       ...(shipping_options.length ? { shipping_options } : {}),
       allow_promotion_codes: true,
+
+      // ✅ Apply NJ sales tax to all line items if configured
+      ...(TAX_RATE_NJ ? { default_tax_rates: [TAX_RATE_NJ] } : {}),
+
       line_items: items.map((i) => ({
         price_data: {
           currency: "usd",
