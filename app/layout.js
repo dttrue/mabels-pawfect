@@ -10,6 +10,7 @@ import CartButton from "@/components/cart/CartButton";
 import CartSheet from "@/components/cart/CartSheet";
 import { Toaster } from "react-hot-toast";
 
+
 export const metadata = {
   title: "Mabel’s Pawfect Pet Services",
   description: "Affordable, loving pet care you can trust.",
@@ -19,7 +20,6 @@ export const metadata = {
 export default function RootLayout({ children }) {
   const { isHalloween, isFall, isSummer, isThanksgiving } =
     getSeasonFlags("thanksgiving");
-  
 
   return (
     <html lang="en">
@@ -35,12 +35,14 @@ export default function RootLayout({ children }) {
         <CartProvider>
           <Navbar />
 
+          
+
           {isThanksgiving && (
             <NavAwareBanner
               {...THEME_MAP.thanksgiving}
               id="banner-2025-thanksgiving"
               title="🦃 Thanksgiving Specials"
-              subtitle="Seasonal pricing through Nov 30"
+              subtitle="Seasonal pricing through Nov 30 • Free shipping on orders over $75"
               link="/pricing-seasonal"
               dismissible={false}
               leadIcon="🦃"
@@ -50,12 +52,8 @@ export default function RootLayout({ children }) {
           )}
 
           <Toaster position="top-right" />
-
-          {/* main content */}
           <main className="pt-20">{children}</main>
           <Footer />
-
-          {/* Floating cart + sheet (rendered once, globally) */}
           <CartButton />
           <CartSheet />
         </CartProvider>

@@ -80,17 +80,18 @@ export default function SeasonalBanner({
           )}
 
           {/* Left: title + subtitle */}
+          {/* Left: title + subtitle */}
           <a href={link} className="group flex-1 min-w-0 text-center">
-            <div className="leading-snug flex items-center justify-center gap-1">
+            <div className="leading-snug flex items-center justify-center gap-1 px-2">
               <span className="inline-block animate-turkey" aria-hidden>
                 🦃
               </span>
-              <div className="truncate">
-                <div className="font-semibold text-sm sm:text-base tracking-wide truncate">
+              <div className="min-w-0">
+                <div className="font-semibold text-xs sm:text-sm md:text-base tracking-wide whitespace-normal">
                   {title.replace("🦃 ", "")}
                 </div>
                 {subtitle && (
-                  <div className="text-xs sm:text-sm opacity-90 mt-0.5 underline decoration-transparent underline-offset-2 group-hover:decoration-current transition-[text-decoration-color] truncate">
+                  <div className="text-[11px] sm:text-xs md:text-sm opacity-90 mt-0.5 underline decoration-transparent underline-offset-2 group-hover:decoration-current transition-[text-decoration-color] whitespace-normal leading-snug">
                     {subtitle}
                   </div>
                 )}

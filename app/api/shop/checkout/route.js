@@ -5,6 +5,9 @@ import { headers } from "next/headers";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// ✅ Optional: NJ sales tax rate (exclusive)
+const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
+
 /**
  * Build an absolute base URL from request Host header (preferred)
  * with fallback to NEXT_PUBLIC_APP_URL, then localhost.
@@ -81,18 +84,42 @@ export async function POST(req) {
     );
   }
 
-  // Optional shipping rates (only include if present & non-empty)
-  const shipping_options = []
-    .concat(
-      process.env.STRIPE_RATE_STANDARD
-        ? [{ shipping_rate: process.env.STRIPE_RATE_STANDARD }]
-        : []
-    )
-    .concat(
-      process.env.STRIPE_RATE_EXPRESS
-        ? [{ shipping_rate: process.env.STRIPE_RATE_EXPRESS }]
-        : []
-    );
+  // 🧮 Cart subtotal in cents
+  const subtotalCents = items.reduce(
+    (sum, i) => sum + i.unitAmount * i.quantity,
+    0
+  );
+
+  // 🚚 Shipping rates from env
+  const standardRate = process.env.STRIPE_RATE_STANDARD?.trim() || null;
+  const freeRate = process.env.STRIPE_RATE_FREE?.trim() || null;
+
+  // Threshold in cents (default: $75 if not set)
+  const FREE_SHIP_THRESHOLD =
+    Number(process.env.STRIPE_FREE_SHIP_THRESHOLD) || 7500;
+
+  console.log("[checkout] subtotal (cents):", subtotalCents);
+  console.log("[checkout] STRIPE_RATE_STANDARD:", standardRate || "(none)");
+  console.log("[checkout] STRIPE_RATE_FREE:", freeRate || "(none)");
+  console.log("[checkout] FREE_SHIP_THRESHOLD (cents):", FREE_SHIP_THRESHOLD);
+  console.log("[checkout] STRIPE_TAX_NJ:", TAX_RATE_NJ || "(none)");
+
+  const qualifiesForFree = !!freeRate && subtotalCents >= FREE_SHIP_THRESHOLD;
+
+  // Build shipping_options:
+  // - < $75  -> standard only
+  // - >= $75 -> free only
+  let shipping_options = [];
+
+  if (qualifiesForFree) {
+    if (freeRate) {
+      shipping_options = [{ shipping_rate: freeRate }];
+    }
+  } else {
+    if (standardRate) {
+      shipping_options = [{ shipping_rate: standardRate }];
+    }
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -103,6 +130,7 @@ export async function POST(req) {
       ...(shipping_options.length ? { shipping_options } : {}),
       allow_promotion_codes: true,
 
+      // ⬇️ Tax moved onto each line item via `tax_rates`
       line_items: items.map((i) => ({
         price_data: {
           currency: "usd",
@@ -116,6 +144,7 @@ export async function POST(req) {
           },
         },
         quantity: i.quantity,
+        ...(TAX_RATE_NJ ? { tax_rates: [TAX_RATE_NJ] } : {}),
       })),
 
       metadata: {
@@ -138,7 +167,6 @@ export async function POST(req) {
       message: err?.message || err?.raw?.message,
       param: err?.param,
       decline_code: err?.decline_code,
-      // Shipping-rate or price-data mistakes show up here too
       rawType: err?.rawType,
       http_status: err?.statusCode,
     };
