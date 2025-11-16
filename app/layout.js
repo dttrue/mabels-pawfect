@@ -10,6 +10,9 @@ import CartButton from "@/components/cart/CartButton";
 import CartSheet from "@/components/cart/CartSheet";
 import { Toaster } from "react-hot-toast";
 
+// ✅ GA imports
+import Analytics from "@/components/Analytics";
+import GAProvider from "@/components/GAProvider";
 
 export const metadata = {
   title: "Mabel’s Pawfect Pet Services",
@@ -31,32 +34,36 @@ export default function RootLayout({ children }) {
         <link rel="icon" href="/favicon-v2.ico" />
       </head>
       <body className="min-h-screen bg-gradient-to-b from-white to-pink-50">
-        {/* Provide cart state to the whole app */}
-        <CartProvider>
-          <Navbar />
+        {/* GA pageview tracking wrapper */}
+        <GAProvider>
+          {/* Provide cart state to the whole app */}
+          <CartProvider>
+            <Navbar />
 
-          
+            {isThanksgiving && (
+              <NavAwareBanner
+                {...THEME_MAP.thanksgiving}
+                id="banner-2025-thanksgiving"
+                title="🦃 Thanksgiving Specials"
+                subtitle="Seasonal pricing through Nov 30 • Free shipping on orders over $75"
+                link="/pricing-seasonal"
+                dismissible={false}
+                leadIcon="🦃"
+                showTrailIcon
+                trailIcon="🍁"
+              />
+            )}
 
-          {isThanksgiving && (
-            <NavAwareBanner
-              {...THEME_MAP.thanksgiving}
-              id="banner-2025-thanksgiving"
-              title="🦃 Thanksgiving Specials"
-              subtitle="Seasonal pricing through Nov 30 • Free shipping on orders over $75"
-              link="/pricing-seasonal"
-              dismissible={false}
-              leadIcon="🦃"
-              showTrailIcon
-              trailIcon="🍁"
-            />
-          )}
+            <Toaster position="top-right" />
+            <main className="pt-20">{children}</main>
+            <Footer />
+            <CartButton />
+            <CartSheet />
+          </CartProvider>
+        </GAProvider>
 
-          <Toaster position="top-right" />
-          <main className="pt-20">{children}</main>
-          <Footer />
-          <CartButton />
-          <CartSheet />
-        </CartProvider>
+        {/* GA script loader */}
+        <Analytics />
       </body>
     </html>
   );
