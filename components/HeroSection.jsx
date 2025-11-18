@@ -3,10 +3,19 @@
 
 import Link from "next/link";
 import { trackHeroBookNow } from "@/lib/ga-events";
+import { useRouter } from "next/navigation";
 
 export default function HeroSection() {
-  const handleBookNowClick = () => {
+  const router = useRouter();
+
+  const handleBookNowClick = (e) => {
+    e.preventDefault(); // stop the instant navigation
     trackHeroBookNow();
+
+    // Navigate after a tiny delay so GA can record the event
+    setTimeout(() => {
+      router.push("/booking");
+    }, 120);
   };
 
   return (
@@ -32,17 +41,16 @@ export default function HeroSection() {
         </p>
 
         {/* BOOK NOW CTA w/ GA4 Event */}
-        <Link href="/booking">
-          <button
-            onClick={handleBookNowClick}
-            className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition duration-200"
-          >
-            Book Now
-          </button>
-        </Link>
+        <button
+          onClick={handleBookNowClick}
+          className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition duration-200"
+        >
+          Book Now
+        </button>
 
         <p className="mt-2 text-xs text-gray-500">Takes less than 1 minute</p>
       </div>
     </section>
   );
 }
+

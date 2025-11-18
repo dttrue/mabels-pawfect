@@ -2,6 +2,7 @@
 
 "use client";
 import { useEffect, useState } from "react";
+import { trackPricingCTA } from "@/lib/ga-events";
 
 export default function SeasonalBanner({
   title = "🦃 Thanksgiving Specials",
@@ -50,6 +51,15 @@ export default function SeasonalBanner({
   const padY = compact ? "py-2" : "py-2.5 md:py-3";
   const leftPad = showAccent ? "pl-3 sm:pl-4" : "";
 
+  const handlePricingClick = () => {
+    console.log("🔥 pricing CTA clicked");
+    trackPricingCTA({
+      page: "pricing-seasonal",
+      location: "thanksgiving-banner",
+    });
+  };
+
+
   return (
     <>
       {fixed && <div style={{ height: offsetTop }} aria-hidden />}
@@ -79,9 +89,12 @@ export default function SeasonalBanner({
             />
           )}
 
-          {/* Left: title + subtitle */}
-          {/* Left: title + subtitle */}
-          <a href={link} className="group flex-1 min-w-0 text-center">
+          {/* Left: title + subtitle (clickable, tracked) */}
+          <a
+            href={link}
+            onClick={handlePricingClick}
+            className="group flex-1 min-w-0 text-center"
+          >
             <div className="leading-snug flex items-center justify-center gap-1 px-2">
               <span className="inline-block animate-turkey" aria-hidden>
                 🦃
@@ -99,13 +112,14 @@ export default function SeasonalBanner({
             </div>
           </a>
 
-          {/* Right: CTA + trailing icon */}
+          {/* Right: CTA + trailing icon (also tracked) */}
           <div className="flex items-center gap-2 w-auto sm:w-[220px] justify-end">
             <span aria-hidden className="text-sm sm:text-base animate-leaf">
               🍁
             </span>
             <a
               href={link}
+              onClick={handlePricingClick}
               className="shrink-0 inline-flex items-center justify-center rounded-md px-3.5 py-2 text-xs sm:text-sm font-semibold bg-amber-400 text-black hover:bg-amber-300 ring-1 ring-black/10 shadow-sm"
             >
               See Holiday Pricing
