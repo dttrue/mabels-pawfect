@@ -7,6 +7,7 @@ import FinalCTA from "@/components/FinalCTA";
 import NewsletterCarousel from "@/components/newsletter/NewsletterCarousel";
 import Link from "next/link";
 import ShopCTA from "@/components/home/ShopCTA";
+import BookingFloatingButton from "@/components/BookingFloatingButton";
 
 // NEW
 import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
@@ -85,11 +86,7 @@ export default function Home() {
       <NewsletterCarousel />
       <FinalCTA />
 
-      <Link href="/booking">
-        <button className="fixed bottom-5 right-5 z-50 bg-pink-500 text-white px-4 py-3 rounded-full shadow-lg md:hidden">
-          📅 Book Now
-        </button>
-      </Link>
+      <BookingFloatingButton />
     </>
   );
 }

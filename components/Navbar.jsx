@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import MemberProfile from "./dashboard/MemberProfile";
 
+// ✅ GA event helpers
+import { trackBookingCTA, trackDonationCTA } from "@/lib/ga-events";
+
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -49,7 +52,11 @@ export default function Navbar() {
             <Link href="/shop" className="hover:text-pink-600">
               Shop
             </Link>
-            <Link href="/donations" className="hover:text-pink-600">
+            <Link
+              href="/donations"
+              className="hover:text-pink-600"
+              onClick={trackDonationCTA} // ✅ donation CTA
+            >
               Donations
             </Link>
             <Link href="/about" className="hover:text-pink-600">
@@ -65,6 +72,7 @@ export default function Navbar() {
             <Link
               href="/booking"
               className="text-white bg-pink-500 hover:bg-pink-600 font-medium rounded-lg text-sm px-5 py-2.5"
+              onClick={trackBookingCTA} // ✅ booking CTA
             >
               Book Now
             </Link>
@@ -103,7 +111,13 @@ export default function Navbar() {
               </Link>
             </li>
             <li>
-              <Link href="/booking" onClick={toggleMobileMenu}>
+              <Link
+                href="/booking"
+                onClick={() => {
+                  trackBookingCTA(); // ✅ mobile Book event
+                  toggleMobileMenu();
+                }}
+              >
                 Book
               </Link>
             </li>
@@ -133,7 +147,13 @@ export default function Navbar() {
               </Link>
             </li>
             <li>
-              <Link href="/donations" onClick={toggleMobileMenu}>
+              <Link
+                href="/donations"
+                onClick={() => {
+                  trackDonationCTA(); // ✅ mobile Donation event
+                  toggleMobileMenu();
+                }}
+              >
                 Donations
               </Link>
             </li>
@@ -150,7 +170,10 @@ export default function Navbar() {
             <li>
               <Link
                 href="/booking"
-                onClick={toggleMobileMenu}
+                onClick={() => {
+                  trackBookingCTA(); // ✅ mobile Book Now button
+                  toggleMobileMenu();
+                }}
                 className="block mt-6 text-white bg-pink-500 hover:bg-pink-600 font-medium rounded-lg text-center px-4 py-2.5"
               >
                 Book Now
