@@ -24,6 +24,7 @@ export default function AnnouncementBlock({
       page: analyticsPage,
       announcement_variant: analyticsVariant,
       cta_type: "primary",
+      destination: ctaHref, // 🔥 ADD THIS
     });
   }
 
@@ -32,8 +33,11 @@ export default function AnnouncementBlock({
       page: analyticsPage,
       announcement_variant: analyticsVariant,
       cta_type: "secondary",
+      destination: secondaryHref, // 🔥 ADD THIS
     });
   }
+
+
 
   return (
     <section
