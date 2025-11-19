@@ -75,6 +75,8 @@ export default function Home() {
           ctaText="View Pricing"
           secondaryHref="/gallery"
           secondaryText="See More Photos"
+          analyticsPage="pricing-seasonal"
+          analyticsVariant="thanksgiving-2025"
         />
       )}
 
