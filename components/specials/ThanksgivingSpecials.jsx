@@ -1,4 +1,5 @@
 // components/specials/ThanksgivingSpecials.jsx
+"use client";
 import Link from "next/link";
 import Image from "next/image";
 import { trackPricingCTA, trackBookingCTA } from "@/lib/ga-events";
