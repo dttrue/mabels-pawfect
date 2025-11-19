@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { trackNewsletterView, trackNewsletterCTA } from "@/lib/ga-events";
 
 export default function NewsletterCarousel() {
   const [newsletters, setNewsletters] = useState([]);
@@ -14,16 +15,21 @@ export default function NewsletterCarousel() {
         const res = await fetch("/api/newsletters");
         const data = await res.json();
         setNewsletters(data);
+
+        // Fire once per load, not per card
+        trackNewsletterView({
+          newsletterId: null,
+          location: "carousel",
+        });
       } catch (err) {
         console.error("Failed to load newsletters:", err);
       }
     };
+
     fetchNewsletters();
   }, []);
 
-  if (newsletters.length === 0) {
-    return null; // or a placeholder message
-  }
+  if (newsletters.length === 0) return null;
 
   return (
     <section className="py-12 px-4 bg-white">
@@ -31,12 +37,20 @@ export default function NewsletterCarousel() {
         <h2 className="text-3xl font-bold mb-4 text-gray-800">
           📬 Latest Newsletters
         </h2>
+
         <div className="carousel w-full mt-8 space-x-4 overflow-x-auto flex snap-x snap-mandatory scroll-smooth">
           {newsletters.map((n) => (
             <Link
               key={n.id}
               href={`/newsletter/${n.id}`}
               className="snap-center w-80 shrink-0"
+              onClick={() =>
+                trackNewsletterCTA({
+                  newsletterId: n.id,
+                  ctaType: "open_newsletter",
+                  location: "carousel",
+                })
+              }
             >
               <div className="bg-pinky-50 rounded-lg shadow-md p-4 flex flex-col items-center hover:shadow-lg transition-shadow">
                 <img
@@ -45,9 +59,11 @@ export default function NewsletterCarousel() {
                   className="w-full h-48 object-cover rounded mb-4"
                 />
                 <h3 className="font-semibold text-lg mb-2">{n.title}</h3>
+
                 {n.description && (
                   <p className="text-sm text-gray-600 mb-3">{n.description}</p>
                 )}
+
                 {n.fileUrl && (
                   <p className="text-xs text-pink-600">📄 PDF available</p>
                 )}
