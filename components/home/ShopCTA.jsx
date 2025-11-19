@@ -1,17 +1,32 @@
 // components/home/ShopCTA.jsx
+
+"use client";
+
+import { trackShopNavClick } from "@/lib/ga-events";
+
 export default function ShopCTA() {
+  function handleClick() {
+    // Not navbar → label it clearly for GA4
+    trackShopNavClick({ page: "homepage_shop_section" });
+  }
+
   return (
     <section className="bg-gradient-to-r from-pink-200 via-rose-100 to-yellow-100 py-16 px-6 text-center rounded-2xl shadow-md mt-12">
       <h2 className="text-3xl font-bold text-gray-800 mb-4">
         🛍️ Treat Your Pets to Something Pawfect!
       </h2>
       <p className="max-w-2xl mx-auto text-gray-600 mb-8">
-        Our brand-new <span className="font-semibold text-pink-600">Toy Shop</span> is open!
-        Browse hand-picked toys and treats your furry friends will love —
-        from plush favorites to durable chew toys. Every purchase supports
-        our small pet-sitting business ❤️
+        Our brand-new{" "}
+        <span className="font-semibold text-pink-600">Toy Shop</span> is open!
+        Browse hand-picked toys and treats your furry friends will love — from
+        plush favorites to durable chew toys. Every purchase supports our small
+        pet-sitting business ❤️
       </p>
-      <a href="/shop" className="btn btn-primary btn-wide text-lg">
+      <a
+        href="/shop"
+        onClick={handleClick}
+        className="btn btn-primary btn-wide text-lg"
+      >
         🐶 Visit the Shop
       </a>
     </section>
