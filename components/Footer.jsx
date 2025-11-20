@@ -50,14 +50,14 @@ export default function Footer() {
           <span className="text-gray-500 font-medium">Follow us:</span>
           <div className="flex gap-4">
             <a
-              href="https://www.instagram.com/mabelspawfectpetservices?igsh=MWs1anNyYzM4ZGt5cA=="
+              href="https://www.instagram.com/mabelspawfectpetservicesllc/"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
               onClick={() =>
                 trackFooterSocial({
                   platform: "instagram",
-                  url: "https://www.instagram.com/mabelspawfectpetservices?igsh=MWs1anNyYzM4ZGt5cA==",
+                  url: "https://www.instagram.com/mabelspawfectpetservicesllc/",
                 })
               }
               className="text-gray-600 hover:text-pink-500 transition-transform duration-200 hover:scale-110"
