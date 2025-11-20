@@ -1,13 +1,23 @@
 // components/BookingForm.jsx
 "use client";
+
 import toast from "react-hot-toast";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PetForm from "@/components/PetForm";
 import BookingMultiDatePicker from "@/components/booking/BookingMultiDatePicker";
 import { serviceOptions } from "@/lib/servicesData";
 import BookingIntroModal from "@/components/modals/BookingIntroModal";
 
+import {
+  trackBookingAttempt,
+  trackBookingSuccess,
+  trackBookingError,
+  trackBookingClearSavedInfo,
+  trackFieldFocus,
+  trackFieldComplete,
+  trackFieldError,
+} from "@/lib/ga-events";
 
 export default function BookingForm() {
   const [form, setForm] = useState({
@@ -55,7 +65,6 @@ export default function BookingForm() {
     form.pets.length === 1 &&
     Object.values(form.pets[0]).every((val) => val === "");
 
-
   // Load all blocked overnights
   useEffect(() => {
     const fetchBlockedDates = async () => {
@@ -70,7 +79,6 @@ export default function BookingForm() {
 
     fetchBlockedDates();
   }, []);
-
 
   // Load from localStorage on first render
   useEffect(() => {
@@ -113,9 +121,6 @@ export default function BookingForm() {
     }
   }, [formLoaded, bookingRestored, isFormActuallyEmpty]);
 
-
-
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -129,6 +134,9 @@ export default function BookingForm() {
   };
 
   const handleAddPet = () => {
+    // Track add pet UX
+    trackFieldFocus("add_pet_click");
+
     setForm((prev) => ({
       ...prev,
       pets: [
@@ -148,6 +156,9 @@ export default function BookingForm() {
   };
 
   const handleRemovePet = (index) => {
+    // Track remove pet UX
+    trackFieldError("remove_pet_click");
+
     const updatedPets = form.pets.filter((_, i) => i !== index);
     setForm((prev) => ({ ...prev, pets: updatedPets }));
   };
@@ -159,8 +170,24 @@ export default function BookingForm() {
     if (!form.entries || form.entries.length === 0) {
       setErrorMessage("Please select at least one date and time.");
       setSubmitting(false);
+
+      // GA4: validation error (no dates)
+      trackBookingError({
+        service: form.service,
+        entriesCount: 0,
+        petsCount: form.pets.length,
+        errorType: "no_dates_selected",
+      });
+
       return;
     }
+
+    // GA4: user attempted to submit booking
+    trackBookingAttempt({
+      service: form.service,
+      entriesCount: form.entries.length,
+      petsCount: form.pets.length,
+    });
 
     const payload = {
       fullName: form.fullName,
@@ -181,6 +208,13 @@ export default function BookingForm() {
       });
 
       if (res.ok) {
+        // GA4: booking success
+        trackBookingSuccess({
+          service: form.service,
+          entriesCount: form.entries.length,
+          petsCount: form.pets.length,
+        });
+
         setSuccess(true);
         setErrorMessage("");
         setTimeout(() => setSuccess(false), 5000);
@@ -211,24 +245,44 @@ export default function BookingForm() {
         router.push("/thank-you");
       } else {
         const data = await res.json();
-        if (
-          data?.error?.includes(
-            "Overnight bookings are unavailable from June 27"
-          )
-        ) {
+
+        const isOvernightBlackout = data?.error?.includes(
+          "Overnight bookings are unavailable from June 27"
+        );
+
+        if (isOvernightBlackout) {
           toast.error("🚫 Overnight stays are unavailable June 27 – Aug 2.");
         } else {
           toast.error(
             `⚠️ ${data.error || "Something went wrong. Please try again."}`
           );
         }
+
         setErrorMessage(
           data.error || "Something went wrong. Please try again."
         );
+
+        // GA4: API-level error
+        trackBookingError({
+          service: form.service,
+          entriesCount: form.entries.length,
+          petsCount: form.pets.length,
+          errorType: isOvernightBlackout
+            ? "overnight_blackout"
+            : "server_or_validation",
+        });
       }
     } catch (err) {
       console.error(err);
       alert("Server error.");
+
+      // GA4: network/exception error
+      trackBookingError({
+        service: form.service,
+        entriesCount: form.entries.length,
+        petsCount: form.pets.length,
+        errorType: "network_error",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -273,6 +327,15 @@ export default function BookingForm() {
                   name={field}
                   value={form[field]}
                   onChange={handleChange}
+                  onFocus={() => trackFieldFocus(field)}
+                  onBlur={() => {
+                    const value = (form[field] || "").toString().trim();
+                    if (value) {
+                      trackFieldComplete(field);
+                    } else {
+                      trackFieldError(field);
+                    }
+                  }}
                   required
                   className="input input-bordered w-full"
                 />
@@ -288,6 +351,14 @@ export default function BookingForm() {
                 name="service"
                 value={form.service}
                 onChange={handleChange}
+                onFocus={() => trackFieldFocus("service")}
+                onBlur={() => {
+                  if (form.service) {
+                    trackFieldComplete("service");
+                  } else {
+                    trackFieldError("service");
+                  }
+                }}
                 required
                 className="select select-bordered w-full"
               >
@@ -323,8 +394,15 @@ export default function BookingForm() {
               onChange={(entries) => {
                 setForm((prev) => ({
                   ...prev,
-                  entries, // [{ date: "2025-06-15", time: "10:00" }]
+                  entries,
                 }));
+
+                if (entries && entries.length > 0) {
+                  // treat as "field complete" for dates
+                  trackFieldComplete("entries");
+                } else {
+                  trackFieldError("entries");
+                }
               }}
               blockedDates={blockedDates}
               service={form.service}
@@ -339,7 +417,16 @@ export default function BookingForm() {
                 name="notes"
                 value={form.notes}
                 onChange={handleChange}
-                rows="3"
+                onFocus={() => trackFieldFocus("notes")}
+                onBlur={() => {
+                  const value = (form.notes || "").trim();
+                  if (value) {
+                    trackFieldComplete("notes");
+                  } else {
+                    // notes aren't required, so we DON'T log an error here
+                  }
+                }}
+                rows={3}
                 className="textarea textarea-bordered w-full"
               />
             </div>
@@ -351,6 +438,7 @@ export default function BookingForm() {
                 key={index}
                 className="mb-6 border rounded-lg p-4 bg-gray-50 shadow-sm"
               >
+                {/* PetForm can be enhanced separately with its own field tracking if desired */}
                 <PetForm
                   pet={pet}
                   index={index}
@@ -388,6 +476,12 @@ export default function BookingForm() {
               <button
                 type="button"
                 onClick={() => {
+                  trackBookingClearSavedInfo({
+                    hadEntries: (form.entries || []).length > 0,
+                    petsCount: form.pets.length,
+                    hadService: !!form.service,
+                  });
+
                   localStorage.removeItem("bookingInfo");
                   setForm({
                     fullName: "",
@@ -439,4 +533,3 @@ export default function BookingForm() {
     </>
   );
 }
-
