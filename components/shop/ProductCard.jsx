@@ -1,8 +1,10 @@
 // components/shop/ProductCard.jsx
 "use client";
+
 import { useState, useMemo, useEffect } from "react";
 import { useCart } from "@/components/cart/CartContext";
 import { CldImage } from "next-cloudinary";
+import { trackEvent, trackAddToCart } from "@/lib/ga-events";
 
 // Simple name→swatch mapping. Extend as needed.
 const SWATCH = {
@@ -41,10 +43,6 @@ const SWATCH = {
   black: "bg-gray-900",
 };
 
-
-
-
-
 function swatchClass(name = "") {
   const key = name.trim().toLowerCase();
   return SWATCH[key] || SWATCH.default;
@@ -54,17 +52,22 @@ export default function ProductCard({ product }) {
   const { add } = useCart();
   const img = product.images?.[0];
 
-  // has selectable variants?
+  // variants merged in ShopGrid
   const variants = product._variants ?? [];
   const hasVariants = variants.length > 0;
 
+  // injected from ShopGrid
+  const gridIndex = product._index ?? null;
+  const isLowStock = product._lowStock ?? null;
+
   const [selectedId, setSelectedId] = useState(null);
 
-   useEffect(() => {
-     if (variants.length === 1 && (variants[0]?.onHand ?? 0) > 0) {
-       setSelectedId(variants[0].id);
-     }
-   }, [variants]);
+  // If there is exactly one in-stock variant, preselect it
+  useEffect(() => {
+    if (variants.length === 1 && (variants[0]?.onHand ?? 0) > 0) {
+      setSelectedId(variants[0].id);
+    }
+  }, [variants]);
 
   const selectedVariant = useMemo(
     () => variants.find((v) => v.id === selectedId) || null,
@@ -76,14 +79,52 @@ export default function ProductCard({ product }) {
       ? variants[0]
       : null;
 
-  const canAdd = !hasVariants || !!selectedVariant || !!singleInStock; // ✅ enable Add if single variant in stock
+  const canAdd = !hasVariants || !!selectedVariant || !!singleInStock;
 
-  async function handleAdd(e) {
+  // 🔹 GA: product card impression (fires on mount)
+  useEffect(() => {
+    trackEvent("product_card_impression", {
+      product_id: product.id,
+      product_slug: product.slug,
+      category: product.category || null,
+      is_low_stock: isLowStock,
+      has_variants: hasVariants,
+      grid_index: gridIndex,
+      location: "shop_grid",
+    });
+  }, [
+    product.id,
+    product.slug,
+    product.category,
+    hasVariants,
+    gridIndex,
+    isLowStock,
+  ]);
+
+  function handleAdd(e) {
     e.preventDefault();
     e.stopPropagation();
 
-    // ✅ prefer the chosen variant; otherwise fallback to the only in-stock one
+    // Prefer the chosen variant; otherwise fallback to the only in-stock one
     const v = selectedVariant || singleInStock || null;
+
+    const priceNumber =
+      typeof product.priceCents === "number"
+        ? product.priceCents / 100
+        : undefined;
+
+    // 🔹 GA: add_to_cart
+    trackAddToCart({
+      productId: product.id,
+      title: product.title,
+      price: priceNumber,
+      variant: v?.name || null,
+      category: product.category || null,
+      inventoryRemaining: typeof v?.onHand === "number" ? v.onHand : null,
+      isLowStock,
+      gridIndex,
+      location: "shop_grid",
+    });
 
     add({
       productId: product.id,
@@ -95,12 +136,42 @@ export default function ProductCard({ product }) {
   function handlePickVariant(e, id, disabled) {
     e.preventDefault();
     e.stopPropagation();
-    if (!disabled) setSelectedId(id);
+    if (disabled) return;
+
+    setSelectedId(id);
+
+    const variant = variants.find((v) => v.id === id);
+
+    // 🔹 GA: variant_select
+    trackEvent("variant_select", {
+      product_id: product.id,
+      product_slug: product.slug,
+      variant_id: id,
+      variant_name: variant?.name || null,
+      stock_remaining:
+        typeof variant?.onHand === "number" ? variant.onHand : null,
+      grid_index: gridIndex,
+      location: "shop_grid",
+    });
+  }
+
+  function handleCardClick() {
+    // 🔹 GA: product_card_click
+    trackEvent("product_card_click", {
+      product_id: product.id,
+      product_slug: product.slug,
+      category: product.category || null,
+      is_low_stock: isLowStock,
+      has_variants: hasVariants,
+      grid_index: gridIndex,
+      location: "shop_grid",
+    });
   }
 
   return (
     <a
       href={`/shop/${product.slug}`}
+      onClick={handleCardClick}
       className="relative card bg-white border hover:shadow-lg transition"
     >
       <figure className="aspect-square overflow-hidden">
@@ -158,7 +229,6 @@ export default function ProductCard({ product }) {
                   title={`${v.name}${out ? " (Sold out)" : ""}`}
                   aria-label={`${v.name}${out ? " (Sold out)" : ""}`}
                 >
-                  {/* strike-through for OOS */}
                   {out && (
                     <span
                       className="pointer-events-none absolute left-1/2 top-1/2 h-0.5 w-8 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-black/60"

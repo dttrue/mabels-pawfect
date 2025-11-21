@@ -130,9 +130,27 @@ export default async function ShopGrid({
             "repeat(auto-fill, minmax(min(45%, 180px), 1fr))",
         }}
       >
-        {items.map((p) => (
-          <ProductCard key={p.id} product={p} />
-        ))}
+        {items.map((p, i) => {
+          // total stock (all variants)
+          const totalRemaining =
+            p._variants?.length > 0
+              ? p._variants.reduce((sum, v) => sum + (v.onHand || 0), 0)
+              : 0;
+
+          // tweak threshold: 1–3 left = low stock
+          const isLowStock = totalRemaining > 0 && totalRemaining <= 3;
+
+          return (
+            <ProductCard
+              key={p.id}
+              product={{
+                ...p,
+                _index: i, // 👉 grid position
+                _lowStock: isLowStock, // 👉 true/false
+              }}
+            />
+          );
+        })}
 
         {items.length === 0 && (
           <div className="col-span-full text-center text-sm opacity-70 py-10">

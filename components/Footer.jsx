@@ -4,7 +4,7 @@
 
 import { Facebook, Instagram, Linkedin } from "lucide-react";
 import Link from "next/link";
-import { trackFooterLink, trackFooterSocial } from "@/lib/ga-events";
+import { trackFooterLink } from "@/lib/ga-events";
 
 export default function Footer() {
   return (
