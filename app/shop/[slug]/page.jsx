@@ -1,12 +1,14 @@
-// app/(site)/shop/[slug]/page.jsx
-"use client";
+// app/shop/[slug]/page.jsx
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { centsToUSD } from "@/lib/money";
-import { CldImage } from "next-cloudinary";
+import ProductImage from "@/components/shop/ProductImage";
+
+export const dynamic = "force-dynamic";
 
 export default async function ProductPage({ params }) {
-  const { slug } = params;
+  // ✅ New: await params
+  const { slug } = await params;
 
   const product = await prisma.product.findUnique({
     where: { slug },
@@ -18,18 +20,17 @@ export default async function ProductPage({ params }) {
 
   if (!product) return notFound();
 
+  const img = product.images?.[0];
+
   return (
     <main className="container mx-auto px-4 py-10">
       <div className="grid md:grid-cols-2 gap-8">
         {/* Image */}
         <div>
-          {product.images?.[0] ? (
-            <CldImage
-              src={product.images[0].publicId}
-              width={600}
-              height={600}
-              alt={product.images[0].alt || product.title}
-              className="rounded-2xl shadow-lg"
+          {img ? (
+            <ProductImage
+              publicId={img.publicId}
+              alt={img.alt || product.title}
             />
           ) : (
             <div className="bg-base-200 w-full aspect-square rounded-2xl flex items-center justify-center">
