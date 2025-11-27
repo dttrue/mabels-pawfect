@@ -15,7 +15,11 @@ export function useCart() {
 
 export default function CartProvider({ children }) {
   const [open, setOpen] = useState(false);
-  const [cart, setCart] = useState({ items: [], totals: { subtotalCents: 0 } });
+  const [cart, setCart] = useState({
+    items: [],
+    totals: { subtotalCents: 0, discountCents: 0, totalCents: 0 },
+  });
+
   const [loading, setLoading] = useState(false);
 
   const fetchCart = useCallback(async () => {

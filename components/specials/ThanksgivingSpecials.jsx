@@ -98,6 +98,7 @@ export default function ThanksgivingSpecials({
                 width={880}
                 height={1360}
                 className="h-auto w-full rounded-lg"
+                sizes="(max-width: 768px) 100vw, 880px"
                 priority
               />
             </Link>

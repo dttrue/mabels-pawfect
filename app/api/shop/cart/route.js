@@ -12,6 +12,7 @@ import {
   COOKIE_MAX_AGE,
 } from "@/lib/cart";
 import { randomBytes } from "crypto";
+import { applyBlackFridayBogo } from "@/lib/cartPromos"; // 🔹 NEW
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -28,7 +29,26 @@ function serializeCart(cart, items) {
     },
     variant: it.variant ? { id: it.variant.id, name: it.variant.name } : null,
   }));
-  return { id: cart.id, items: enriched, totals: cartTotals(enriched) };
+
+  // 🔹 Base totals (no discounts)
+  const baseTotals = cartTotals(enriched);
+
+  // 🔹 Black Friday BOGO 50% discount
+  const { discountCents, breakdown } = applyBlackFridayBogo(enriched);
+
+  const totals = {
+    ...baseTotals,
+    // how much we’re taking off due to BOGO
+    discountCents,
+    promos: breakdown,
+    // final total after BOGO (never below 0)
+    totalCents: Math.max(
+      0,
+      (baseTotals.totalCents ?? baseTotals.subtotalCents ?? 0) - discountCents
+    ),
+  };
+
+  return { id: cart.id, items: enriched, totals };
 }
 
 async function loadCartAndItems(cartId) {
@@ -103,19 +123,21 @@ export async function POST(req) {
 
     let priceCents = product.priceCents;
     if (variantId) {
-      const variant = product.variants.find((v) => v.id === variantId && v.active !== false);
+      const variant = product.variants.find(
+        (v) => v.id === variantId && v.active !== false
+      );
       if (!variant) {
-        return NextResponse.json({ error: "Variant not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Variant not found" },
+          { status: 404 }
+        );
       }
       priceCents = variant.priceCents ?? priceCents;
     }
 
     // Optional: enforce inventory (if you track it)
-    // Look up onHand for (productId, variantId or Default)
     const invKey = { productId, variantId: variantId ?? null };
 
-    // If you use a composite unique (productId, variantId) with non-null variantId,
-    // create a helper that resolves a "Default" variantId before this check.
     const inventory = await prisma.inventory.findUnique({
       where: { productId_variantId: invKey },
     });
@@ -135,7 +157,6 @@ export async function POST(req) {
         }
         // Reduce qty to allowed
         const reducedQty = allowed;
-        // fall through using reducedQty
         if (existingForSku) {
           await prisma.cartItem.update({
             where: { id: existingForSku.id },
@@ -201,7 +222,12 @@ export async function PUT(req) {
         return NextResponse.json({ error: "Item not found" }, { status: 404 });
       }
       const inventory = await prisma.inventory.findUnique({
-        where: { productId_variantId: { productId: item.productId, variantId: item.variantId } },
+        where: {
+          productId_variantId: {
+            productId: item.productId,
+            variantId: item.variantId,
+          },
+        },
       });
       if (inventory && nextQty > inventory.onHand) {
         return NextResponse.json(
@@ -209,7 +235,10 @@ export async function PUT(req) {
           { status: 409 }
         );
       }
-      await prisma.cartItem.update({ where: { id: cartItemId }, data: { qty: nextQty } });
+      await prisma.cartItem.update({
+        where: { id: cartItemId },
+        data: { qty: nextQty },
+      });
     }
 
     return GET();

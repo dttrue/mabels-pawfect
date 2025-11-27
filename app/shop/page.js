@@ -1,8 +1,9 @@
 // app/shop/page.js
 import ShopGrid from "@/components/shop/ShopGrid";
 
-export default function ShopPage({ searchParams }) {
-  const params = searchParams ?? {};
+export default async function ShopPage({ searchParams }) {
+  // Next 15: searchParams is async-like, so await it once
+  const params = (await searchParams) ?? {};
 
   const c = (params.c ?? "").trim(); // e.g. "dog,interactive,chew,bundle-set"
   const q = (params.q ?? "").trim();

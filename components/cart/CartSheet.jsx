@@ -196,19 +196,44 @@ export default function CartSheet() {
 
                 {/* Footer */}
                 <div className="border-t p-4">
-                  <div className="flex justify-between text-base font-semibold">
-                    <span>Subtotal</span>
-                    <span>{money(cart.totals?.subtotalCents || 0)}</span>
-                  </div>
-                  <p className="text-xs opacity-70 mt-1">
-                    Taxes & shipping calculated at checkout.
-                  </p>
+                  {(() => {
+                    const subtotal = cart.totals?.subtotalCents ?? 0;
+                    const discount = cart.totals?.discountCents ?? 0;
+                    const total =
+                      cart.totals?.totalCents ??
+                      Math.max(0, subtotal - discount);
 
-                  {/* ✅ Fixed Checkout button */}
-                  <CheckoutButton
-                    cart={cart}
-                    cartIsEmpty={!cart.items?.length}
-                  />
+                    return (
+                      <>
+                        <div className="flex justify-between text-base font-semibold">
+                          <span>Subtotal</span>
+                          <span>{money(subtotal)}</span>
+                        </div>
+
+                        {discount > 0 && (
+                          <div className="mt-1 flex justify-between text-sm text-green-700">
+                            <span>Black Friday savings</span>
+                            <span>-{money(discount)}</span>
+                          </div>
+                        )}
+
+                        <div className="mt-2 flex justify-between text-base font-semibold border-t pt-2">
+                          <span>Total</span>
+                          <span>{money(total)}</span>
+                        </div>
+
+                        <p className="text-xs opacity-70 mt-1">
+                          Taxes &amp; shipping calculated at checkout.
+                        </p>
+
+                        {/* ✅ Checkout button */}
+                        <CheckoutButton
+                          cart={cart}
+                          cartIsEmpty={!cart.items?.length}
+                        />
+                      </>
+                    );
+                  })()}
                 </div>
               </Dialog.Panel>
             </Transition.Child>

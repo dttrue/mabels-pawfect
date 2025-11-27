@@ -5,6 +5,10 @@ import { useState, useMemo, useEffect } from "react";
 import { useCart } from "@/components/cart/CartContext";
 import { CldImage } from "next-cloudinary";
 import { trackEvent, trackAddToCart } from "@/lib/ga-events";
+import {
+  isBlackFridayActive,
+  isBlackFridayEligibleSlug,
+} from "@/lib/blackFridayHelpers"; // 🔹 NEW
 
 // Simple name→swatch mapping. Extend as needed.
 const SWATCH = {
@@ -62,6 +66,11 @@ export default function ProductCard({ product }) {
 
   const [selectedId, setSelectedId] = useState(null);
 
+  // 🔹 Black Friday flags
+  const bfActive = isBlackFridayActive();
+  const bfEligible = isBlackFridayEligibleSlug(product.slug);
+  const showBogoBadge = bfActive && bfEligible;
+
   // If there is exactly one in-stock variant, preselect it
   useEffect(() => {
     if (variants.length === 1 && (variants[0]?.onHand ?? 0) > 0) {
@@ -91,6 +100,9 @@ export default function ProductCard({ product }) {
       has_variants: hasVariants,
       grid_index: gridIndex,
       location: "shop_grid",
+      // optional: track if this card is part of BF promo
+      is_black_friday_eligible: bfEligible,
+      is_black_friday_active: bfActive,
     });
   }, [
     product.id,
@@ -99,6 +111,8 @@ export default function ProductCard({ product }) {
     hasVariants,
     gridIndex,
     isLowStock,
+    bfEligible,
+    bfActive,
   ]);
 
   function handleAdd(e) {
@@ -124,6 +138,8 @@ export default function ProductCard({ product }) {
       isLowStock,
       gridIndex,
       location: "shop_grid",
+      isBlackFridayEligible: bfEligible,
+      isBlackFridayActive: bfActive,
     });
 
     add({
@@ -165,6 +181,8 @@ export default function ProductCard({ product }) {
       has_variants: hasVariants,
       grid_index: gridIndex,
       location: "shop_grid",
+      isBlackFridayEligible: bfEligible,
+      isBlackFridayActive: bfActive,
     });
   }
 
@@ -174,6 +192,15 @@ export default function ProductCard({ product }) {
       onClick={handleCardClick}
       className="relative card bg-white border hover:shadow-lg transition"
     >
+      {/* 🔹 Black Friday BOGO badge */}
+      {showBogoBadge && (
+        <div className="absolute top-2 left-2 z-10">
+          <span className="bg-black text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded shadow-sm">
+            Black Friday • BOGO 50% Off
+          </span>
+        </div>
+      )}
+
       <figure className="aspect-square overflow-hidden">
         {img ? (
           img.publicId ? (

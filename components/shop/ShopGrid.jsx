@@ -3,6 +3,12 @@ import prisma from "@/lib/prisma";
 import { centsToUSD } from "@/lib/money";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopFilterBar from "@/components/shop/ShopFilterBar";
+import {
+  isBlackFridayActive,
+  isBlackFridayEligibleSlug,
+} from "@/lib/blackFridayHelpers";
+import { BLACK_FRIDAY_PROMO } from "@/lib/blackFridayConfig";
+import BlackFridayCountdown from "@/components/specials/BlackFridayCountdown";
 
 export const dynamic = "force-dynamic";
 
@@ -53,31 +59,51 @@ export default async function ShopGrid({
       variants: {
         select: { id: true, name: true, priceCents: true, active: true },
       },
-      inventory: { select: { variantId: true, onHand: true } }, // variant stock rows
+      inventory: { select: { variantId: true, onHand: true } },
     },
     take: 24,
   });
 
+  // 🔹 Black Friday flags
+  const bfActive = isBlackFridayActive();
+  const bfOnlySet = new Set(BLACK_FRIDAY_PROMO.bfOnlySlugs || []);
+
   // Merge variants with inventory counts
-  const items = products.map((p) => {
+  const baseItems = products.map((p) => {
     const invMap = Object.fromEntries(
       p.inventory.map((r) => [r.variantId, r.onHand])
     );
-    const _variants = (p.variants || [])
-      .filter((v) => v.active !== false) // keep active only
-      .map((v) => ({
-        id: v.id,
-        name: v.name, // "Pink", "Purple", etc.
-        priceCents: v.priceCents ?? p.priceCents, // fallback to product price
-        onHand: invMap[v.id] ?? 0, // 0 if no row
-      }));
+
+    const _variants =
+      (p.variants || [])
+        .filter((v) => v.active !== false)
+        .map((v) => ({
+          id: v.id,
+          name: v.name,
+          priceCents: v.priceCents ?? p.priceCents,
+          onHand: invMap[v.id] ?? 0,
+        })) || [];
+
+    const _isBlackFriday = bfActive && isBlackFridayEligibleSlug(p.slug);
+    const _isBlackFridayOnly = _isBlackFriday && bfOnlySet.has(p.slug);
 
     return {
       ...p,
       _price: centsToUSD(p.priceCents),
-      _variants, // ← used by ProductCard swatches
+      _variants,
+      _isBlackFriday,
+      _isBlackFridayOnly,
     };
   });
+
+  // 🔹 When BF is active, bubble BF toys to the top of the grid
+  const items = bfActive
+    ? [...baseItems].sort((a, b) => {
+        const aBF = a._isBlackFriday ? 1 : 0;
+        const bBF = b._isBlackFriday ? 1 : 0;
+        return bBF - aBF;
+      })
+    : baseItems;
 
   return (
     <main className="mx-auto w-full max-w-7xl px-3 sm:px-4 pb-20 pt-6 md:pt-8">
@@ -96,7 +122,7 @@ export default async function ShopGrid({
         )}
       </div>
 
-      {/* Sticky filter bar (adjust top to your nav height as needed) */}
+      {/* Sticky filter bar */}
       <div className="sticky top-16 z-30 -mx-3 sm:-mx-4 bg-base-100/85 backdrop-blur supports-[backdrop-filter]:bg-base-100/70 border-y sm:border rounded-none sm:rounded-xl sm:border">
         <div className="px-3 sm:px-4 py-3 sm:py-3.5">
           <ShopFilterBar
@@ -105,15 +131,24 @@ export default async function ShopGrid({
             query={query}
             inStockOnly={inStockOnly}
           />
-          <div className="mt-2 flex items-center justify-between text-xs sm:text-sm text-base-content/70">
+          <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs sm:text-sm text-base-content/70">
             <span>
               {items.length} result{items.length === 1 ? "" : "s"}
               {query ? <> • “{query}”</> : null}
             </span>
+
+            {/* 🔹 Black Friday helper text */}
+            {bfActive && (
+              <span className="text-[11px] sm:text-xs font-medium text-black">
+                🖤 Black Friday: Buy 1, Get 1 50% Off on eligible toys. Mix &
+                match any marked item. Gift Box toy is Black Friday only.
+              </span>
+            )}
+
             {selectedCategories.length || query || inStockOnly ? (
               <a
                 href="/shop"
-                className="underline underline-offset-2 hover:text-base-content"
+                className="sm:ml-auto underline underline-offset-2 hover:text-base-content"
               >
                 Clear all
               </a>
@@ -121,6 +156,9 @@ export default async function ShopGrid({
           </div>
         </div>
       </div>
+
+      {/* ⏳ Black Friday countdown just under filters */}
+      {bfActive && <BlackFridayCountdown />}
 
       {/* Responsive grid with auto-fit columns */}
       <div
@@ -131,13 +169,11 @@ export default async function ShopGrid({
         }}
       >
         {items.map((p, i) => {
-          // total stock (all variants)
           const totalRemaining =
             p._variants?.length > 0
               ? p._variants.reduce((sum, v) => sum + (v.onHand || 0), 0)
               : 0;
 
-          // tweak threshold: 1–3 left = low stock
           const isLowStock = totalRemaining > 0 && totalRemaining <= 3;
 
           return (
@@ -145,8 +181,10 @@ export default async function ShopGrid({
               key={p.id}
               product={{
                 ...p,
-                _index: i, // 👉 grid position
-                _lowStock: isLowStock, // 👉 true/false
+                _index: i,
+                _lowStock: isLowStock,
+                _isBlackFriday: p._isBlackFriday,
+                _isBlackFridayOnly: p._isBlackFridayOnly,
               }}
             />
           );
