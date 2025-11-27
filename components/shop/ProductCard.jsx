@@ -195,8 +195,11 @@ export default function ProductCard({ product }) {
       {/* 🔹 Black Friday BOGO badge */}
       {showBogoBadge && (
         <div className="absolute top-2 left-2 z-10">
-          <span className="bg-black text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded shadow-sm">
-            Black Friday • BOGO 50% Off
+          <span
+            className="bg-black text-white text-[10px] font-semibold uppercase px-2 py-1 rounded shadow-sm 
+                 whitespace-nowrap tracking-tight"
+          >
+            BLACK FRIDAY • BOGO 50% OFF
           </span>
         </div>
       )}

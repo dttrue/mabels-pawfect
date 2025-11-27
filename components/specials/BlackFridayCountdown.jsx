@@ -4,37 +4,58 @@
 import { useEffect, useState } from "react";
 import { BLACK_FRIDAY_PROMO } from "@/lib/blackFridayConfig";
 
+function getTimeLeft() {
+  const now = new Date();
+  const end = BLACK_FRIDAY_PROMO?.endsAt ?? new Date();
+  const diff = end.getTime() - now.getTime();
+
+  if (diff <= 0)
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+
+  return { days, hours, minutes, seconds, expired: false };
+}
+
 export default function BlackFridayCountdown() {
-  const end = new Date(BLACK_FRIDAY_PROMO.endsAt).getTime();
-  const [timeLeft, setTimeLeft] = useState(end - Date.now());
+  const [mounted, setMounted] = useState(false);
+  const [time, setTime] = useState(() => getTimeLeft());
+
+  // Only show countdown after client mount → no SSR/client mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeft(end - Date.now());
+    if (!mounted) return;
+    const id = setInterval(() => {
+      setTime(getTimeLeft());
     }, 1000);
-    return () => clearInterval(interval);
-  }, [end]);
+    return () => clearInterval(id);
+  }, [mounted]);
 
-  if (timeLeft <= 0) return null;
+  if (!mounted || time.expired) {
+    // While SSR / before mount, or after expiry → render nothing (or a static banner if you want)
+    return null;
+  }
 
-  const sec = Math.floor((timeLeft / 1000) % 60);
-  const min = Math.floor((timeLeft / (1000 * 60)) % 60);
-  const hrs = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
-  const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+  const blocks = [
+    { label: "DAY", value: time.days },
+    { label: "HRS", value: time.hours },
+    { label: "MIN", value: time.minutes },
+    { label: "SEC", value: time.seconds },
+  ];
 
   return (
-    <section className="w-full bg-black text-white rounded-md mt-4 p-3 sm:p-4 text-center">
-      <h3 className="text-xs sm:text-sm font-semibold tracking-wide mb-2">
+    <section className="mt-3 sm:mt-4 rounded-lg bg-black text-white px-4 py-3 sm:px-6 sm:py-4 text-center">
+      <p className="text-xs sm:text-sm font-semibold tracking-wide mb-2">
         BLACK FRIDAY ENDS IN
-      </h3>
-
-      <div className="flex justify-center gap-2 sm:gap-4">
-        {[
-          { label: "DAY", value: days },
-          { label: "HRS", value: hrs }, // 👈 Replaces "HOU"
-          { label: "MIN", value: min },
-          { label: "SEC", value: sec },
-        ].map((b) => (
+      </p>
+      <div className="flex items-center justify-center gap-2 sm:gap-3">
+        {blocks.map((b) => (
           <div
             key={b.label}
             className="bg-white text-black rounded-md px-2 py-1 sm:px-3 sm:py-2 min-w-[42px]"
