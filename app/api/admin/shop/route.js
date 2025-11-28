@@ -1,4 +1,4 @@
-// app/api/shop/route.js
+// app/api/admin/shop/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -26,6 +26,7 @@ export async function GET() {
       ...p,
       _price: `$${(p.priceCents / 100).toFixed(2)}`,
     }));
+
 
     return NextResponse.json(withDisplay);
   } catch (err) {

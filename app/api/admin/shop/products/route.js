@@ -43,6 +43,13 @@ function capitalize(str = "") {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// Allow strings or numbers, return float or null
+function toNullableFloat(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 /* ---------- POST: create product ---------- */
 export async function POST(req) {
   let body;
@@ -60,6 +67,20 @@ export async function POST(req) {
       description,
       categories,
       active = true,
+
+      // NEW: species flags
+      forDogs,
+      forCats,
+
+      // NEW: weight + dimensions
+      weightOz,
+      weightGrams,
+      lengthIn,
+      widthIn,
+      heightIn,
+      lengthCm,
+      widthCm,
+      heightCm,
     } = body;
 
     const cleanedTitle = String(title || "").trim();
@@ -82,9 +103,23 @@ export async function POST(req) {
       subtitle: subtitle || null,
       description: description || null,
       active: Boolean(active),
+
+      // species flags (defaults)
+      forDogs: forDogs ?? true,
+      forCats: Boolean(forCats),
+
+      // weight + dimensions
+      weightOz: toNullableFloat(weightOz),
+      weightGrams: toNullableFloat(weightGrams),
+      lengthIn: toNullableFloat(lengthIn),
+      widthIn: toNullableFloat(widthIn),
+      heightIn: toNullableFloat(heightIn),
+      lengthCm: toNullableFloat(lengthCm),
+      widthCm: toNullableFloat(widthCm),
+      heightCm: toNullableFloat(heightCm),
     };
 
-    // If you have a Category model with unique slug and M2M:
+    // categories M2M
     if (cats.length) {
       data.categories = {
         connectOrCreate: cats.map((c) => ({
@@ -101,7 +136,6 @@ export async function POST(req) {
 
     return NextResponse.json({ product }, { status: 201 });
   } catch (err) {
-    // Handle unique race on slug
     if (err?.code === "P2002" && err?.meta?.target?.includes("slug")) {
       return NextResponse.json({ error: "slug_conflict" }, { status: 409 });
     }
@@ -143,6 +177,20 @@ export async function GET(req) {
         priceCents: true,
         active: true,
         createdAt: true,
+
+        // NEW: species flags
+        forDogs: true,
+        forCats: true,
+
+        // expose so admin can show/edit later if needed
+        weightOz: true,
+        weightGrams: true,
+        lengthIn: true,
+        widthIn: true,
+        heightIn: true,
+        lengthCm: true,
+        widthCm: true,
+        heightCm: true,
       },
     });
 

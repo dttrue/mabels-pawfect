@@ -7,13 +7,21 @@ import { CATEGORIES, CATEGORY_PRESETS } from "@/scripts/products.data";
 /** Combine product creation and image upload in one flow */
 export default function ProductAndImageUploader() {
   const [mode, setMode] = useState("create"); // "create" | "existing"
-  const [chosenCats, setChosenCats] = useState(new Set(["dog", "plush"]));
+  const [chosenCats, setChosenCats] = useState(new Set());
+  const [forDogs, setForDogs] = useState(true); // default true
+  const [forCats, setForCats] = useState(false); 
   // product fields (create)
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState(""); // dollars string like "7.99"
   const [subtitle, setSubtitle] = useState("");
   const [description, setDescription] = useState(""); // product-only
-  const [categories, setCategories] = useState("dog, plush");
+  
+
+  // NEW: Weight & dimensions (imperial; metric derived)
+  const [weightOz, setWeightOz] = useState("");
+  const [lengthIn, setLengthIn] = useState("");
+  const [widthIn, setWidthIn] = useState("");
+  const [heightIn, setHeightIn] = useState("");
 
   // existing product selection
   const [products, setProducts] = useState([]);
@@ -89,24 +97,53 @@ export default function ProductAndImageUploader() {
       let productId = existingProductId || null;
 
       if (mode === "create") {
-        if (!title || !price) {
-          toast.error("Title and price are required.");
+        if (chosenCats.size === 0) {
+          toast.error("Pick at least one category.");
           setLoading(false);
           return;
         }
+
+        // 👉 Convert weight & dimensions to numbers and metric
+        const weightOzNum = toNumberOrNull(weightOz);
+        const lengthInNum = toNumberOrNull(lengthIn);
+        const widthInNum = toNumberOrNull(widthIn);
+        const heightInNum = toNumberOrNull(heightIn);
+
+        const payload = {
+          title,
+          slug: slugify(title),
+          priceDollars: price, // backend converts to cents
+          subtitle: subtitle || undefined,
+          description: description || undefined, // product desc
+          categories: Array.from(chosenCats),
+          active: true,
+          forDogs: forDogs,
+          forCats: forCats,
+          // NEW: only send when present
+          ...(weightOzNum != null && {
+            weightOz: weightOzNum,
+            weightGrams: ozToGrams(weightOzNum),
+          }),
+          ...(lengthInNum != null && {
+            lengthIn: lengthInNum,
+            lengthCm: inchesToCm(lengthInNum),
+          }),
+          ...(widthInNum != null && {
+            widthIn: widthInNum,
+            widthCm: inchesToCm(widthInNum),
+          }),
+          ...(heightInNum != null && {
+            heightIn: heightInNum,
+            heightCm: inchesToCm(heightInNum),
+          }),
+        };
+
         const createRes = await fetch("/api/admin/shop/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            slug: slugify(title),
-            priceDollars: price, // backend converts to cents
-            subtitle: subtitle || undefined,
-            description: description || undefined, // product desc
-            categories: categoriesToArray(categories),
-            active: true,
-          }),
+          body: JSON.stringify(payload),
         });
+
         const createBody = await createRes.json();
         if (!createRes.ok)
           throw new Error(createBody?.error || "Create failed");
@@ -172,8 +209,15 @@ export default function ProductAndImageUploader() {
         setPrice("");
         setSubtitle("");
         setDescription("");
-        setCategories("dog, plush");
+        setChosenCats(new Set());
+        setWeightOz("");
+        setLengthIn("");
+        setWidthIn("");
+        setHeightIn("");
+        setForDogs(true);
+        setForCats(false);
       }
+
       setImageFile(null);
       setAlt("");
       setCaption("");
@@ -215,6 +259,7 @@ export default function ProductAndImageUploader() {
           <p className="text-xs opacity-60 mt-1">
             URL preview: /shop/{slugify(title || "your-product")}
           </p>
+
           {/* Price */}
           <label className="form-control">
             <span className="label-text">Price (USD) *</span>
@@ -255,6 +300,38 @@ export default function ProductAndImageUploader() {
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
           />
+
+          {/* Species selection */}
+          <div className="md:col-span-2">
+            <label className="label">
+              <span className="label-text font-semibold">Species</span>
+            </label>
+
+            <div className="flex items-center gap-4 mb-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="forDogs"
+                  checked={!!forDogs}
+                  onChange={(e) => setForDogs(e.target.checked)}
+                  className="checkbox checkbox-sm"
+                />
+                🐶 For dogs
+              </label>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="forCats"
+                  checked={!!forCats}
+                  onChange={(e) => setForCats(e.target.checked)}
+                  className="checkbox checkbox-sm"
+                />
+                🐱 For cats
+              </label>
+            </div>
+          </div>
+
           {/* Category Picker */}
           <div className="md:col-span-2">
             <label className="label">
@@ -314,6 +391,7 @@ export default function ProductAndImageUploader() {
             </p>
           </div>
 
+          {/* Description */}
           <textarea
             className="textarea textarea-bordered md:col-span-2"
             placeholder="Product Description (optional)"
@@ -324,6 +402,69 @@ export default function ProductAndImageUploader() {
           <p className="text-sm text-gray-500 md:col-span-2">
             {description.length}/500 characters
           </p>
+
+          {/* NEW: Weight & Dimensions */}
+          <div className="md:col-span-2 border-t pt-3 mt-2 space-y-3">
+            <h3 className="text-sm font-semibold">Weight & Dimensions</h3>
+            <p className="text-xs opacity-70">
+              Optional, but helps for shipping, SEO, and product details. Enter
+              in ounces and inches; we’ll auto-calc grams and centimeters.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className="form-control">
+                <span className="label-text text-xs">Weight (oz)</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="input input-bordered input-sm"
+                  value={weightOz}
+                  onChange={(e) => setWeightOz(e.target.value)}
+                  placeholder="e.g. 3.9"
+                />
+              </label>
+
+              <label className="form-control">
+                <span className="label-text text-xs">Length (in)</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="input input-bordered input-sm"
+                  value={lengthIn}
+                  onChange={(e) => setLengthIn(e.target.value)}
+                  placeholder="e.g. 5.1"
+                />
+              </label>
+
+              <label className="form-control">
+                <span className="label-text text-xs">Width (in)</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="input input-bordered input-sm"
+                  value={widthIn}
+                  onChange={(e) => setWidthIn(e.target.value)}
+                  placeholder="e.g. 5.1"
+                />
+              </label>
+
+              <label className="form-control">
+                <span className="label-text text-xs">Height (in)</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="input input-bordered input-sm"
+                  value={heightIn}
+                  onChange={(e) => setHeightIn(e.target.value)}
+                  placeholder="e.g. 4.3"
+                />
+              </label>
+            </div>
+          </div>
         </div>
       ) : (
         // Existing Mode
@@ -418,3 +559,15 @@ function centsFrom(dollarsStr) {
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 }
 
+// NEW helper fns
+function toNumberOrNull(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function ozToGrams(oz) {
+  return Number((oz * 28.3495).toFixed(2));
+}
+function inchesToCm(inches) {
+  return Number((inches * 2.54).toFixed(2));
+}
