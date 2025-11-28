@@ -6,7 +6,9 @@ import { headers } from "next/headers";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ✅ Optional: NJ sales tax rate (exclusive)
-const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
+// const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
+
+const TAX_RATE_NJ = null;
 
 /**
  * Build an absolute base URL from request Host header (preferred)
@@ -23,6 +25,121 @@ function getAppBase() {
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ||
     "http://localhost:3000"
   );
+}
+
+/**
+ * 🔥 Black Friday BOGO 50% OFF helper
+ *
+ * - Expands cart into per-unit list
+ * - Sorts by price DESC
+ * - Applies 50% off to the *second* most expensive unit
+ * - Rebuilds Stripe line_items with:
+ *    • all other units at full price
+ *    • ONE unit at half price
+ * - Preserves quantity grouping where possible
+ */
+function buildLineItemsWithBogo50(items, taxRateId) {
+  // Expand items into a flat list of units so we can find the 2nd most expensive one
+  const unitList = [];
+  items.forEach((item, idx) => {
+    for (let q = 0; q < item.quantity; q++) {
+      unitList.push({ idx, unitAmount: item.unitAmount });
+    }
+  });
+
+  // If fewer than 2 units in cart, no BOGO – just return normal line items
+  if (unitList.length < 2) {
+    return items.map((i) => ({
+      price_data: {
+        currency: "usd",
+        unit_amount: i.unitAmount, // cents
+        product_data: {
+          name: i.name,
+          metadata: {
+            productId: i.productId || "",
+            variantId: i.variantId || "",
+          },
+        },
+      },
+      quantity: i.quantity,
+      ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
+    }));
+  }
+
+  // Sort units by price DESC so we discount the "second item of equal/lesser value"
+  unitList.sort((a, b) => b.unitAmount - a.unitAmount);
+
+  // Second most expensive unit
+  const [, second] = unitList;
+  const discountedIndex = second.idx;
+
+  const lineItems = [];
+
+  items.forEach((item, idx) => {
+    const base = {
+      product_data: {
+        name: item.name,
+        metadata: {
+          productId: item.productId || "",
+          variantId: item.variantId || "",
+        },
+      },
+    };
+
+    // All non-discounted items stay at full price
+    if (idx !== discountedIndex) {
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          unit_amount: item.unitAmount,
+          ...base,
+        },
+        quantity: item.quantity,
+        ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
+      });
+      return;
+    }
+
+    // This is the item that gets ONE unit 50% off
+    const qty = item.quantity;
+
+    if (qty === 1) {
+      // Only one unit of this item – just discount that one
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          unit_amount: Math.round(item.unitAmount / 2),
+          ...base,
+        },
+        quantity: 1,
+        ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
+      });
+    } else {
+      // Multiple quantity:
+      // (qty - 1) units full price, + 1 unit at half price
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          unit_amount: item.unitAmount,
+          ...base,
+        },
+        quantity: qty - 1,
+        ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
+      });
+
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          unit_amount: Math.round(item.unitAmount / 2),
+          ...base,
+        },
+        quantity: 1,
+        ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
+      });
+    }
+  });
+
+  return lineItems;
 }
 
 export async function POST(req) {
@@ -84,7 +201,7 @@ export async function POST(req) {
     );
   }
 
-  // 🧮 Cart subtotal in cents
+  // 🧮 Cart subtotal in cents (pre-discount, for shipping thresholds)
   const subtotalCents = items.reduce(
     (sum, i) => sum + i.unitAmount * i.quantity,
     0
@@ -122,6 +239,9 @@ export async function POST(req) {
   }
 
   try {
+    // 🔥 Apply Black Friday BOGO 50% OFF to line items
+    const lineItems = buildLineItemsWithBogo50(items, TAX_RATE_NJ);
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_creation: "if_required",
@@ -130,26 +250,12 @@ export async function POST(req) {
       ...(shipping_options.length ? { shipping_options } : {}),
       allow_promotion_codes: true,
 
-      // ⬇️ Tax moved onto each line item via `tax_rates`
-      line_items: items.map((i) => ({
-        price_data: {
-          currency: "usd",
-          unit_amount: i.unitAmount, // cents
-          product_data: {
-            name: i.name,
-            metadata: {
-              productId: i.productId || "",
-              variantId: i.variantId || "", // empty string if default
-            },
-          },
-        },
-        quantity: i.quantity,
-        ...(TAX_RATE_NJ ? { tax_rates: [TAX_RATE_NJ] } : {}),
-      })),
+      line_items: lineItems,
 
       metadata: {
         orderType: "shop",
         cartId: String(cartId),
+        campaign: "BLACK_FRIDAY_BOGO_50",
       },
 
       success_url:
