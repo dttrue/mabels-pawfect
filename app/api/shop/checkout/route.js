@@ -2,7 +2,7 @@
 import Stripe from "stripe";
 import { NextResponse, NextRequest } from "next/server";
 import { headers } from "next/headers";
-
+import { BLACK_FRIDAY_PROMO } from "@/lib/blackFridayConfig";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ✅ Manual NJ sales tax for TOYS ONLY (line items)
@@ -39,17 +39,13 @@ function getAppBase() {
  * - Preserves quantity grouping where possible
  */
 function buildLineItemsWithBogo50(items, taxRateId) {
-  // Expand items into a flat list of units so we can pair them up
-  const unitList = [];
-  items.forEach((item, idx) => {
-    for (let q = 0; q < item.quantity; q++) {
-      unitList.push({ idx, unitAmount: item.unitAmount });
-    }
-  });
+  const eligibleSlugs = Array.isArray(BLACK_FRIDAY_PROMO?.eligibleSlugs)
+    ? new Set(BLACK_FRIDAY_PROMO.eligibleSlugs)
+    : null;
 
-  // Fewer than 2 units → no BOGO, just normal line items
-  if (unitList.length < 2) {
-    return items.map((i) => ({
+  // Helper: plain, no-discount line items
+  const buildPlainLineItems = () =>
+    items.map((i) => ({
       price_data: {
         currency: "usd",
         unit_amount: i.unitAmount,
@@ -64,14 +60,35 @@ function buildLineItemsWithBogo50(items, taxRateId) {
       quantity: i.quantity,
       ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
     }));
+
+  // If we somehow have no config, just bail to normal pricing
+  if (!eligibleSlugs) {
+    return buildPlainLineItems();
   }
 
-  // Sort all units by price DESC so “buy 1, get 2nd of equal/lesser value 50% off”
+  // 🔥 Build unit list **only from eligible items**
+  const unitList = [];
+  items.forEach((item, idx) => {
+    const slug = item.slug;
+    const isEligible = slug && eligibleSlugs.has(slug);
+
+    if (!isEligible) return;
+
+    for (let q = 0; q < item.quantity; q++) {
+      unitList.push({ idx, unitAmount: item.unitAmount });
+    }
+  });
+
+  // Fewer than 2 eligible units → no BOGO at all
+  if (unitList.length < 2) {
+    return buildPlainLineItems();
+  }
+
+  // Sort eligible units by price DESC so “buy 1, get 2nd of equal/lesser value 50% off”
   unitList.sort((a, b) => b.unitAmount - a.unitAmount);
 
   // Mark discounted units: every 2nd unit in each pair (1–2, 3–4, 5–6, …)
   const discountedCountByItem = new Map(); // idx -> count
-
   for (let i = 1; i < unitList.length; i += 2) {
     const { idx } = unitList[i];
     discountedCountByItem.set(idx, (discountedCountByItem.get(idx) || 0) + 1);
@@ -93,7 +110,7 @@ function buildLineItemsWithBogo50(items, taxRateId) {
       },
     };
 
-    // Full-price units
+    // Full-price units (includes all non-eligible toys)
     if (fullQty > 0) {
       lineItems.push({
         price_data: {
@@ -106,7 +123,7 @@ function buildLineItemsWithBogo50(items, taxRateId) {
       });
     }
 
-    // 50%-off units
+    // 50%-off units (eligible items only)
     if (discountedQty > 0) {
       lineItems.push({
         price_data: {
@@ -122,6 +139,7 @@ function buildLineItemsWithBogo50(items, taxRateId) {
 
   return lineItems;
 }
+
 
 
 export async function POST(req) {
