@@ -39,7 +39,7 @@ function getAppBase() {
  * - Preserves quantity grouping where possible
  */
 function buildLineItemsWithBogo50(items, taxRateId) {
-  // Expand items into a flat list of units so we can find the 2nd most expensive one
+  // Expand items into a flat list of units so we can pair them up
   const unitList = [];
   items.forEach((item, idx) => {
     for (let q = 0; q < item.quantity; q++) {
@@ -47,12 +47,12 @@ function buildLineItemsWithBogo50(items, taxRateId) {
     }
   });
 
-  // If fewer than 2 units in cart, no BOGO – just return normal line items
+  // Fewer than 2 units → no BOGO, just normal line items
   if (unitList.length < 2) {
     return items.map((i) => ({
       price_data: {
         currency: "usd",
-        unit_amount: i.unitAmount, // cents
+        unit_amount: i.unitAmount,
         product_data: {
           name: i.name,
           metadata: {
@@ -66,17 +66,24 @@ function buildLineItemsWithBogo50(items, taxRateId) {
     }));
   }
 
-  // Sort units by price DESC so we discount the "second item of equal/lesser value"
+  // Sort all units by price DESC so “buy 1, get 2nd of equal/lesser value 50% off”
   unitList.sort((a, b) => b.unitAmount - a.unitAmount);
 
-  // Second most expensive unit
-  const [, second] = unitList;
-  const discountedIndex = second.idx;
+  // Mark discounted units: every 2nd unit in each pair (1–2, 3–4, 5–6, …)
+  const discountedCountByItem = new Map(); // idx -> count
+
+  for (let i = 1; i < unitList.length; i += 2) {
+    const { idx } = unitList[i];
+    discountedCountByItem.set(idx, (discountedCountByItem.get(idx) || 0) + 1);
+  }
 
   const lineItems = [];
 
   items.forEach((item, idx) => {
-    const base = {
+    const discountedQty = discountedCountByItem.get(idx) || 0;
+    const fullQty = item.quantity - discountedQty;
+
+    const baseProduct = {
       product_data: {
         name: item.name,
         metadata: {
@@ -86,54 +93,28 @@ function buildLineItemsWithBogo50(items, taxRateId) {
       },
     };
 
-    // All non-discounted items stay at full price
-    if (idx !== discountedIndex) {
+    // Full-price units
+    if (fullQty > 0) {
       lineItems.push({
         price_data: {
           currency: "usd",
           unit_amount: item.unitAmount,
-          ...base,
+          ...baseProduct,
         },
-        quantity: item.quantity,
+        quantity: fullQty,
         ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
       });
-      return;
     }
 
-    // This is the item that gets ONE unit 50% off
-    const qty = item.quantity;
-
-    if (qty === 1) {
-      // Only one unit of this item – just discount that one
+    // 50%-off units
+    if (discountedQty > 0) {
       lineItems.push({
         price_data: {
           currency: "usd",
           unit_amount: Math.round(item.unitAmount / 2),
-          ...base,
+          ...baseProduct,
         },
-        quantity: 1,
-        ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
-      });
-    } else {
-      // Multiple quantity:
-      // (qty - 1) units full price, + 1 unit at half price
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          unit_amount: item.unitAmount,
-          ...base,
-        },
-        quantity: qty - 1,
-        ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
-      });
-
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          unit_amount: Math.round(item.unitAmount / 2),
-          ...base,
-        },
-        quantity: 1,
+        quantity: discountedQty,
         ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
       });
     }
@@ -141,6 +122,7 @@ function buildLineItemsWithBogo50(items, taxRateId) {
 
   return lineItems;
 }
+
 
 export async function POST(req) {
   // Basic key presence check
