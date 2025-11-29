@@ -5,10 +5,10 @@ import { headers } from "next/headers";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ✅ Optional: NJ sales tax rate (exclusive)
-// const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
-
-const TAX_RATE_NJ = null;
+// ✅ Manual NJ sales tax for TOYS ONLY (line items)
+//    - Shipping tax is handled in Stripe with the 0% “No Tax (Shipping Only)” rate
+//      attached to the shipping rate, so we do NOT touch shipping tax here.
+const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
 
 /**
  * Build an absolute base URL from request Host header (preferred)
@@ -219,7 +219,10 @@ export async function POST(req) {
   console.log("[checkout] STRIPE_RATE_STANDARD:", standardRate || "(none)");
   console.log("[checkout] STRIPE_RATE_FREE:", freeRate || "(none)");
   console.log("[checkout] FREE_SHIP_THRESHOLD (cents):", FREE_SHIP_THRESHOLD);
-  console.log("[checkout] STRIPE_TAX_NJ:", TAX_RATE_NJ || "(none)");
+  console.log(
+    "[checkout] STRIPE_TAX_NJ (items only):",
+    TAX_RATE_NJ || "(none)"
+  );
 
   const qualifiesForFree = !!freeRate && subtotalCents >= FREE_SHIP_THRESHOLD;
 
@@ -239,7 +242,7 @@ export async function POST(req) {
   }
 
   try {
-    // 🔥 Apply Black Friday BOGO 50% OFF to line items
+    // 🔥 Apply Black Friday BOGO 50% OFF to line items (products)
     const lineItems = buildLineItemsWithBogo50(items, TAX_RATE_NJ);
 
     const session = await stripe.checkout.sessions.create({
