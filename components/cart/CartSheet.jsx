@@ -18,15 +18,70 @@ function getCartIdFromCookie() {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-// ✅ Helper to build items payload safely
+// ✅ Helper to normalize a slug (fallback generator)
+function normalizeSlug(str) {
+  return String(str || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[^a-z0-9]+/g, "-")     // replace non-letters
+    .replace(/(^-|-$)/g, "");        // trim hyphens
+}
+
+// ✅ Helper to build items payload safely (with S L U G)
 function buildItemsPayload(cart) {
-  return (cart?.items || []).map((it) => ({
-    productId: it.productId || it.product?.id || "",
-    variantId: it.variantId || it.variant?.id || "",
-    name: it.product?.title + (it.variant?.name ? ` (${it.variant.name})` : ""),
-    unitAmount: Math.round(it.priceCents || 0), // cents, integer
-    quantity: Math.max(1, Math.floor(it.qty || 1)),
-  }));
+  return (cart?.items || []).map((it) => {
+    const product = it.product || {};
+    const variant = it.variant || {};
+
+    // ----- GUARANTEED PRODUCT NAME -----
+    const name =
+      product.title +
+      (variant.name ? ` (${variant.name})` : "");
+
+    // ----- GUARANTEED SLUG -----
+    const rawSlug =
+      it.slug ||
+      product.slug ||
+      product.slug?.current ||
+      product.handle ||
+      product.title ||
+      name; // final fallback (title or combined name)
+
+    const slug = normalizeSlug(rawSlug);
+
+    return {
+      productId: it.productId || product.id || "",
+      variantId: it.variantId || variant.id || "",
+      name,
+      slug,                                    // 🔥 REQUIRED FOR BOGO
+      unitAmount: Math.round(it.priceCents || 0),
+      quantity: Math.max(1, Math.floor(it.qty || 1)),
+    };
+  });
+}
+
+
+// ✅ Helper to build items payload safely (now includes slug)
+function buildItemsPayload(cart) {
+  return (cart?.items || []).map((it) => {
+    // Try to pull slug directly from product
+    const slug =
+      it.slug ||
+      it.product?.slug || // if it's a plain string from Prisma
+      (typeof it.product?.slug === "object" && it.product.slug.current) || // safety if you ever have Sanity-style slugs
+      "";
+
+    return {
+      productId: it.productId || it.product?.id || "",
+      variantId: it.variantId || it.variant?.id || "",
+      name:
+        it.product?.title + (it.variant?.name ? ` (${it.variant.name})` : ""),
+      unitAmount: Math.round(it.priceCents || 0), // cents, integer
+      quantity: Math.max(1, Math.floor(it.qty || 1)),
+      slug, // 🔥 used by buildLineItemsWithBogo50 on the server
+    };
+  });
 }
 
 // ✅ Updated CheckoutButton

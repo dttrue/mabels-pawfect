@@ -1,4 +1,4 @@
-// app/api/shop/checkout/route.js
+// app/api/create-checkout-session/route.js
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
