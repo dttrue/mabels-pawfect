@@ -12,41 +12,40 @@ function money(cents) {
   }).format(cents / 100);
 }
 
+// ✅ Normalize slug so it matches backend/config slugs
+function normalizeSlug(raw) {
+  if (!raw) return "";
+  return String(raw)
+    .toLowerCase()
+    .trim()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
 // ✅ Helper to read cart_id cookie (fallback)
 function getCartIdFromCookie() {
   const m = document.cookie.match(/(?:^|;\s*)cart_id=([^;]+)/);
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-// ✅ Helper to normalize a slug (fallback generator)
-function normalizeSlug(str) {
-  return String(str || "")
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "") // remove accents
-    .replace(/[^a-z0-9]+/g, "-")     // replace non-letters
-    .replace(/(^-|-$)/g, "");        // trim hyphens
-}
-
-// ✅ Helper to build items payload safely (with S L U G)
+// ✅ Helper to build items payload safely (with SLUG)
 function buildItemsPayload(cart) {
   return (cart?.items || []).map((it) => {
     const product = it.product || {};
     const variant = it.variant || {};
 
-    // ----- GUARANTEED PRODUCT NAME -----
-    const name =
-      product.title +
-      (variant.name ? ` (${variant.name})` : "");
+    const name = product.title + (variant.name ? ` (${variant.name})` : "");
 
-    // ----- GUARANTEED SLUG -----
+    // Try several sources for slug, then normalize
     const rawSlug =
       it.slug ||
       product.slug ||
-      product.slug?.current ||
+      (typeof product.slug === "object" && product.slug.current) ||
       product.handle ||
       product.title ||
-      name; // final fallback (title or combined name)
+      name;
 
     const slug = normalizeSlug(rawSlug);
 
@@ -54,32 +53,9 @@ function buildItemsPayload(cart) {
       productId: it.productId || product.id || "",
       variantId: it.variantId || variant.id || "",
       name,
-      slug,                                    // 🔥 REQUIRED FOR BOGO
+      slug, // 🔥 used by buildLineItemsWithBogo50 on the server
       unitAmount: Math.round(it.priceCents || 0),
       quantity: Math.max(1, Math.floor(it.qty || 1)),
-    };
-  });
-}
-
-
-// ✅ Helper to build items payload safely (now includes slug)
-function buildItemsPayload(cart) {
-  return (cart?.items || []).map((it) => {
-    // Try to pull slug directly from product
-    const slug =
-      it.slug ||
-      it.product?.slug || // if it's a plain string from Prisma
-      (typeof it.product?.slug === "object" && it.product.slug.current) || // safety if you ever have Sanity-style slugs
-      "";
-
-    return {
-      productId: it.productId || it.product?.id || "",
-      variantId: it.variantId || it.variant?.id || "",
-      name:
-        it.product?.title + (it.variant?.name ? ` (${it.variant.name})` : ""),
-      unitAmount: Math.round(it.priceCents || 0), // cents, integer
-      quantity: Math.max(1, Math.floor(it.qty || 1)),
-      slug, // 🔥 used by buildLineItemsWithBogo50 on the server
     };
   });
 }
@@ -118,7 +94,6 @@ function CheckoutButton({ cart, cartIsEmpty }) {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok && data?.url) {
-        // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
         alert(data?.error || "Checkout failed");
