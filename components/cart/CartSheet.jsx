@@ -110,7 +110,7 @@ function CheckoutButton({ cart, cartIsEmpty }) {
     <button
       disabled={busy || cartIsEmpty}
       onClick={handleCheckout}
-      className="mt-3 inline-flex w-full items-center justify-center rounded bg-orange-500 px-4 py-3 font-medium text-white disabled:opacity-60 active:scale-[0.99] transition"
+      className="mt-3 inline-flex w-full items-center justify-center rounded bg-green-500 px-4 py-3 font-medium text-white disabled:opacity-60 active:scale-[0.99] transition"
     >
       {busy ? "Redirecting…" : "Checkout"}
     </button>
