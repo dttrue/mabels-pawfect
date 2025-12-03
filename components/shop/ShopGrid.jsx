@@ -9,7 +9,7 @@ import {
 } from "@/lib/blackFridayHelpers";
 import { BLACK_FRIDAY_PROMO } from "@/lib/blackFridayConfig";
 import BlackFridayCountdown from "@/components/specials/BlackFridayCountdown";
-
+import SnowOverlay from "@/components/SnowOverlay";
 export const dynamic = "force-dynamic";
 
 export default async function ShopGrid({
@@ -107,6 +107,9 @@ export default async function ShopGrid({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-3 sm:px-4 pb-20 pt-6 md:pt-8">
+      {/* ❄️ Reusable Snow Component */}
+      <SnowOverlay count={50} drift={true} />
+
       {/* Header */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between gap-3">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">

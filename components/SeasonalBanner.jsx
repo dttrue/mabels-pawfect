@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { trackPricingCTA } from "@/lib/ga-events";
 
 export default function SeasonalBanner({
-  title = "🦃 Thanksgiving Specials",
-  subtitle = "Seasonal pricing through Nov 30",
+  // 🎄 Content defaults
+  title = "🎄 Christmas Specials",
+  subtitle = "Holiday pricing through Dec 31",
   link = "/pricing-seasonal",
-  id = "seasonal-banner-2025-11",
+  id = "seasonal-banner-2025-12",
   dismissible = true,
 
   offsetTop = 64,
@@ -16,10 +17,11 @@ export default function SeasonalBanner({
   fixed = false,
   compactScrollY = 12,
 
-  // Autumn palette
-  bg = "bg-gradient-to-r from-[#3b1f0e] via-[#5a2e0f] to-[#3b1f0e]",
-  fg = "text-amber-100",
-  accent = "bg-amber-400",
+  // 🎨 Style (now driven by props / THEME_MAP, with gentle fallbacks)
+  bg, // e.g. "bg-gradient-to-r from-[#f7ede2] via-[#f3e2d5] to-[#f7ede2]"
+  fg, // e.g. "text-[#8a0f24]"
+  accent, // e.g. "bg-emerald-500"
+  pattern = "", // optional extra utility string for radial patterns etc.
   showAccent = true,
   className = "",
 }) {
@@ -55,10 +57,14 @@ export default function SeasonalBanner({
     console.log("🔥 pricing CTA clicked");
     trackPricingCTA({
       page: "pricing-seasonal",
-      location: "thanksgiving-banner",
+      location: "christmas-banner",
     });
   };
 
+  // Fallback styles if bg/fg/accent aren’t provided
+  const safeBg = bg || "bg-[#f7ede2]";
+  const safeFg = fg || "text-[#8a0f24]";
+  const safeAccent = accent || "bg-emerald-500";
 
   return (
     <>
@@ -70,8 +76,9 @@ export default function SeasonalBanner({
         className={[
           placement,
           "z-40 w-full border-b border-white/10",
-          bg,
-          fg,
+          safeBg,
+          safeFg,
+          pattern,
           "px-3 sm:px-4",
           padY,
           "transition-[padding] duration-200",
@@ -84,7 +91,7 @@ export default function SeasonalBanner({
         >
           {showAccent && (
             <span
-              className={`absolute left-0 top-0 h-full w-1 ${accent}`}
+              className={`absolute left-0 top-0 h-full w-1 ${safeAccent}`}
               aria-hidden
             />
           )}
@@ -96,12 +103,12 @@ export default function SeasonalBanner({
             className="group flex-1 min-w-0 text-center"
           >
             <div className="leading-snug flex items-center justify-center gap-1 px-2">
-              <span className="inline-block animate-turkey" aria-hidden>
-                🦃
+              <span className="inline-block animate-tree" aria-hidden>
+                🎄
               </span>
               <div className="min-w-0">
                 <div className="font-semibold text-xs sm:text-sm md:text-base tracking-wide whitespace-normal">
-                  {title.replace("🦃 ", "")}
+                  {title.replace("🎄 ", "")}
                 </div>
                 {subtitle && (
                   <div className="text-[11px] sm:text-xs md:text-sm opacity-90 mt-0.5 underline decoration-transparent underline-offset-2 group-hover:decoration-current transition-[text-decoration-color] whitespace-normal leading-snug">
@@ -114,15 +121,15 @@ export default function SeasonalBanner({
 
           {/* Right: CTA + trailing icon (also tracked) */}
           <div className="flex items-center gap-2 w-auto sm:w-[220px] justify-end">
-            <span aria-hidden className="text-sm sm:text-base animate-leaf">
-              🍁
+            <span aria-hidden className="text-sm sm:text-base animate-gift">
+              🎁
             </span>
             <a
               href={link}
               onClick={handlePricingClick}
-              className="shrink-0 inline-flex items-center justify-center rounded-md px-3.5 py-2 text-xs sm:text-sm font-semibold bg-amber-400 text-black hover:bg-amber-300 ring-1 ring-black/10 shadow-sm"
+              className="shrink-0 inline-flex items-center justify-center rounded-md px-3.5 py-2 text-xs sm:text-sm font-semibold bg-emerald-500 text-black hover:bg-emerald-400 ring-1 ring-black/10 shadow-sm"
             >
-              See Holiday Pricing
+              See Christmas Pricing
             </a>
           </div>
 
@@ -154,7 +161,7 @@ export default function SeasonalBanner({
       {/* animations */}
       <style jsx>{`
         @media (prefers-reduced-motion: no-preference) {
-          @keyframes turkeyBob {
+          @keyframes treeBob {
             0%,
             100% {
               transform: translateY(0);
@@ -163,13 +170,13 @@ export default function SeasonalBanner({
               transform: translateY(-2px);
             }
           }
-          .animate-turkey {
-            animation: turkeyBob 2.2s ease-in-out infinite;
+          .animate-tree {
+            animation: treeBob 2.2s ease-in-out infinite;
             display: inline-block;
             transform-origin: center;
           }
 
-          @keyframes leafSway {
+          @keyframes giftSway {
             0%,
             100% {
               transform: translateX(0) rotate(0deg);
@@ -178,8 +185,8 @@ export default function SeasonalBanner({
               transform: translateX(2px) rotate(-3deg);
             }
           }
-          .animate-leaf {
-            animation: leafSway 3s ease-in-out infinite;
+          .animate-gift {
+            animation: giftSway 3s ease-in-out infinite;
             display: inline-block;
             transform-origin: 50% 0%;
           }

@@ -23,7 +23,7 @@ export default function HeroSection() {
       {/* Hero Image */}
       <div className="animate-fade-in">
         <img
-          src="/images/thanksgiving_hero-2025.jpg"
+          src="/images/christmas_hero_2025.png"
           alt="Friendly dog and cat"
           className="w-full max-w-4xl mx-auto rounded-lg shadow-lg"
         />

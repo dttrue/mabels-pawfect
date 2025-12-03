@@ -10,7 +10,7 @@ export default function CartButton() {
     <button
       onClick={() => setOpen(true)}
       aria-label="Open cart"
-      className="fixed bottom-5 right-5 z-40 h-14 w-14 rounded-full shadow-lg bg-orange-500 text-white flex items-center justify-center"
+      className="fixed bottom-5 right-5 z-40 h-14 w-14 rounded-full shadow-lg bg-green-500 text-white flex items-center justify-center"
     >
       <span className="text-xl">🛒</span>
       {count > 0 && (
