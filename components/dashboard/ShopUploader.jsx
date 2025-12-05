@@ -29,8 +29,12 @@ export default function ShopUploader({ onUploadComplete, productId }) {
   async function handleUpload() {
     if (!imageFile) return toast.error("Please select an image");
     if (!alt.trim()) return toast.error("Alt text is required");
+    if (alt.length > MAX_ALT_LENGTH) {
+      return toast.error(`Alt text must be ≤ ${MAX_ALT_LENGTH} characters.`);
+    }
 
-    // --- Cloudinary unsigned upload ---
+    const keywords = parseKeywords(keywordsText);
+
     const formData = new FormData();
     formData.append("file", imageFile);
     formData.append(
@@ -41,11 +45,14 @@ export default function ShopUploader({ onUploadComplete, productId }) {
     const root = (
       process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_ROOT || "pawfect/shop/products"
     ).replace(/\/+$/, "");
+
+    // ✅ make public_id unique & safe
+    const baseSlug = slugify(filenameTitle || "image") || "image";
+    const stamp = Date.now();
+    const publicId = `${root}/${baseSlug}-${stamp}`;
+
     formData.append("folder", root);
-    formData.append(
-      "public_id",
-      `${root}/${slugify(filenameTitle || "image")}`
-    );
+    formData.append("public_id", publicId);
 
     setLoading(true);
     try {
@@ -65,9 +72,9 @@ export default function ShopUploader({ onUploadComplete, productId }) {
       const payload = {
         imageUrl: cloudData.secure_url,
         publicId: cloudData.public_id,
-        alt, // ← schema field
-        caption: caption || null,
-        keywords: parseKeywords(keywordsText), // ← array<string>
+        alt: alt.trim(),
+        caption: caption.trim() || null,
+        keywords,
         productId: productId || undefined,
       };
 
@@ -82,6 +89,7 @@ export default function ShopUploader({ onUploadComplete, productId }) {
       toast.success(
         productId ? "Image uploaded to product!" : "Image uploaded!"
       );
+
       // reset
       setImageFile(null);
       setAlt("");
@@ -103,7 +111,7 @@ export default function ShopUploader({ onUploadComplete, productId }) {
       <input
         type="file"
         accept="image/*"
-        onChange={(e) => setImageFile(e.target.files[0])}
+        onChange={(e) => setImageFile(e.target.files[0] || null)}
       />
 
       <input
@@ -115,7 +123,11 @@ export default function ShopUploader({ onUploadComplete, productId }) {
         className="input input-bordered w-full"
       />
       <p
-        className={`text-sm mt-1 ${alt.length > MAX_ALT_LENGTH * 0.9 ? "text-red-500 font-semibold" : "text-gray-500"}`}
+        className={`text-sm mt-1 ${
+          alt.length > MAX_ALT_LENGTH * 0.9
+            ? "text-red-500 font-semibold"
+            : "text-gray-500"
+        }`}
       >
         {alt.length} / {MAX_ALT_LENGTH} characters
       </p>

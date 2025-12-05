@@ -28,7 +28,7 @@ export default function ProductAndImageUploader() {
   const [existingProductId, setExistingProductId] = useState("");
 
   // image fields
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
   const [alt, setAlt] = useState(""); // ← schema field
   const [caption, setCaption] = useState("");
   const [keywordsText, setKeywordsText] = useState(""); // UI as CSV
@@ -56,9 +56,9 @@ export default function ProductAndImageUploader() {
   }, [mode]);
 
   const filenameTitle = useMemo(
-    () => (imageFile?.name ? humanize(imageFile.name) : ""),
-    [imageFile]
-  );
+     () => (imageFiles[0]?.name ? humanize(imageFiles[0].name) : ""),
+     [imageFiles]
+   );
 
   function toggleCat(slug) {
     setChosenCats((prev) => {
@@ -83,7 +83,8 @@ export default function ProductAndImageUploader() {
   }
 
   async function handleSubmit() {
-    if (!imageFile) return toast.error("Image is required.");
+    if (!imageFiles.length)
+      return toast.error("At least one image is required.");
     if (!alt.trim())
       return toast.error("Alt text is required (accessibility).");
     if (alt.length > MAX_ALT_LENGTH)
@@ -157,50 +158,60 @@ export default function ProductAndImageUploader() {
         }
       }
 
-      // 2) Upload to Cloudinary
-      const formData = new FormData();
-      formData.append("file", imageFile);
-      formData.append(
-        "upload_preset",
-        process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_PRESET
-      );
-
+      // 2) Upload ALL selected files to Cloudinary + DB
       const root = (
         process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_ROOT || "pawfect/shop/products"
       ).replace(/\/+$/, "");
-      const publicId = `${root}/${slugify(filenameTitle || title || "image")}`;
-      formData.append("folder", root);
-      formData.append("public_id", publicId);
 
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
-        { method: "POST", body: formData }
-      );
-      const cloud = await cloudRes.json();
-      if (!cloudRes.ok || !cloud?.public_id || !cloud?.secure_url) {
-        throw new Error(cloud?.error?.message || "Cloudinary upload failed");
+      const baseSlug = slugify(filenameTitle || title || "image") || "image";
+
+      const stamp = Date.now(); // helps keep public_id unique
+
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append(
+          "upload_preset",
+          process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_PRESET
+        );
+
+        // Ensure unique public_id per image (schema has @unique)
+        const publicId = `${root}/${baseSlug}-${stamp}-${i}`;
+        formData.append("folder", root);
+        formData.append("public_id", publicId);
+
+        const cloudRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
+          { method: "POST", body: formData }
+        );
+        const cloud = await cloudRes.json();
+        if (!cloudRes.ok || !cloud?.public_id || !cloud?.secure_url) {
+          throw new Error(cloud?.error?.message || "Cloudinary upload failed");
+        }
+
+        // 3) Persist ProductImage for this file
+        const dbRes = await fetch("/api/admin/shop/images", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId,
+            imageUrl: cloud.secure_url,
+            publicId: cloud.public_id,
+            alt: alt.trim(), // same alt for all; fine for now
+            caption: caption.trim() || undefined,
+            keywords: kw,
+          }),
+        });
+        const db = await dbRes.json().catch(() => ({}));
+        if (!dbRes.ok) throw new Error(db?.error || "DB insert failed");
       }
-
-      // 3) Persist ProductImage (note: no product description here)
-      const dbRes = await fetch("/api/admin/shop/images", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId,
-          imageUrl: cloud.secure_url,
-          publicId: cloud.public_id,
-          alt: alt.trim(), // ← schema
-          caption: caption.trim() || undefined,
-          keywords: kw, // ← array<string>
-        }),
-      });
-      const db = await dbRes.json().catch(() => ({}));
-      if (!dbRes.ok) throw new Error(db?.error || "DB insert failed");
 
       toast.success(
         mode === "create"
-          ? "🎉 Product created and image uploaded!"
-          : "✅ Image uploaded to product!"
+          ? "🎉 Product created and images uploaded!"
+          : "✅ Images uploaded to product!"
       );
 
       // reset minimal fields (don’t wipe products list)
@@ -218,7 +229,7 @@ export default function ProductAndImageUploader() {
         setForCats(false);
       }
 
-      setImageFile(null);
+      setImageFiles([]);
       setAlt("");
       setCaption("");
       setKeywordsText("");
@@ -487,11 +498,14 @@ export default function ProductAndImageUploader() {
       {/* Image + Meta */}
       <div className="grid gap-3 md:grid-cols-2">
         <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-          className="file-input file-input-bordered"
-        />
+           type="file"
+           accept="image/*"
+           multiple
+           onChange={(e) =>
+             setImageFiles(Array.from(e.target.files || []))
+           }
+           className="file-input file-input-bordered"
+         />
         <input
           className="input input-bordered"
           placeholder="Alt text (required)"
