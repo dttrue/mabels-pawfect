@@ -62,6 +62,9 @@ export default function Navbar() {
             <Link href="/about" className="hover:text-pink-600">
               About
             </Link>
+            <Link href="/training-and-credentials">
+              Training & Credentials
+            </Link>
             <Link href="/contact" className="hover:text-pink-600">
               Contact
             </Link>
@@ -160,6 +163,11 @@ export default function Navbar() {
             <li>
               <Link href="/about" onClick={toggleMobileMenu}>
                 About
+              </Link>
+            </li>
+            <li>
+              <Link href="/training-and-credentials" onClick={toggleMobileMenu}>
+                Training & Credentials
               </Link>
             </li>
             <li>

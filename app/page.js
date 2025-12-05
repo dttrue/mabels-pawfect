@@ -33,6 +33,40 @@ export default function Home() {
 
         <AboutSection />
 
+        {/* Trust / credentials CTA strip */}
+        <section className="py-4 px-6">
+          <div className="max-w-4xl mx-auto bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-5 h-5 text-blue-700"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+
+              <p className="text-sm text-gray-800">
+                Want to see Bridget’s training, certifications, and work
+                history?
+              </p>
+            </div>
+
+            <Link
+              href="/training-and-credentials"
+              className="text-sm font-semibold text-blue-700 hover:text-blue-800 underline underline-offset-4"
+            >
+              View my training &amp; credentials →
+            </Link>
+          </div>
+        </section>
+
         {isSummer && <SeasonalSpecial />}
 
         {isThanksgiving && <ThanksgivingSpecials />}
