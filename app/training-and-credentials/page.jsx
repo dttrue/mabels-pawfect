@@ -126,7 +126,7 @@ export default function TrainingAndCredentialsPage() {
         {/* CTA */}
         <div className="text-center space-y-4 pt-8 pb-12">
           <p className="text-gray-700">
-            Want to learn more or schedule a meet &amp; greet?
+            See what other pet owners have to say about Bridget.
           </p>
 
           <div className="flex justify-center">
