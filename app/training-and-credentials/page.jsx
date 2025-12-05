@@ -1,6 +1,7 @@
 // app/training-and-credentials/page.jsx
-import Image from "next/image";
+
 import LinkedInSection from "@/components/training/LinkedInSection";
+import ZoomableImage from "@/components/common/ZoomableImage";
 
 export const metadata = {
   title: "Training & Credentials | Mabel's Pawfect Pet Services",
@@ -47,6 +48,24 @@ export default function TrainingAndCredentialsPage() {
             title="Certified in behaviour & pet first aid"
             text="Animal Behaviour, Chicken Behaviour, Pet First Aid & CPR."
           />
+        </div>
+
+        {/* INSURANCE CARD */}
+        <div className="mt-10 text-center">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+            Fully Insured for Your Peace of Mind
+          </h2>
+          <ZoomableImage
+            src="/images/pci-insurance-card.jpg"
+            alt="PetCare Insurance card for Bridget Quinones"
+            width={600}
+            height={400}
+            className="mx-auto max-w-xs sm:max-w-sm md:max-w-md rounded-xl shadow-md border"
+          />
+
+          <p className="text-sm text-gray-600 mt-2">
+            Coverage valid 03/30/2025 – 03/30/2026
+          </p>
         </div>
 
         {/* EXPERIENCE */}
