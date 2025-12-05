@@ -32,7 +32,7 @@ export default function TrainingAndCredentialsPage() {
         {/* TRUST SNAPSHOT */}
         <div className="grid md:grid-cols-2 gap-6">
           <TrustCard
-            title="2+ years as a professional pet sitter"
+            title="4+ years as a professional pet sitter"
             text="Providing overnight care, drop-ins, and dog walking through Rover.com."
           />
           <TrustCard
