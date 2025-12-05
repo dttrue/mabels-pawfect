@@ -55,7 +55,7 @@ export default function Footer() {
               rel="noopener noreferrer"
               aria-label="Instagram"
               onClick={() =>
-                trackFooterSocial({
+                trackFooterLink({
                   platform: "instagram",
                   url: "https://www.instagram.com/mabelspawfectpetservicesllc/",
                 })

@@ -2,7 +2,7 @@
 "use client";
 
 import Image from "next/image";
-import priceListImg from "@/public/images/pet-care-price-list.jpg";
+import priceListImg from "@/public/images/seasonal-pricing/christmas-pricing-2025.jpg";
 import SnowOverlay from "@/components/SnowOverlay";
 
 export const metadata = {
@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 export default function PricePage() {
-  const src = "/images/pet-care-price-list.jpg"; // download path
+  const src = "/images/christmas-pricing-2025.jpg"; // download path
   const validity = "Valid Dec 1 – Dec 31";
 
   return (
