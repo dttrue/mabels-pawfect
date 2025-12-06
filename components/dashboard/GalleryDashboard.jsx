@@ -1,3 +1,4 @@
+// components/dashboard/GalleryDashboard.jsx
 "use client";
 
 import { useState } from "react";
