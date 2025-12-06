@@ -1,35 +1,38 @@
 // components/dashboard/ProductAndImageUploader.jsx
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CATEGORIES, CATEGORY_PRESETS } from "@/scripts/products.data";
 
-/** Combine product creation and image upload in one flow */
+/** Combine product creation, editing, and image upload in one flow */
 export default function ProductAndImageUploader() {
-  const [mode, setMode] = useState("create"); // "create" | "existing"
+  const [mode, setMode] = useState("create"); // "create" | "edit" | "existing"
+
   const [chosenCats, setChosenCats] = useState(new Set());
-  const [forDogs, setForDogs] = useState(true); // default true
-  const [forCats, setForCats] = useState(false); 
-  // product fields (create)
+  const [forDogs, setForDogs] = useState(true);
+  const [forCats, setForCats] = useState(false);
+
+  // product fields (create/edit)
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState(""); // dollars string like "7.99"
   const [subtitle, setSubtitle] = useState("");
-  const [description, setDescription] = useState(""); // product-only
-  
+  const [description, setDescription] = useState("");
 
-  // NEW: Weight & dimensions (imperial; metric derived)
+  // Weight & dimensions (imperial; metric derived)
   const [weightOz, setWeightOz] = useState("");
   const [lengthIn, setLengthIn] = useState("");
   const [widthIn, setWidthIn] = useState("");
   const [heightIn, setHeightIn] = useState("");
 
-  // existing product selection
+  // product lists / selection
   const [products, setProducts] = useState([]);
   const [existingProductId, setExistingProductId] = useState("");
+  const [editProductId, setEditProductId] = useState("");
 
   // image fields
   const [imageFiles, setImageFiles] = useState([]);
-  const [alt, setAlt] = useState(""); // ← schema field
+  const [alt, setAlt] = useState("");
   const [caption, setCaption] = useState("");
   const [keywordsText, setKeywordsText] = useState(""); // UI as CSV
 
@@ -38,9 +41,9 @@ export default function ProductAndImageUploader() {
   const MAX_KEYWORDS = 10;
   const MAX_ALT_LENGTH = 125;
 
-  // Fetch products for the "existing" mode
+  // Fetch products for "existing" and "edit" modes
   useEffect(() => {
-    if (mode !== "existing") return;
+    if (mode !== "existing" && mode !== "edit") return;
     (async () => {
       try {
         const res = await fetch("/api/admin/shop/products?limit=200", {
@@ -56,9 +59,9 @@ export default function ProductAndImageUploader() {
   }, [mode]);
 
   const filenameTitle = useMemo(
-     () => (imageFiles[0]?.name ? humanize(imageFiles[0].name) : ""),
-     [imageFiles]
-   );
+    () => (imageFiles[0]?.name ? humanize(imageFiles[0].name) : ""),
+    [imageFiles]
+  );
 
   function toggleCat(slug) {
     setChosenCats((prev) => {
@@ -82,18 +85,112 @@ export default function ProductAndImageUploader() {
       .slice(0, MAX_KEYWORDS);
   }
 
+  // Load a product into the form for editing
+  async function loadProductToEdit(id) {
+    setEditProductId(id);
+    if (!id) return;
+
+    try {
+      const res = await fetch(`/api/admin/shop/products/${id}`);
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.error || "Failed to load product");
+
+      const p = j.product || j;
+
+      setTitle(p.title || "");
+      setSubtitle(p.subtitle || "");
+      setDescription(p.description || "");
+
+      const priceStr =
+        p.priceDollars != null
+          ? Number(p.priceDollars).toFixed(2)
+          : p.priceCents != null
+            ? (p.priceCents / 100).toFixed(2)
+            : "";
+      setPrice(priceStr);
+
+      setForDogs(!!p.forDogs);
+      setForCats(!!p.forCats);
+
+      // categorySlugs should be an array of slugs; fall back to [] if missing
+      setChosenCats(new Set(p.categorySlugs || []));
+
+      setWeightOz(
+        p.weightOz != null && p.weightOz !== undefined ? String(p.weightOz) : ""
+      );
+      setLengthIn(
+        p.lengthIn != null && p.lengthIn !== undefined ? String(p.lengthIn) : ""
+      );
+      setWidthIn(
+        p.widthIn != null && p.widthIn !== undefined ? String(p.widthIn) : ""
+      );
+      setHeightIn(
+        p.heightIn != null && p.heightIn !== undefined ? String(p.heightIn) : ""
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error(e.message || "Failed to load product");
+    }
+  }
+
   async function handleSubmit() {
-    if (!imageFiles.length)
-      return toast.error("At least one image is required.");
-    if (!alt.trim())
-      return toast.error("Alt text is required (accessibility).");
-    if (alt.length > MAX_ALT_LENGTH)
-      return toast.error(`Alt text must be ≤ ${MAX_ALT_LENGTH} characters.`);
-
-    const kw = parseKeywords(keywordsText);
-
     setLoading(true);
     try {
+      // 🔹 EDIT EXISTING PRODUCT (no image required)
+      if (mode === "edit") {
+        if (!editProductId) {
+          toast.error("Pick a product to edit.");
+          setLoading(false);
+          return;
+        }
+
+        const weightOzNum = toNumberOrNull(weightOz);
+        const lengthInNum = toNumberOrNull(lengthIn);
+        const widthInNum = toNumberOrNull(widthIn);
+        const heightInNum = toNumberOrNull(heightIn);
+
+        const payload = {
+          title,
+          subtitle: subtitle || null,
+          description: description || null,
+          priceDollars: price || null,
+          active: true,
+          forDogs,
+          forCats,
+          weightOz: weightOzNum,
+          weightGrams: weightOzNum != null ? ozToGrams(weightOzNum) : null,
+          lengthIn: lengthInNum,
+          lengthCm: lengthInNum != null ? inchesToCm(lengthInNum) : null,
+          widthIn: widthInNum,
+          widthCm: widthInNum != null ? inchesToCm(widthInNum) : null,
+          heightIn: heightInNum,
+          heightCm: heightInNum != null ? inchesToCm(heightInNum) : null,
+          categorySlugs: Array.from(chosenCats),
+        };
+
+        const res = await fetch(`/api/admin/shop/products/${editProductId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body?.error || "Update failed");
+
+        toast.success("✅ Product updated!");
+        return; // do NOT run the image upload logic below
+      }
+
+      // 🔹 CREATE or ATTACH IMAGE PATHS (existing behavior)
+
+      if (!imageFiles.length)
+        return toast.error("At least one image is required.");
+      if (!alt.trim())
+        return toast.error("Alt text is required (accessibility).");
+      if (alt.length > MAX_ALT_LENGTH)
+        return toast.error(`Alt text must be ≤ ${MAX_ALT_LENGTH} characters.`);
+
+      const kw = parseKeywords(keywordsText);
+
       // 1) Resolve productId (create or existing)
       let productId = existingProductId || null;
 
@@ -104,7 +201,6 @@ export default function ProductAndImageUploader() {
           return;
         }
 
-        // 👉 Convert weight & dimensions to numbers and metric
         const weightOzNum = toNumberOrNull(weightOz);
         const lengthInNum = toNumberOrNull(lengthIn);
         const widthInNum = toNumberOrNull(widthIn);
@@ -115,12 +211,11 @@ export default function ProductAndImageUploader() {
           slug: slugify(title),
           priceDollars: price, // backend converts to cents
           subtitle: subtitle || undefined,
-          description: description || undefined, // product desc
+          description: description || undefined,
           categories: Array.from(chosenCats),
           active: true,
-          forDogs: forDogs,
-          forCats: forCats,
-          // NEW: only send when present
+          forDogs,
+          forCats,
           ...(weightOzNum != null && {
             weightOz: weightOzNum,
             weightGrams: ozToGrams(weightOzNum),
@@ -151,6 +246,7 @@ export default function ProductAndImageUploader() {
         productId = createBody?.product?.id;
         if (!productId) throw new Error("Product created but no id returned");
       } else {
+        // mode === "existing"
         if (!existingProductId) {
           toast.error("Pick a product to attach the image.");
           setLoading(false);
@@ -165,7 +261,7 @@ export default function ProductAndImageUploader() {
 
       const baseSlug = slugify(filenameTitle || title || "image") || "image";
 
-      const stamp = Date.now(); // helps keep public_id unique
+      const stamp = Date.now(); // uniqueness
 
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
@@ -177,7 +273,6 @@ export default function ProductAndImageUploader() {
           process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_PRESET
         );
 
-        // Ensure unique public_id per image (schema has @unique)
         const publicId = `${root}/${baseSlug}-${stamp}-${i}`;
         formData.append("folder", root);
         formData.append("public_id", publicId);
@@ -191,7 +286,6 @@ export default function ProductAndImageUploader() {
           throw new Error(cloud?.error?.message || "Cloudinary upload failed");
         }
 
-        // 3) Persist ProductImage for this file
         const dbRes = await fetch("/api/admin/shop/images", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -199,7 +293,7 @@ export default function ProductAndImageUploader() {
             productId,
             imageUrl: cloud.secure_url,
             publicId: cloud.public_id,
-            alt: alt.trim(), // same alt for all; fine for now
+            alt: alt.trim(),
             caption: caption.trim() || undefined,
             keywords: kw,
           }),
@@ -214,7 +308,6 @@ export default function ProductAndImageUploader() {
           : "✅ Images uploaded to product!"
       );
 
-      // reset minimal fields (don’t wipe products list)
       if (mode === "create") {
         setTitle("");
         setPrice("");
@@ -250,26 +343,59 @@ export default function ProductAndImageUploader() {
           <select
             className="select select-bordered select-sm"
             value={mode}
-            onChange={(e) => setMode(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setMode(next);
+              if (next !== "edit") setEditProductId("");
+            }}
           >
             <option value="create">Create New Product + Image</option>
+            <option value="edit">Edit Existing Product</option>
             <option value="existing">Attach Image to Existing</option>
           </select>
         </label>
       </div>
 
-      {/* Create Mode */}
-      {mode === "create" ? (
+      {/* Create & Edit Modes */}
+      {mode === "create" || mode === "edit" ? (
         <div className="grid gap-3 md:grid-cols-2">
-          <input
-            className="input input-bordered"
-            placeholder="Product Title *"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <p className="text-xs opacity-60 mt-1">
-            URL preview: /shop/{slugify(title || "your-product")}
-          </p>
+          {mode === "edit" && (
+            <div className="md:col-span-2">
+              <label className="label">
+                <span className="label-text font-semibold">
+                  Select product to edit
+                </span>
+              </label>
+              <select
+                className="select select-bordered w-full"
+                value={editProductId}
+                onChange={(e) => loadProductToEdit(e.target.value)}
+              >
+                <option value="">Choose a product…</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title} — ${((p.priceCents || 0) / 100).toFixed(2)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Title & slug preview */}
+          <div className="md:col-span-2">
+            <label className="form-control">
+              <span className="label-text">Product Title *</span>
+              <input
+                className="input input-bordered"
+                placeholder="Product Title *"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+            <p className="text-xs opacity-60 mt-1">
+              URL preview: /shop/{slugify(title || "your-product")}
+            </p>
+          </div>
 
           {/* Price */}
           <label className="form-control">
@@ -414,7 +540,7 @@ export default function ProductAndImageUploader() {
             {description.length}/500 characters
           </p>
 
-          {/* NEW: Weight & Dimensions */}
+          {/* Weight & Dimensions */}
           <div className="md:col-span-2 border-t pt-3 mt-2 space-y-3">
             <h3 className="text-sm font-semibold">Weight & Dimensions</h3>
             <p className="text-xs opacity-70">
@@ -478,7 +604,7 @@ export default function ProductAndImageUploader() {
           </div>
         </div>
       ) : (
-        // Existing Mode
+        // Attach Image to Existing Mode
         <div className="grid gap-3">
           <select
             className="select select-bordered"
@@ -495,42 +621,44 @@ export default function ProductAndImageUploader() {
         </div>
       )}
 
-      {/* Image + Meta */}
-      <div className="grid gap-3 md:grid-cols-2">
-        <input
-           type="file"
-           accept="image/*"
-           multiple
-           onChange={(e) =>
-             setImageFiles(Array.from(e.target.files || []))
-           }
-           className="file-input file-input-bordered"
-         />
-        <input
-          className="input input-bordered"
-          placeholder="Alt text (required)"
-          value={alt}
-          onChange={(e) => setAlt(e.target.value)}
-          maxLength={MAX_ALT_LENGTH}
-        />
-        <input
-          className="input input-bordered"
-          placeholder="Caption (optional)"
-          value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-        />
-        <input
-          className="input input-bordered md:col-span-2"
-          placeholder="Keywords (comma list, max 10)"
-          value={keywordsText}
-          onChange={(e) => setKeywordsText(e.target.value)}
-          onBlur={() => setKeywordsText(parseKeywords(keywordsText).join(", "))}
-        />
-        <p className="text-xs opacity-70 md:col-span-2">
-          {alt.length}/{MAX_ALT_LENGTH} alt chars •{" "}
-          {parseKeywords(keywordsText).length}/{MAX_KEYWORDS} keywords
-        </p>
-      </div>
+      {/* Image + Meta (used for create + attach) */}
+      {mode !== "edit" && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+            className="file-input file-input-bordered"
+          />
+          <input
+            className="input input-bordered"
+            placeholder="Alt text (required)"
+            value={alt}
+            onChange={(e) => setAlt(e.target.value)}
+            maxLength={MAX_ALT_LENGTH}
+          />
+          <input
+            className="input input-bordered"
+            placeholder="Caption (optional)"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+          />
+          <input
+            className="input input-bordered md:col-span-2"
+            placeholder="Keywords (comma list, max 10)"
+            value={keywordsText}
+            onChange={(e) => setKeywordsText(e.target.value)}
+            onBlur={() =>
+              setKeywordsText(parseKeywords(keywordsText).join(", "))
+            }
+          />
+          <p className="text-xs opacity-70 md:col-span-2">
+            {alt.length}/{MAX_ALT_LENGTH} alt chars •{" "}
+            {parseKeywords(keywordsText).length}/{MAX_KEYWORDS} keywords
+          </p>
+        </div>
+      )}
 
       <button
         className="btn btn-primary w-full"
@@ -541,7 +669,9 @@ export default function ProductAndImageUploader() {
           ? "Working…"
           : mode === "create"
             ? "Create Product + Upload Image"
-            : "Attach Image to Product"}
+            : mode === "edit"
+              ? "Update Product"
+              : "Attach Image to Product"}
       </button>
     </div>
   );
@@ -560,12 +690,6 @@ function slugify(s) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-}
-function categoriesToArray(s) {
-  return s
-    .split(",")
-    .map((x) => x.trim().toLowerCase())
-    .filter(Boolean);
 }
 
 function centsFrom(dollarsStr) {
