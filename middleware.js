@@ -28,15 +28,16 @@
 //   matcher: ["/admin/:path*"],
 // };
 
-import { NextResponse } from "next/server";
+// middleware.js
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-export function middleware() {
-  // No auth / no redirects anywhere
-  return NextResponse.next();
-}
+export default clerkMiddleware();
 
-// Optional: you can just omit config entirely.
-// If you leave it, this disables matching on any special subset.
 export const config = {
-  matcher: [],
+  matcher: [
+    // protect admin UI
+    "/admin/:path*",
+    // protect admin API
+    "/api/admin/:path*",
+  ],
 };
