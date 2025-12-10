@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+
 export async function GET(req) {
   const url = new URL(req.url);
   const productId = url.searchParams.get("productId");
@@ -26,7 +27,6 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const {
-      // accept both names from various UIs
       url,
       imageUrl,
       publicId,
@@ -40,7 +40,6 @@ export async function POST(req) {
     const finalUrl = url || imageUrl;
     const finalAlt = (alt ?? altText) || null;
 
-    // If schema has `keywords String[]` use array; if not, store CSV
     const finalKeywords = Array.isArray(keywords)
       ? keywords
       : String(keywords || "")
@@ -55,15 +54,28 @@ export async function POST(req) {
       );
     }
 
+    let product = null;
+    if (productId) {
+      product = await prisma.product.findUnique({
+        where: { id: productId },
+      });
+
+      if (!product) {
+        return NextResponse.json(
+          { error: "Invalid productId" },
+          { status: 400 }
+        );
+      }
+    }
+
     const image = await prisma.productImage.create({
       data: {
         url: finalUrl,
         publicId,
         alt: finalAlt,
         caption: caption || null,
-        // ✅ String[] field
-        keywords: { set: finalKeywords }, 
-        productId: productId || null,
+        keywords: { set: finalKeywords },
+        productId: product ? product.id : null,
       },
     });
 

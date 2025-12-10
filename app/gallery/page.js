@@ -1,9 +1,12 @@
 import HappyPetsGrid from "@/components/gallery/HappyPetsGrid";
 import MemoriamCarousel from "@/components/gallery/MemoriamCarousel";
-
+import SnowOverlay from "@/components/SnowOverlay";
 export default function GalleryPage() {
   return (
     <main className="bg-white min-h-screen">
+
+      {/* Snow Overlay */}
+      <SnowOverlay />
       {/* Top: Happy Pets */}
       <section className="py-16 px-4 bg-pinky-50">
         <div className="max-w-6xl mx-auto text-center">
