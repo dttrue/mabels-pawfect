@@ -9,10 +9,15 @@ export default function AboutPage() {
           About Mabel’s Pawfect
         </h1>
 
-        <img
+        <Image
           src="/images/about-me.jpg"
           alt="Bridget with Mabel"
+          width={500} // match the real aspect ratio of your file
+          height={700} // ← adjust these if your image is wider/taller
           className="w-56 sm:w-64 h-auto mx-auto rounded-xl object-cover object-center border-4 border-pink-200 shadow-md mb-6"
+          loading="lazy"
+          decoding="async"
+          sizes="(max-width: 640px) 14rem, 16rem"
         />
 
         <p className="text-gray-700 mb-4 leading-relaxed">
@@ -38,16 +43,22 @@ export default function AboutPage() {
         </p>
 
         <a
-          href="https://www.propethero.com"
+          href="https://www.pettech.net"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-block"
+          className="block text-center"
         >
-          <img
-            alt="I got Cat and Dog First Aid and CPR certified at ProPetHero.com"
-            src="https://www.propethero.com/images/sites/propethero/en/badge-6.png"
-            className="mx-auto w-40 h-auto"
+          <Image
+            src="/images/badge-6.png"
+            alt="Pet First Aid & CPR Certified"
+            width={200}
+            height={200}
+            className="mx-auto w-40 h-auto transition-transform hover:scale-105 cursor-pointer"
           />
+
+          <span className="text-xs text-gray-500 mt-1 block">
+            Click to verify certification
+          </span>
         </a>
       </div>
     </section>

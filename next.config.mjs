@@ -1,8 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ["res.cloudinary.com"], // ⬅️ Use your actual domain here
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com"
+      },
+      {
+        protocol: "https",
+        hostname: "www.propethero.com"
+      }
+    ],
   },
 };
 
 export default nextConfig;
+
+

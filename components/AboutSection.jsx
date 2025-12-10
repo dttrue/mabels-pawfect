@@ -1,6 +1,6 @@
 // components/AboutSection.jsx
 import PawIcon from "@/components/icons/PawIcon";
-
+import Image from "next/image";
 
 <PawIcon className="w-5 h-5 text-pink-500 inline-block ml-2" />;
 
@@ -11,10 +11,16 @@ export default function AboutSection() {
       <div className="max-w-screen-xl mx-auto px-4 flex flex-col md:flex-row items-center gap-10">
         {/* Left: Image */}
         <div className="w-full md:w-1/2">
-          <img
-            src="/images/about-me.jpg" // Make sure this is placed correctly
-            alt="Owner with dog"
-            className="rounded-xl shadow-lg w-full object-cover"
+          <Image
+            src="/images/about-me.jpg"
+            alt="Bridget with Mabel"
+            width={600} // keep ratio; adjust if your file is different
+            height={800}
+            className="w-56 sm:w-64 h-auto mx-auto rounded-xl object-cover object-center border-4 border-pink-200 shadow-md mb-6"
+            priority // this is the main visual on the page
+            fetchPriority="high"
+            decoding="async"
+            sizes="(max-width: 768px) 14rem, 16rem"
           />
         </div>
 

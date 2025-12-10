@@ -3,9 +3,8 @@ import MemoriamCarousel from "@/components/gallery/MemoriamCarousel";
 import SnowOverlay from "@/components/SnowOverlay";
 export default function GalleryPage() {
   return (
-    <main className="bg-white min-h-screen">
-
-      {/* Snow Overlay */}
+    <main className="relative bg-white min-h-screen">
+      {/* Snow Overlay (no layout impact) */}
       <SnowOverlay />
       {/* Top: Happy Pets */}
       <section className="py-16 px-4 bg-pinky-50">

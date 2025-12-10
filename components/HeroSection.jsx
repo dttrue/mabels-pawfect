@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { trackHeroBookNow } from "@/lib/ga-events";
 import { useRouter } from "next/navigation";
-
+import Image from "next/image";
 export default function HeroSection() {
   const router = useRouter();
 
@@ -22,11 +22,19 @@ export default function HeroSection() {
     <section className="py-10 text-center animate-fade-in">
       {/* Hero Image */}
       <div className="animate-fade-in">
-        <img
-          src="/images/christmas_hero_2025.png"
-          alt="Friendly dog and cat"
-          className="w-full max-w-4xl mx-auto rounded-lg shadow-lg"
-        />
+        <div className="w-full max-w-4xl mx-auto">
+          <Image
+            src="/images/christmas_hero_2025.png"
+            alt="Friendly dog and cat"
+            width={1200} // match your real image ratio
+            height={1600} // or whatever it actually is
+            className="w-full h-auto rounded-lg shadow-lg"
+            priority // mark as LCP
+            fetchPriority="high" // tell the browser it's important
+            decoding="async"
+            sizes="(max-width: 768px) 100vw, 70vw"
+          />
+        </div>
       </div>
 
       {/* CTA Box */}
