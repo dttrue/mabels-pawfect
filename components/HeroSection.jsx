@@ -5,14 +5,26 @@ import Link from "next/link";
 import { trackHeroBookNow } from "@/lib/ga-events";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import useSWR from "swr";
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function HeroSection() {
   const router = useRouter();
 
+  // Client-side fetch for hero image (since this component is client-only)
+  const { data } = useSWR("/api/admin/site-images?key=hero-main", fetcher);
+
+  // Cloudinary image if exists
+  const cloudImage = data?.image?.imageUrl || null;
+
+  // Fallback to file-system hero image
+  const src = cloudImage || "/images/christmas_hero_2025.png";
+
   const handleBookNowClick = (e) => {
-    e.preventDefault(); // stop the instant navigation
+    e.preventDefault();
     trackHeroBookNow();
 
-    // Navigate after a tiny delay so GA can record the event
     setTimeout(() => {
       router.push("/booking");
     }, 120);
@@ -24,13 +36,13 @@ export default function HeroSection() {
       <div className="animate-fade-in">
         <div className="w-full max-w-4xl mx-auto">
           <Image
-            src="/images/christmas_hero_2025.png"
+            src={src}
             alt="Friendly dog and cat"
-            width={1200} // match your real image ratio
-            height={1600} // or whatever it actually is
+            width={1200}
+            height={1600}
             className="w-full h-auto rounded-lg shadow-lg"
-            priority // mark as LCP
-            fetchPriority="high" // tell the browser it's important
+            priority
+            fetchPriority="high"
             decoding="async"
             sizes="(max-width: 768px) 100vw, 70vw"
           />
@@ -48,7 +60,6 @@ export default function HeroSection() {
           Personalized, loving care for your dogs and cats while you're away.
         </p>
 
-        {/* BOOK NOW CTA w/ GA4 Event */}
         <button
           onClick={handleBookNowClick}
           className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition duration-200"
@@ -61,4 +72,3 @@ export default function HeroSection() {
     </section>
   );
 }
-

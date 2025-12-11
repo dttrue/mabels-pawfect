@@ -3,6 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { trackPricingCTA, trackBookingCTA } from "@/lib/ga-events";
+import useSWR from "swr";
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ChristmasSpecials({
   title = "Christmas Specials 🎄",
@@ -10,7 +13,20 @@ export default function ChristmasSpecials({
   ctaHref = "/pricing-seasonal",
   ctaText = "See Christmas Pricing",
   imageSrc = "/images/seasonal-pricing/christmas-pricing-2025.jpg",
+  imageKey = "pricing-flyer-main", // 🔑 same stable key as Pricing.jsx
 }) {
+  const { data } = useSWR(
+    imageKey
+      ? `/api/admin/site-images?key=${encodeURIComponent(imageKey)}`
+      : null,
+    fetcher
+  );
+
+  const cloudImage = data?.image?.imageUrl || null;
+  const cloudAlt = data?.image?.alt || null;
+  const finalImageSrc = cloudImage || imageSrc;
+  const finalAlt = +cloudAlt || "Christmas 2025 pricing flyer – dogs & cats";
+
   const handlePricingClick = () => {
     trackPricingCTA({
       page: "homepage",
@@ -98,8 +114,8 @@ export default function ChristmasSpecials({
               aria-label="Open Christmas pricing"
             >
               <Image
-                src={imageSrc}
-                alt="Christmas 2025 pricing flyer – dogs & cats"
+                src={finalImageSrc}
+                alt={finalAlt}
                 width={880}
                 height={1360}
                 className="h-auto w-full rounded-lg"

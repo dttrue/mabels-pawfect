@@ -1,10 +1,25 @@
-// components/pricing/Pricing.jsx
+// components/seasonal-pricing/Pricing.jsx
 "use client";
+
 import Link from "next/link";
-import SnowOverlay from "@/components/SnowOverlay"; 
+import SnowOverlay from "@/components/SnowOverlay";
+import useSWR from "swr";
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function Pricing() {
-  // ✅ Christmas flyer image
-  const src = "/images/seasonal-pricing/christmas-pricing-2025.jpg";
+  // 🔑 Stable key for this flyer in SiteImage
+  const imageKey = "pricing-flyer-main";
+  const FALLBACK_SRC = "/images/seasonal-pricing/christmas-pricing-2025.jpg";
+
+  // Try to load Cloudinary version
+  const { data } = useSWR(
+    `/api/admin/site-images?key=${encodeURIComponent(imageKey)}`,
+    fetcher
+  );
+
+  const cloudImage = data?.image?.imageUrl || null;
+  const src = cloudImage || FALLBACK_SRC;
   const validity = "Valid Dec 1 – Dec 31";
 
   return (

@@ -8,10 +8,10 @@ import ImagePreviewModal from "@/components/modals/ImagePreviewModal";
 import OvernightBlocker from "@/components/dashboard/OvernightBlocker";
 import GalleryDashboard from "@/components/dashboard/GalleryDashboard";
 import ToggleSection from "@/components/common/ToggleSection";
-import ProductAndImageUploader from "@/components/dashboard/ProductAndImageUploader";
- 
-import ContestUploader from "@/components/admin/ContestUploader";
-import ContestList from "@/components/admin/ContestList";
+import ProductAndImageUploader from "@/components/dashboard/ProductAndImageUploader";import SiteImageUploader from "@/components/dashboard/SiteImageUploader";
+import SiteImageList from "@/components/dashboard/SiteImageList";
+import ContestUploader from "@/components/dashboard/ContestUploader";
+import ContestList from "@/components/dashboard/ContestList";
 import ShopImageList from "@/components/dashboard/ShopImageList";
 import HighlightUploader from "@/components/dashboard/HighlightUploader";
 import { HighlightsList } from "@/components/dashboard/HighlightsList";
@@ -219,6 +219,65 @@ export default function AdminDashboard() {
               /* optional toast */
             }}
           />
+        </ToggleSection>
+
+        
+          {/* 
+  ───────────────────────────────────────────────
+  📌 SITE-WIDE IMAGE KEYS (Cloudinary-configurable)
+  Update images across the whole website without code changes.
+  Upload using <SiteImageUploader defaultKey="..." />
+
+  🔥 HERO IMAGES
+  - hero-main ...................... Homepage hero image
+
+  🔥 LOGOS
+  - logo-main ...................... Navbar + brand main logo
+
+  🔥 ABOUT PAGE
+  - about-main ..................... "Meet Bridget" photo on About page
+
+  🔥 ANNOUNCEMENT BLOCK
+  - announcement-main .............. Seasonal announcement postcard/banner
+
+  🔥 PRICING + SPECIALS
+  - pricing-flyer-main ............. Seasonal pricing flyer for:
+                                      • /pricing-seasonal
+                                      • ChristmasSpecials
+                                      • Homepage Christmas blocks
+
+  🔥 FUTURE-READY (not used yet, but ready)
+  - postcard-main .................. General shareable flyer/postcard
+  - seasonal-banner-main ........... Seasonal homepage banner
+  - gallery-featured-main .......... Featured image on Gallery page
+  - footer-logo-main ............... Footer logo if needed later
+
+  To add ANY new graphic to the CMS layer:
+  1. Pick a stable key (e.g., "newyears-flyer-main")
+  2. Use <SiteImageUploader defaultKey="the-key-name" />
+  3. Fetch it with /api/admin/site-images?key=the-key-name
+  4. No redeploys, no hardcoded image paths needed
+  ───────────────────────────────────────────────
+*/}
+
+         
+        
+        <ToggleSection title="🖼 Site Image Uploader" defaultOpen={false}>
+          {/*
+    SITE IMAGE KEYS (Cloudinary + SiteImage)
+    ---------------------------------------
+    hero-main ........ Homepage hero
+    logo-main ........ Navbar logo
+    about-main ....... Meet Bridget image
+    badge-pet-cpr ...... Pet First Aid & CPR badge
+    announcement-main  AnnouncementBlock image
+    pricing-flyer-main Seasonal pricing flyer
+  */}
+          <SiteImageUploader defaultKey="logo-main" />
+
+          <div className="mt-6">
+            <SiteImageList />
+          </div>
         </ToggleSection>
       </div>
     </div>

@@ -1,13 +1,18 @@
 // components/AnnouncementBlock.jsx
 "use client";
+
 import Link from "next/link";
 import Image from "next/image";
-import { trackEvent } from "@/lib/ga-events"; // make sure path matches your setup
+import useSWR from "swr";
+import { trackEvent } from "@/lib/ga-events";
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function AnnouncementBlock({
   title = "Holiday Digital Postcard 🎄",
   body = "Share our Christmas postcard and check out seasonal rates through Dec 31.",
   imageSrc = "/images/postcards/christmas-postcard-2025.jpg",
+  imageKey = "announcement-main", // 🔥 stable key for Cloudinary
   ctaHref = "/pricing",
   ctaText = "View Pricing",
   secondaryHref = "/gallery",
@@ -15,6 +20,18 @@ export default function AnnouncementBlock({
   analyticsPage = "pricing-seasonal",
   analyticsVariant = "christmas-2025",
 }) {
+  // Try to load Cloudinary image for this announcement
+  const { data } = useSWR(
+    imageKey
+      ? `/api/admin/site-images?key=${encodeURIComponent(imageKey)}`
+      : null,
+    fetcher
+  );
+
+  const cloudImage = data?.image?.imageUrl || null;
+  const finalImageSrc =
+    cloudImage || imageSrc || "/images/postcards/christmas-postcard-2025.jpg";
+
   function trackPrimary() {
     trackEvent("announcement_primary_click", {
       page: analyticsPage,
@@ -43,8 +60,8 @@ export default function AnnouncementBlock({
           {/* image */}
           <div className="relative">
             <Image
-              src={imageSrc}
-              alt="Holiday postcard"
+              src={finalImageSrc}
+              alt={title}
               width={1200}
               height={900}
               className="h-full w-full object-cover"

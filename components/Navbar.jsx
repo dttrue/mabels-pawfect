@@ -3,15 +3,24 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import MemberProfile from "./dashboard/MemberProfile";
+import useSWR from "swr";
 
-// ✅ GA event helpers
+import MemberProfile from "./dashboard/MemberProfile";
 import { trackBookingCTA, trackDonationCTA } from "@/lib/ga-events";
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-
   const toggleMobileMenu = () => setIsOpen(!isOpen);
+
+  // 🔥 Fetch logo-main from Cloudinary (if uploaded)
+  const { data } = useSWR("/api/admin/site-images?key=logo-main", fetcher);
+  const cloudLogo = data?.image?.imageUrl || null;
+
+  // 🔥 Fallback to your local logo until Cloudinary version is uploaded
+  const logoSrc = cloudLogo || "/images/christmas_logo_2025.png";
+  const logoAlt = data?.image?.alt || "Mabel’s Pawfect Pet Services Logo";
 
   return (
     <>
@@ -22,8 +31,8 @@ export default function Navbar() {
         <div className="max-w-screen-xl mx-auto flex items-center justify-between px-4 py-3 md:py-4">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/images/christmas_logo_2025.png"
-              alt="Mabel’s Pawfect Pet Services Logo"
+              src={logoSrc}
+              alt={logoAlt}
               width={48}
               height={48}
               className="w-auto h-auto rounded-md"
@@ -62,9 +71,7 @@ export default function Navbar() {
             <Link href="/about" className="hover:text-pink-600">
               About
             </Link>
-            <Link href="/training-and-credentials">
-              Training & Credentials
-            </Link>
+            <Link href="/training-and-credentials">Training & Credentials</Link>
             <Link href="/contact" className="hover:text-pink-600">
               Contact
             </Link>
