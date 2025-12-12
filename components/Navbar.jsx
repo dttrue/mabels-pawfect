@@ -49,7 +49,7 @@ export default function Navbar() {
             <Link href="/services" className="hover:text-pink-600">
               Services
             </Link>
-            <Link href="/pricing" className="hover:text-pink-600">
+            <Link href="/pricing-seasonal" className="hover:text-pink-600">
               Pricing
             </Link>
             <Link href="/gallery" className="hover:text-pink-600">
@@ -137,7 +137,7 @@ export default function Navbar() {
               </Link>
             </li>
             <li>
-              <Link href="/pricing" onClick={toggleMobileMenu}>
+              <Link href="/pricing-seasonal" onClick={toggleMobileMenu}>
                 Pricing
               </Link>
             </li>
