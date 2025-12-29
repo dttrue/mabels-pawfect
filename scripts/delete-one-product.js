@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 (async () => {
   try {
-    const slug = "holiday-dog-toy-bundle-regular"; // change to the product you want
+    const slug = "holiday-cat-toy-bundle-regular"; // change to the product you want
     const product = await prisma.product.findUnique({ where: { slug } });
 
     if (!product) {
