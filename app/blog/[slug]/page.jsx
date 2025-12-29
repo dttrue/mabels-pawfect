@@ -5,7 +5,6 @@ import { PortableText } from "@portabletext/react";
 import { sanityClient } from "@/lib/sanity";
 import { urlFor } from "@/lib/sanityImage";
 
-// Expanded query for gallery + future fields
 const POST_QUERY = `*[_type == "post" && slug.current == $slug][0]{
   _id,
   title,
@@ -16,22 +15,42 @@ const POST_QUERY = `*[_type == "post" && slug.current == $slug][0]{
 
 const options = { next: { revalidate: 30 } };
 
-// 🔥 Portable Text Components (supports images + galleries + blockquotes)
+function formatDate(d) {
+  try {
+    return d ? new Date(d).toLocaleDateString() : "";
+  } catch {
+    return "";
+  }
+}
+
 const portableComponents = {
   types: {
     image: ({ value }) => {
       if (!value?.asset?._ref) return null;
-      const src = urlFor(value).width(900).height(500).url();
+
+      const src = urlFor(value)
+        .width(1400)
+        .fit("crop")
+        .crop("focalpoint")
+        .auto("format")
+        .url();
 
       return (
-        <figure className="my-6">
-          <img
-            src={src}
-            alt={value.alt || ""}
-            className="rounded-xl w-full h-auto object-cover"
-          />
+        <figure className="not-prose my-8">
+          <div className="relative w-full aspect-[16/9] overflow-hidden rounded-2xl bg-gray-100">
+            <img
+              src={src}
+              alt={value.alt || ""}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+              width="1400"
+              height="788"
+            />
+          </div>
+
           {value.caption && (
-            <figcaption className="text-sm text-gray-500 mt-2 text-center">
+            <figcaption className="mt-3 text-center text-sm text-gray-500">
               {value.caption}
             </figcaption>
           )}
@@ -39,46 +58,51 @@ const portableComponents = {
       );
     },
 
-    // 🖼️ NEW — Gallery Block Renderer
     imageWithText: ({ value }) => {
-      const alignment = value.alignment || "left";
-      const img = value.image;
-      const blocks = value.body || [];
+      const alignment = value?.alignment || "left";
+      const img = value?.image;
+      const blocks = value?.body || [];
 
       if (!img?.asset?._ref || !Array.isArray(blocks) || !blocks.length) {
         return null;
       }
 
-      const src = urlFor(img).width(800).height(600).url();
+      const src = urlFor(img)
+        .width(1200)
+        .fit("crop")
+        .crop("focalpoint")
+        .auto("format")
+        .url();
+
       const isRight = alignment === "right";
 
       return (
-        <section className="my-8">
+        <section className="not-prose my-10">
           <div
-            className={`
-              flex flex-col md:flex-row gap-6 items-center
-              ${isRight ? "md:flex-row-reverse" : ""}
-            `}
+            className={[
+              "rounded-2xl border bg-white p-5 shadow-sm",
+              "flex flex-col md:flex-row gap-6 items-start",
+              isRight ? "md:flex-row-reverse" : "",
+            ].join(" ")}
           >
             <div className="md:w-1/2">
-              <img
-                src={src}
-                alt={img.alt || ""}
-                className="w-full h-auto rounded-xl object-cover"
-              />
+              <div className="relative w-full aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100">
+                <img
+                  src={src}
+                  alt={img.alt || ""}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  width="1200"
+                  height="900"
+                />
+              </div>
             </div>
 
             <div className="md:w-1/2">
-              <PortableText
-                value={blocks}
-                components={{
-                  block: {
-                    normal: ({ children }) => (
-                      <p className="mb-3 leading-relaxed">{children}</p>
-                    ),
-                  },
-                }}
-              />
+              <div className="prose prose-slate max-w-none prose-p:leading-8 prose-p:my-4">
+                <PortableText value={blocks} />
+              </div>
             </div>
           </div>
         </section>
@@ -87,67 +111,106 @@ const portableComponents = {
   },
 
   block: {
-    normal: ({ children }) => (
-      <p className="mb-4 leading-relaxed">{children}</p>
+    // ✅ implicit return = no parsing drama
+    normal: ({ children, index }) => (
+      <p
+        className={
+          index === 0
+            ? "mb-6 text-lg leading-8 text-gray-800 font-medium"
+            : "mb-5 text-base leading-7 text-gray-700"
+        }
+      >
+        {children}
+      </p>
     ),
 
     blockquote: ({ children }) => (
-      <blockquote className="border-l-4 border-amber-400 pl-4 italic my-4">
-        {children}
+      <blockquote className="not-prose my-8 rounded-2xl border border-pink-100 bg-pink-50/40 p-5">
+        <div className="text-gray-800 leading-8 italic">{children}</div>
       </blockquote>
     ),
   },
 };
 
 export default async function PostPage({ params }) {
-  // Next.js 15 dynamic params are async
   const { slug } = await params;
-
   const post = await sanityClient.fetch(POST_QUERY, { slug }, options);
 
-  if (!post) {
-    console.log("[BLOG] post not found for slug:", slug);
-    return notFound();
-  }
+  if (!post) return notFound();
 
-  const postImageUrl = post.image
-    ? urlFor(post.image).width(550).height(310).url()
+  const heroUrl = post.image
+    ? urlFor(post.image)
+        .width(1400)
+        .fit("crop")
+        .crop("focalpoint")
+        .auto("format")
+        .url()
     : null;
 
   const hasBody = Array.isArray(post.body);
 
   return (
-    <main className="container mx-auto min-h-screen max-w-3xl p-8 flex flex-col gap-4">
-      <Link href="/blog" className="hover:underline">
-        ← Back to posts
-      </Link>
+    <main className="min-h-screen">
+      <div className="mx-auto max-w-3xl px-6 py-10">
+        <Link href="/blog" className="text-sm text-gray-600 hover:underline">
+          ← Back to posts
+        </Link>
 
-      {postImageUrl && (
-        <img
-          src={postImageUrl}
-          alt={post.title}
-          className="aspect-video rounded-xl"
-          width="550"
-          height="310"
-        />
-      )}
-
-      <h1 className="text-4xl font-bold">{post.title}</h1>
-
-      <div className="prose mt-4">
-        <p className="text-sm text-gray-500 mb-4">
-          {post.publishedAt
-            ? `Published: ${new Date(post.publishedAt).toLocaleDateString()}`
-            : null}
-        </p>
-
-        {hasBody ? (
-          <PortableText value={post.body} components={portableComponents} />
-        ) : (
-          <p className="text-red-600 text-sm">
-            No body array found on this post.
-          </p>
+        {heroUrl && (
+          <div className="mt-6 relative w-full aspect-[16/9] overflow-hidden rounded-2xl bg-gray-100">
+            <img
+              src={heroUrl}
+              alt={post.image?.alt || post.title}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+              width="1400"
+              height="788"
+            />
+          </div>
         )}
+
+        <header className="mt-7">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+            {post.title}
+          </h1>
+
+          <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+            <span>{formatDate(post.publishedAt)}</span>
+            <span className="h-1 w-1 rounded-full bg-pink-400 animate-pulse" />
+            <span>Mabel’s Pawfect Pet Services</span>
+          </div>
+        </header>
+
+        <article
+          className="
+            prose prose-slate max-w-none mt-8
+
+            prose-p:leading-8 prose-p:my-5
+            prose-p:first-of-type:text-lg
+            prose-p:first-of-type:leading-9
+            prose-p:first-of-type:text-gray-800
+
+            prose-headings:tracking-tight
+            prose-headings:font-semibold
+            prose-h2:mt-12 prose-h2:mb-4 prose-h2:border-b prose-h2:border-gray-200 prose-h2:pb-2
+            prose-h3:mt-10 prose-h3:mb-3
+
+            prose-a:text-pink-700 prose-a:no-underline prose-a:font-medium
+            hover:prose-a:underline underline-offset-4
+
+            prose-strong:text-gray-900
+            prose-li:my-1 prose-li:leading-7
+          "
+        >
+          {hasBody ? (
+            <PortableText value={post.body} components={portableComponents} />
+          ) : (
+            <p className="text-red-600 text-sm">
+              No body array found on this post.
+            </p>
+          )}
+        </article>
       </div>
     </main>
   );
