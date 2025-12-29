@@ -1,4 +1,4 @@
-import PricingPage from "@/components/price/PricingPage";
+import Pricing from "@/components/seasonal-pricing/Pricing";
 
 export const metadata = {
   title: "Pet Care Pricing | Mabel's Pawfect Pet Services",
@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function PricePage() {
-  return <PricingPage />;
+  return <Pricing />;
 }
