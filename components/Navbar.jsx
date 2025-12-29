@@ -61,6 +61,9 @@ export default function Navbar() {
             <Link href="/shop" className="hover:text-pink-600">
               Shop
             </Link>
+            <Link href="/blog" className="hover:text-pink-600">
+              Blog
+            </Link>
             <Link
               href="/donations"
               className="hover:text-pink-600"
@@ -144,6 +147,11 @@ export default function Navbar() {
             <li>
               <Link href="/shop" onClick={toggleMobileMenu}>
                 Shop
+              </Link>
+            </li>
+            <li>
+              <Link href="/blog" onClick={toggleMobileMenu}>
+                Blog
               </Link>
             </li>
             <li>
