@@ -35,7 +35,13 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="icon" href="/favicon-v2.ico" />
+
+        <meta
+          name="impact-site-verification"
+          value="989723e1-0d46-437e-8417-a9218c3e0274"
+        />
       </head>
+
       <body className="min-h-screen bg-gradient-to-b from-white to-pink-50">
         {/* 👇 Wrap GAProvider (which uses useSearchParams) in Suspense */}
         <Suspense fallback={null}>
