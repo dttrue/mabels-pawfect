@@ -10,8 +10,19 @@ const POST_QUERY = `*[_type == "post" && slug.current == $slug][0]{
   title,
   publishedAt,
   image,
-  body
+  body[]{
+    ...,
+    _type == "imageGallery" => {
+      layout,
+      images[]{
+        ...,
+        alt,
+        caption
+      }
+    }
+  }
 }`;
+
 
 const options = { next: { revalidate: 30 } };
 
@@ -25,6 +36,77 @@ function formatDate(d) {
 
 const portableComponents = {
   types: {
+    imageGallery: ({ value }) => {
+      const images = value?.images || [];
+      if (images.length < 2) return null;
+
+      const layout = value?.layout || "grid-2";
+
+      // ✅ Masonry (Google Doc vibe) using CSS columns
+      if (layout === "masonry") {
+        return (
+          <section className="not-prose my-10">
+            <div className="columns-1 sm:columns-2 gap-4">
+              {images.map((img) => {
+                const src = img?.asset?._ref
+                  ? urlFor(img).width(1200).auto("format").url()
+                  : null;
+                if (!src) return null;
+
+                return (
+                  <figure key={img._key} className="mb-4 break-inside-avoid">
+                    <img
+                      src={src}
+                      alt={img.alt || ""}
+                      className="w-full rounded-2xl"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    {img.caption && (
+                      <figcaption className="mt-2 text-center text-sm text-gray-500">
+                        {img.caption}
+                      </figcaption>
+                    )}
+                  </figure>
+                );
+              })}
+            </div>
+          </section>
+        );
+      }
+
+      // ✅ 2-column grid
+      return (
+        <section className="not-prose my-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {images.map((img) => {
+              const src = img?.asset?._ref
+                ? urlFor(img).width(1200).auto("format").url()
+                : null;
+              if (!src) return null;
+
+              return (
+                <figure key={img._key}>
+                  <img
+                    src={src}
+                    alt={img.alt || ""}
+                    className="w-full rounded-2xl"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  {img.caption && (
+                    <figcaption className="mt-2 text-center text-sm text-gray-500">
+                      {img.caption}
+                    </figcaption>
+                  )}
+                </figure>
+              );
+            })}
+          </div>
+        </section>
+      );
+    },
+
     image: ({ value }) => {
       if (!value?.asset?._ref) return null;
 
