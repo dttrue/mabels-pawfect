@@ -4,16 +4,20 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "res.cloudinary.com"
+        hostname: "res.cloudinary.com",
       },
       {
         protocol: "https",
-        hostname: "www.propethero.com"
-      }
+        hostname: "www.propethero.com",
+      },
+
+      // ✅ Sanity images
+      {
+        protocol: "https",
+        hostname: "cdn.sanity.io",
+      },
     ],
   },
 };
 
 export default nextConfig;
-
-

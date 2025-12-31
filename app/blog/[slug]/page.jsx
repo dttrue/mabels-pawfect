@@ -18,7 +18,12 @@ const POST_QUERY = `*[_type == "post" && slug.current == $slug][0]{
         ...,
         alt,
         caption
-      }
+      },
+      _type == "chartImage" => {
+    ...,
+    alt,
+    caption
+  }
     }
   }
 }`;
@@ -42,7 +47,7 @@ const portableComponents = {
 
       const layout = value?.layout || "grid-2";
 
-      // ✅ Masonry (Google Doc vibe) using CSS columns
+      // Masonry
       if (layout === "masonry") {
         return (
           <section className="not-prose my-10">
@@ -75,7 +80,40 @@ const portableComponents = {
         );
       }
 
-      // ✅ 2-column grid
+      // 3-col
+      if (layout === "grid-3") {
+        return (
+          <section className="not-prose my-10">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {images.map((img) => {
+                const src = img?.asset?._ref
+                  ? urlFor(img).width(1200).auto("format").url()
+                  : null;
+                if (!src) return null;
+
+                return (
+                  <figure key={img._key}>
+                    <img
+                      src={src}
+                      alt={img.alt || ""}
+                      className="w-full rounded-2xl"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    {img.caption && (
+                      <figcaption className="mt-2 text-center text-sm text-gray-500">
+                        {img.caption}
+                      </figcaption>
+                    )}
+                  </figure>
+                );
+              })}
+            </div>
+          </section>
+        );
+      }
+
+      // default 2-col
       return (
         <section className="not-prose my-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -104,6 +142,34 @@ const portableComponents = {
             })}
           </div>
         </section>
+      );
+    },
+
+    // ✅ THIS MUST BE HERE (NOT INSIDE imageGallery)
+    chartImage: ({ value }) => {
+      if (!value?.asset?._ref) return null;
+
+      const src = urlFor(value)
+        .width(2000)
+        .fit("max") // important: no cropping
+        .auto("format")
+        .url();
+
+      return (
+        <figure className="not-prose my-10">
+          <img
+            src={src}
+            alt={value.alt || ""}
+            className="mx-auto h-auto w-full max-w-3xl rounded-xl"
+            loading="lazy"
+            decoding="async"
+          />
+          {value.caption && (
+            <figcaption className="mt-3 text-center text-sm text-gray-500">
+              {value.caption}
+            </figcaption>
+          )}
+        </figure>
       );
     },
 
@@ -193,7 +259,6 @@ const portableComponents = {
   },
 
   block: {
-    // ✅ implicit return = no parsing drama
     normal: ({ children, index }) => (
       <p
         className={
@@ -205,7 +270,6 @@ const portableComponents = {
         {children}
       </p>
     ),
-
     blockquote: ({ children }) => (
       <blockquote className="not-prose my-8 rounded-2xl border border-pink-100 bg-pink-50/40 p-5">
         <div className="text-gray-800 leading-8 italic">{children}</div>
