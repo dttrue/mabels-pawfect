@@ -24,8 +24,19 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  const { isHalloween, isFall, isSummer, isThanksgiving, isChristmas } =
-    getSeasonFlags("christmas");
+  const FORCE_SEASON = (process.env.NEXT_PUBLIC_FORCE_SEASON || "")
+    .trim()
+    .toLowerCase();
+
+  const {
+    isHalloween,
+    isFall,
+    isSummer,
+    isThanksgiving,
+    isChristmas,
+    isOffSeason,
+  } = getSeasonFlags(FORCE_SEASON);
+
 
   return (
     <html lang="en">
@@ -44,7 +55,7 @@ export default function RootLayout({ children }) {
 
       <body className="min-h-screen bg-gradient-to-b from-white to-pink-50">
         <Analytics />
-        
+
         {/* 👇 Wrap GAProvider (which uses useSearchParams) in Suspense */}
         <Suspense fallback={null}>
           <GAProvider>
@@ -52,17 +63,18 @@ export default function RootLayout({ children }) {
             <CartProvider>
               <Navbar />
 
-              {isChristmas && (
+              {isOffSeason && (
                 <NavAwareBanner
-                  {...THEME_MAP.christmas}
-                  id="banner-2025-christmas"
-                  title="🎄 Christmas Specials"
-                  subtitle="Holiday pricing through Dec 31 • Free shipping on orders over $75"
+                  {...THEME_MAP.offSeason}
+                  id="banner-off-season"
+                  title="Off-Season Updates"
+                  subtitle="Regular pricing is active. Valentine’s specials return soon."
                   link="/pricing-seasonal"
+                  ctaText="View Pricing"
+                  leftIcon="🐾"
+                  rightIcon="💗"
                   dismissible={false}
-                  leadIcon="🎄"
-                  showTrailIcon
-                  trailIcon="🎁"
+                  analyticsLocation="banner_off_season"
                 />
               )}
 
@@ -74,8 +86,6 @@ export default function RootLayout({ children }) {
             </CartProvider>
           </GAProvider>
         </Suspense>
-
-        
       </body>
     </html>
   );

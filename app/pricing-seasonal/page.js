@@ -10,10 +10,7 @@ export const metadata = {
 export default function PricingSeasonalPage() {
   return (
     <Pricing
-      src="/images/seasonal-pricing/fall-thanksgiving-pricing-2025.jpg" // ✅ exact path+file in /public
-      validity="Valid Nov 1 – Nov 30" // ✅ update copy
-      ooo="" // ✅ no OOO in Nov
-      showHeader={true}
+      
     />
   );
 }

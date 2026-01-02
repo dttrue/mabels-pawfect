@@ -1,6 +1,6 @@
 // app/gallery/memoriam/page.jsx
 
-import MemoriamCarousel from "@/components/gallery/MemoriamCarousel";
+import MemoriamCarousel from "@/components/gallery/MemorialGrid";
 import Link from "next/link";
 
 export default function MemoriamPage() {

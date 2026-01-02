@@ -10,30 +10,29 @@ import ShopCTA from "@/components/home/ShopCTA";
 import BookingFloatingButton from "@/components/BookingFloatingButton";
 import ChristmasSpecials from "@/components/specials/ChristmasSpecials";
 import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
+import OffSeasonSpecials from "@/components/specials/OffSeasonSpecials";
 import AnnouncementBlock from "@/components/AnnouncementBlock";
 import { getSeasonFlags } from "@/lib/seasonUtils";
 import SnowOverlay from "@/components/SnowOverlay";
+// import ValentinesSpecials from "@/components/specials/ValentinesSpecials"; // later
 
 export default function Home() {
-  const FORCE_SEASON = process.env.NEXT_PUBLIC_FORCE_SEASON || "";
-  const { isSummer, isFall, isHalloween, isThanksgiving, isChristmas } =
-    getSeasonFlags("christmas");
+  const FORCE_SEASON = (process.env.NEXT_PUBLIC_FORCE_SEASON || "")
+    .trim()
+    .toLowerCase();
+
+  const { isSummer, isThanksgiving, isChristmas, isValentines, isOffSeason } =
+    getSeasonFlags(FORCE_SEASON);
 
   return (
     <>
-      {/* ❄️ Global homepage snow + pile */}
       <SnowOverlay />
 
-      {/* Content sits above snow (z-10) */}
       <div className="relative z-10">
         <HeroSection isSummer={isSummer} />
-
-        {/* 🛍️ NEW: Shop Call to Action */}
         <ShopCTA />
-
         <AboutSection />
 
-        {/* Trust / credentials CTA strip */}
         <section className="py-4 px-6">
           <div className="max-w-4xl mx-auto bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -67,19 +66,16 @@ export default function Home() {
           </div>
         </section>
 
-        {isSummer && <SeasonalSpecial />}
-
+        {/* Specials block (exactly one) */}
+        {/* {isValentines && <ValentinesSpecials />} */}
         {isThanksgiving && <ThanksgivingSpecials />}
-
         {isChristmas && <ChristmasSpecials />}
-
-        {console.info("render: AnnouncementBlock? isChristmas=", isChristmas)}
+        {isOffSeason && <OffSeasonSpecials />}
 
         <AnnouncementBlock />
 
         <ServicesPreview />
         <TestimonialsSection />
-
         <NewsletterCarousel />
         <FinalCTA />
 

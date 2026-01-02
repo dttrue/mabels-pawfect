@@ -9,18 +9,17 @@ import { trackEvent } from "@/lib/ga-events";
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function AnnouncementBlock({
-  title = "Holiday Digital Postcard 🎄",
-  body = "Share our Christmas postcard and check out seasonal rates through Dec 31.",
-  imageSrc = "/images/postcards/christmas-postcard-2025.jpg",
-  imageKey = "announcement-main", // 🔥 stable key for Cloudinary
-  ctaHref = "/pricing",
+  title = "Pricing & Updates 🐾",
+  body = "Regular pricing is active. Seasonal specials return for Valentine’s Week — check back soon!",
+  imageSrc = "/images/postcards/christmas-postcard-2025.jpg", // fallback if Cloudinary missing
+  imageKey = "announcement-main",
+  ctaHref = "/pricing-seasonal",
   ctaText = "View Pricing",
   secondaryHref = "/gallery",
   secondaryText = "See More Photos",
-  analyticsPage = "pricing-seasonal",
-  analyticsVariant = "christmas-2025",
+  analyticsPage = "homepage",
+  analyticsVariant = "off-season",
 }) {
-  // Try to load Cloudinary image for this announcement
   const { data } = useSWR(
     imageKey
       ? `/api/admin/site-images?key=${encodeURIComponent(imageKey)}`
@@ -29,8 +28,10 @@ export default function AnnouncementBlock({
   );
 
   const cloudImage = data?.image?.imageUrl || null;
-  const finalImageSrc =
-    cloudImage || imageSrc || "/images/postcards/christmas-postcard-2025.jpg";
+  const cloudAlt = data?.image?.alt || null;
+
+  const finalImageSrc = cloudImage || imageSrc;
+  const finalAlt = cloudAlt || title;
 
   function trackPrimary() {
     trackEvent("announcement_primary_click", {
@@ -55,38 +56,38 @@ export default function AnnouncementBlock({
       aria-labelledby="announcement-heading"
       className="mx-auto max-w-6xl px-4 py-12"
     >
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#052016] via-[#073322] to-[#020f0a]">
+      <div className="overflow-hidden rounded-3xl border border-pink-100 bg-white shadow-md">
         <div className="grid gap-0 md:grid-cols-2">
           {/* image */}
           <div className="relative">
             <Image
               src={finalImageSrc}
-              alt={title}
+              alt={finalAlt}
               width={1200}
               height={900}
               className="h-full w-full object-cover"
               priority
             />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/25 via-transparent to-transparent" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-transparent" />
           </div>
 
           {/* copy */}
           <div className="relative p-6 md:p-8">
             <h3
               id="announcement-heading"
-              className="text-xl md:text-2xl font-semibold text-emerald-100"
+              className="text-xl md:text-2xl font-bold text-pink-600"
             >
               {title}
             </h3>
 
-            <p className="mt-2 text-emerald-50/90">{body}</p>
+            <p className="mt-2 text-gray-700">{body}</p>
 
             <div className="mt-6 flex flex-wrap gap-3">
               {/* PRIMARY CTA */}
               <Link
                 href={ctaHref}
                 onClick={trackPrimary}
-                className="inline-flex items-center justify-center rounded-md bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-black ring-1 ring-black/10 hover:bg-emerald-300"
+                className="inline-flex items-center justify-center rounded-md bg-pink-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-600"
               >
                 {ctaText}
               </Link>
@@ -96,15 +97,15 @@ export default function AnnouncementBlock({
                 <Link
                   href={secondaryHref}
                   onClick={trackSecondary}
-                  className="inline-flex items-center justify-center rounded-md border border-emerald-100/30 px-4 py-2.5 text-sm font-semibold text-emerald-50 hover:bg-emerald-50/5"
+                  className="inline-flex items-center justify-center rounded-md border border-pink-300 px-4 py-2.5 text-sm font-semibold text-pink-600 hover:bg-pink-50"
                 >
                   {secondaryText}
                 </Link>
               )}
             </div>
 
-            {/* soft glow */}
-            <div className="pointer-events-none absolute -right-10 -bottom-10 h-24 w-24 rounded-full bg-emerald-300/25 blur-2xl" />
+            {/* soft accent */}
+            <div className="pointer-events-none absolute -right-10 -bottom-10 h-24 w-24 rounded-full bg-pink-200/50 blur-2xl" />
           </div>
         </div>
       </div>
