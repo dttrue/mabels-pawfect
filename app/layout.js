@@ -43,6 +43,8 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className="min-h-screen bg-gradient-to-b from-white to-pink-50">
+        <Analytics />
+        
         {/* 👇 Wrap GAProvider (which uses useSearchParams) in Suspense */}
         <Suspense fallback={null}>
           <GAProvider>
@@ -73,8 +75,7 @@ export default function RootLayout({ children }) {
           </GAProvider>
         </Suspense>
 
-        {/* GA script loader */}
-        <Analytics />
+        
       </body>
     </html>
   );

@@ -12,12 +12,15 @@ export default function GAProvider({ children }) {
 
   useEffect(() => {
     if (!pathname) return;
+    if (typeof window === "undefined") return;
+    if (!window.gtag) return;
 
     const query = searchParams?.toString();
     const url = query ? `${pathname}?${query}` : pathname;
 
     trackPageview(url);
   }, [pathname, searchParams]);
+
 
   return children;
 }
