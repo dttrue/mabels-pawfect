@@ -4,7 +4,7 @@
 
 import { Facebook, Instagram, Linkedin } from "lucide-react";
 import Link from "next/link";
-import { trackFooterLink } from "@/lib/ga-events";
+import { trackFooterLink } from "@/lib/ga-events"; // keep this
 
 export default function Footer() {
   return (
@@ -41,6 +41,20 @@ export default function Footer() {
             >
               Contact
             </Link>
+
+            {/* ✅ Add this */}
+            <Link
+              href="/disclosure"
+              onClick={() =>
+                trackFooterLink({
+                  label: "affiliate_disclosure",
+                  url: "/disclosure",
+                })
+              }
+              className="text-gray-600 hover:text-pink-600"
+            >
+              Affiliate Disclosure
+            </Link>
           </div>
         </div>
 
@@ -56,7 +70,7 @@ export default function Footer() {
               aria-label="Instagram"
               onClick={() =>
                 trackFooterLink({
-                  platform: "instagram",
+                  label: "social_instagram",
                   url: "https://www.instagram.com/mabelspawfectpetservicesllc/",
                 })
               }
@@ -71,8 +85,8 @@ export default function Footer() {
               rel="noopener noreferrer"
               aria-label="LinkedIn"
               onClick={() =>
-                trackFooterSocial({
-                  platform: "linkedin",
+                trackFooterLink({
+                  label: "social_linkedin",
                   url: "https://www.linkedin.com/in/bridget-quinones-9ab17b286",
                 })
               }
@@ -87,8 +101,8 @@ export default function Footer() {
               rel="noopener noreferrer"
               aria-label="Facebook"
               onClick={() =>
-                trackFooterSocial({
-                  platform: "facebook",
+                trackFooterLink({
+                  label: "social_facebook",
                   url: "https://www.facebook.com/share/167cnHCnmV/",
                 })
               }
@@ -98,6 +112,13 @@ export default function Footer() {
             </a>
           </div>
         </div>
+
+        {/* Optional: tiny always-on disclosure line (not required, but safe) */}
+        {/* 
+        <p className="mt-6 text-xs text-gray-500 text-center">
+          Some links may be affiliate links. As an Amazon Associate, we earn from qualifying purchases.
+        </p> 
+        */}
       </div>
     </footer>
   );
