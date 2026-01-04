@@ -24,6 +24,9 @@ export default function Navbar() {
 
   return (
     <>
+      {/* Reserve space so fixed nav doesn't push content down (CLS fix) */}
+      <div aria-hidden className="h-[72px] md:h-[80px]" />
+
       <nav
         id="site-nav"
         className="bg-white border-b shadow-md fixed top-0 w-full z-50"
@@ -94,7 +97,7 @@ export default function Navbar() {
           {/* Hamburger */}
           <button
             onClick={toggleMobileMenu}
-            className="md:hidden text-gray-600 hover:text-gray-900 focus:outline-none"
+            className="md:hidden h-10 w-10 grid place-items-center text-gray-600 hover:text-gray-900 focus:outline-none"
             aria-label="Toggle menu"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -103,7 +106,7 @@ export default function Navbar() {
 
         {/* Mobile Drawer */}
         <div
-          className={`md:hidden fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-40 transform transition-transform duration-300 ${
+          className={`md:hidden fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-[60] transform transition-transform duration-300 ${
             isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -208,7 +211,7 @@ export default function Navbar() {
         {/* Overlay */}
         {isOpen && (
           <div
-            className="fixed inset-0 z-30 bg-black opacity-30"
+            className="fixed inset-0 z-[55] bg-black/30"
             onClick={toggleMobileMenu}
           />
         )}

@@ -37,7 +37,6 @@ export default function RootLayout({ children }) {
     isOffSeason,
   } = getSeasonFlags(FORCE_SEASON);
 
-
   return (
     <html lang="en">
       <head>
@@ -61,25 +60,34 @@ export default function RootLayout({ children }) {
           <GAProvider>
             {/* Provide cart state to the whole app */}
             <CartProvider>
+              {/* Reserve space for fixed navbar (matches Navbar height) */}
+              <div aria-hidden className="h-[72px] md:h-[80px]" />
+
               <Navbar />
 
-              {isOffSeason && (
-                <NavAwareBanner
-                  {...THEME_MAP.offSeason}
-                  id="banner-off-season"
-                  title="Off-Season Updates"
-                  subtitle="Regular pricing is active. Valentine’s specials return soon."
-                  link="/pricing-seasonal"
-                  ctaText="View Pricing"
-                  leftIcon="🐾"
-                  rightIcon="💗"
-                  dismissible={false}
-                  analyticsLocation="banner_off_season"
-                />
-              )}
+              {/* Reserve space for banner to avoid CLS */}
+              <div className="min-h-[72px] sm:min-h-[64px]">
+                {isOffSeason ? (
+                  <NavAwareBanner
+                    {...THEME_MAP.offSeason}
+                    id="banner-off-season"
+                    title="Off-Season Updates"
+                    subtitle="Regular pricing is active. Valentine’s specials return soon."
+                    link="/pricing-seasonal"
+                    ctaText="View Pricing"
+                    leftIcon="🐾"
+                    rightIcon="💗"
+                    dismissible={false}
+                    analyticsLocation="banner_off_season"
+                  />
+                ) : null}
+              </div>
 
               <Toaster position="top-right" />
-              <main className="pt-20">{children}</main>
+
+              {/* Main should not have extra top padding (CLS fix) */}
+              <main>{children}</main>
+
               <Footer />
               <CartButton />
               <CartSheet />

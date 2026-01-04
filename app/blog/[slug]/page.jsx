@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { PortableText } from "@portabletext/react";
 import { sanityClient } from "@/lib/sanity";
 import { urlFor } from "@/lib/sanityImage";
-
+import AuthorPulse from "@/components/blog/AuthorPulse";
 const POST_QUERY = `*[_type == "post" && slug.current == $slug][0]{
   _id,
   title,
@@ -323,8 +323,10 @@ export default async function PostPage({ params }) {
 
           <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
             <span>{formatDate(post.publishedAt)}</span>
-            <span className="h-1 w-1 rounded-full bg-pink-400 animate-pulse" />
-            <span>Mabel’s Pawfect Pet Services</span>
+
+            <AuthorPulse author={post.author} />
+
+            <span>{post.author}</span>
           </div>
         </header>
 

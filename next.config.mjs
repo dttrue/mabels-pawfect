@@ -5,16 +5,17 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
+        pathname: "/**",
       },
       {
         protocol: "https",
         hostname: "www.propethero.com",
+        pathname: "/**",
       },
-
-      // ✅ Sanity images
       {
         protocol: "https",
         hostname: "cdn.sanity.io",
+        pathname: "/**",
       },
     ],
   },
