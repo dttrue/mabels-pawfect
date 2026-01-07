@@ -1,19 +1,18 @@
 // components/blog/AuthorPulse.jsx
-
-export default function AuthorPulse({ author }) {
-  if (!author) return null;
+export default function AuthorPulse({ authorName }) {
+  if (!authorName) return null;
 
   const AUTHOR_COLORS = {
     "Bridget Quinones": "bg-pink-400",
-    "Daniel Torres": "bg-indigo-400",
+    "Daniel Torres": "bg-blue-500",
   };
 
-  const pulseColor = AUTHOR_COLORS[author] ?? "bg-gray-400";
+  const pulseColor = AUTHOR_COLORS[authorName] ?? "bg-gray-400";
 
   return (
     <span
       aria-hidden
-      className={`h-1 w-1 rounded-full animate-pulse ${pulseColor}`}
+      className={`inline-block h-1.5 w-1.5 rounded-full animate-pulse ${pulseColor}`}
     />
   );
 }

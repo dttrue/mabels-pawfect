@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { sanityClient } from "@/lib/sanity";
 import { urlFor } from "@/lib/sanityImage";
+import AuthorPulse from "@/components/blog/AuthorPulse";
 
 const POSTS_QUERY = `*[
   _type == "post" && defined(slug.current)
@@ -27,13 +28,13 @@ function formatDate(d) {
   }
 }
 
+/**
+ * Index images: stop aggressive cropping.
+ * - Use fit("max") to preserve the whole image.
+ * - Use CSS object-contain on the img so it doesn't chop heads off.
+ */
 function postImageUrl(image) {
-  return urlFor(image)
-    .width(1200)
-    .fit("crop")
-    .crop("focalpoint")
-    .auto("format")
-    .url();
+  return urlFor(image).width(1400).fit("max").auto("format").url();
 }
 
 function Byline({ author, publishedAt }) {
@@ -46,18 +47,12 @@ function Byline({ author, publishedAt }) {
     <p className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-2">
       {date && <span>{date}</span>}
 
-      {date && name && (
-        <span
-          aria-hidden="true"
-          className="pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-pink-500"
-        />
-      )}
+      {date && name && <AuthorPulse authorName={name} />}
 
       {name && <span>{name}</span>}
     </p>
   );
 }
-
 
 function CategoryChips({ categories = [] }) {
   if (!categories?.length) return null;
@@ -99,7 +94,6 @@ export default async function BlogIndexPage() {
 
   const [featured, ...rest] = posts;
 
-  // Optional: quick “browse by category” chips (derived from fetched posts)
   const allCats = posts.flatMap((p) => p.categories || []).filter(Boolean);
   const uniqueCats = Array.from(
     new Map(allCats.map((c) => [c.slug || c.title, c])).values()
@@ -155,7 +149,7 @@ export default async function BlogIndexPage() {
               <img
                 src={postImageUrl(featured.image)}
                 alt={featured.image?.alt || featured.title}
-                className="absolute inset-0 h-full w-full object-cover group-hover:scale-[1.02] transition-transform"
+                className="absolute inset-0 h-full w-full object-contain group-hover:scale-[1.01] transition-transform"
                 loading="eager"
                 decoding="async"
               />
@@ -216,7 +210,7 @@ export default async function BlogIndexPage() {
                       <img
                         src={imgUrl}
                         alt={post.image?.alt || post.title}
-                        className="absolute inset-0 h-full w-full object-cover group-hover:scale-[1.02] transition-transform"
+                        className="absolute inset-0 h-full w-full object-contain group-hover:scale-[1.01] transition-transform"
                         loading="lazy"
                         decoding="async"
                       />

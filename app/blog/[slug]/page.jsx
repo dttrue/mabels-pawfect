@@ -5,11 +5,13 @@ import { PortableText } from "@portabletext/react";
 import { sanityClient } from "@/lib/sanity";
 import { urlFor } from "@/lib/sanityImage";
 import AuthorPulse from "@/components/blog/AuthorPulse";
+
 const POST_QUERY = `*[_type == "post" && slug.current == $slug][0]{
   _id,
   title,
   publishedAt,
   image,
+  author->{name, image},
   body[]{
     ...,
     _type == "imageGallery" => {
@@ -18,16 +20,10 @@ const POST_QUERY = `*[_type == "post" && slug.current == $slug][0]{
         ...,
         alt,
         caption
-      },
-      _type == "chartImage" => {
-    ...,
-    alt,
-    caption
-  }
+      }
     }
   }
 }`;
-
 
 const options = { next: { revalidate: 30 } };
 
@@ -47,34 +43,45 @@ const portableComponents = {
 
       const layout = value?.layout || "grid-2";
 
+      const renderImg = (img) => {
+        const src = img?.asset?._ref
+          ? urlFor(img)
+              .width(1600)
+              .fit("max") // ✅ do not crop
+              .auto("format")
+              .url()
+          : null;
+
+        if (!src) return null;
+
+        return (
+          <figure key={img._key} className="break-inside-avoid">
+            <img
+              src={src}
+              alt={img.alt || ""}
+              className="w-full h-auto rounded-2xl border bg-white"
+              loading="lazy"
+              decoding="async"
+            />
+            {img.caption && (
+              <figcaption className="mt-2 text-center text-sm text-gray-500">
+                {img.caption}
+              </figcaption>
+            )}
+          </figure>
+        );
+      };
+
       // Masonry
       if (layout === "masonry") {
         return (
           <section className="not-prose my-10">
             <div className="columns-1 sm:columns-2 gap-4">
-              {images.map((img) => {
-                const src = img?.asset?._ref
-                  ? urlFor(img).width(1200).auto("format").url()
-                  : null;
-                if (!src) return null;
-
-                return (
-                  <figure key={img._key} className="mb-4 break-inside-avoid">
-                    <img
-                      src={src}
-                      alt={img.alt || ""}
-                      className="w-full rounded-2xl"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    {img.caption && (
-                      <figcaption className="mt-2 text-center text-sm text-gray-500">
-                        {img.caption}
-                      </figcaption>
-                    )}
-                  </figure>
-                );
-              })}
+              {images.map((img) => (
+                <div key={img._key} className="mb-4 break-inside-avoid">
+                  {renderImg(img)}
+                </div>
+              ))}
             </div>
           </section>
         );
@@ -85,29 +92,7 @@ const portableComponents = {
         return (
           <section className="not-prose my-10">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {images.map((img) => {
-                const src = img?.asset?._ref
-                  ? urlFor(img).width(1200).auto("format").url()
-                  : null;
-                if (!src) return null;
-
-                return (
-                  <figure key={img._key}>
-                    <img
-                      src={src}
-                      alt={img.alt || ""}
-                      className="w-full rounded-2xl"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    {img.caption && (
-                      <figcaption className="mt-2 text-center text-sm text-gray-500">
-                        {img.caption}
-                      </figcaption>
-                    )}
-                  </figure>
-                );
-              })}
+              {images.map(renderImg)}
             </div>
           </section>
         );
@@ -117,41 +102,19 @@ const portableComponents = {
       return (
         <section className="not-prose my-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {images.map((img) => {
-              const src = img?.asset?._ref
-                ? urlFor(img).width(1200).auto("format").url()
-                : null;
-              if (!src) return null;
-
-              return (
-                <figure key={img._key}>
-                  <img
-                    src={src}
-                    alt={img.alt || ""}
-                    className="w-full rounded-2xl"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  {img.caption && (
-                    <figcaption className="mt-2 text-center text-sm text-gray-500">
-                      {img.caption}
-                    </figcaption>
-                  )}
-                </figure>
-              );
-            })}
+            {images.map(renderImg)}
           </div>
         </section>
       );
     },
 
-    // ✅ THIS MUST BE HERE (NOT INSIDE imageGallery)
+    // ✅ Chart images: always no crop
     chartImage: ({ value }) => {
       if (!value?.asset?._ref) return null;
 
       const src = urlFor(value)
-        .width(2000)
-        .fit("max") // important: no cropping
+        .width(2200)
+        .fit("max") // ✅ no cropping
         .auto("format")
         .url();
 
@@ -160,7 +123,7 @@ const portableComponents = {
           <img
             src={src}
             alt={value.alt || ""}
-            className="mx-auto h-auto w-full max-w-3xl rounded-xl"
+            className="mx-auto w-full h-auto max-w-4xl rounded-xl border bg-white"
             loading="lazy"
             decoding="async"
           />
@@ -173,29 +136,25 @@ const portableComponents = {
       );
     },
 
+    // ✅ Inline images inside the article: NO CROPPING
     image: ({ value }) => {
       if (!value?.asset?._ref) return null;
 
       const src = urlFor(value)
-        .width(1400)
-        .fit("crop")
-        .crop("focalpoint")
+        .width(1800)
+        .fit("max") // ✅ keep full image
         .auto("format")
         .url();
 
       return (
         <figure className="not-prose my-8">
-          <div className="relative w-full aspect-[16/9] overflow-hidden rounded-2xl bg-gray-100">
-            <img
-              src={src}
-              alt={value.alt || ""}
-              className="absolute inset-0 h-full w-full object-cover"
-              loading="lazy"
-              decoding="async"
-              width="1400"
-              height="788"
-            />
-          </div>
+          <img
+            src={src}
+            alt={value.alt || ""}
+            className="w-full h-auto rounded-2xl border bg-white"
+            loading="lazy"
+            decoding="async"
+          />
 
           {value.caption && (
             <figcaption className="mt-3 text-center text-sm text-gray-500">
@@ -206,6 +165,7 @@ const portableComponents = {
       );
     },
 
+    // ✅ imageWithText: keep layout, but don't crop the image
     imageWithText: ({ value }) => {
       const alignment = value?.alignment || "left";
       const img = value?.image;
@@ -216,9 +176,8 @@ const portableComponents = {
       }
 
       const src = urlFor(img)
-        .width(1200)
-        .fit("crop")
-        .crop("focalpoint")
+        .width(1600)
+        .fit("max") // ✅ no cropping
         .auto("format")
         .url();
 
@@ -234,17 +193,13 @@ const portableComponents = {
             ].join(" ")}
           >
             <div className="md:w-1/2">
-              <div className="relative w-full aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100">
-                <img
-                  src={src}
-                  alt={img.alt || ""}
-                  className="absolute inset-0 h-full w-full object-cover"
-                  loading="lazy"
-                  decoding="async"
-                  width="1200"
-                  height="900"
-                />
-              </div>
+              <img
+                src={src}
+                alt={img.alt || ""}
+                className="w-full h-auto rounded-2xl border bg-white"
+                loading="lazy"
+                decoding="async"
+              />
             </div>
 
             <div className="md:w-1/2">
@@ -284,14 +239,15 @@ export default async function PostPage({ params }) {
 
   if (!post) return notFound();
 
+  // ✅ Hero stays cropped (intentional)
   const heroUrl = post.image
     ? urlFor(post.image)
-        .width(1400)
-        .fit("crop")
-        .crop("focalpoint")
+        .width(1800)
+        .fit("max") // ✅ no crop
         .auto("format")
         .url()
     : null;
+
 
   const hasBody = Array.isArray(post.body);
 
@@ -303,15 +259,13 @@ export default async function PostPage({ params }) {
         </Link>
 
         {heroUrl && (
-          <div className="mt-6 relative w-full aspect-[16/9] overflow-hidden rounded-2xl bg-gray-100">
+          <div className="mt-6 rounded-2xl border bg-white p-3">
             <img
               src={heroUrl}
               alt={post.image?.alt || post.title}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="w-full h-auto max-h-[520px] object-contain mx-auto"
               loading="eager"
               decoding="async"
-              width="1400"
-              height="788"
             />
           </div>
         )}
@@ -323,10 +277,8 @@ export default async function PostPage({ params }) {
 
           <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
             <span>{formatDate(post.publishedAt)}</span>
-
-            <AuthorPulse author={post.author} />
-
-            <span>{post.author}</span>
+            <AuthorPulse authorName={post.author?.name} />
+            <span>{post.author?.name}</span>
           </div>
         </header>
 

@@ -278,7 +278,7 @@ export default function ProductCard({ product }) {
         disabled={!canAdd}
         className={[
           "absolute bottom-3 right-3 rounded-full text-white text-sm px-3 py-1.5 shadow-md active:scale-95",
-          canAdd ? "bg-green-500" : "bg-gray-300 cursor-not-allowed",
+          canAdd ? "bg-pink-300" : "bg-gray-300 cursor-not-allowed",
         ].join(" ")}
         aria-label={
           hasVariants && !selectedVariant ? "Select a color" : "Add to cart"
