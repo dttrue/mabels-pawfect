@@ -53,7 +53,7 @@ export function AdminClientsPage() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    fullName: forwardingTrim(""),
+    fullName: "",
     phone: "",
     email: "",
     address: "",
