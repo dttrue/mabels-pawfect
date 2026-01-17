@@ -1,25 +1,23 @@
 // components/HeroSection.jsx
 "use client";
 
-import Link from "next/link";
-import { trackHeroBookNow } from "@/lib/ga-events";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import useSWR from "swr";
+import { trackHeroBookNow } from "@/lib/ga-events";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function HeroSection() {
   const router = useRouter();
 
-  // Client-side fetch for hero image (since this component is client-only)
-  const { data } = useSWR("/api/admin/site-images?key=hero-main", fetcher);
+  const { data, isLoading } = useSWR(
+    "/api/admin/site-images?key=hero-main",
+    fetcher
+  );
 
-  // Cloudinary image if exists
-  const cloudImage = data?.image?.imageUrl || null;
-
-  // Fallback to file-system hero image
-  const src = cloudImage || "/images/christmas_hero_2025.png";
+  const cloudImage = data?.image?.imageUrl || "";
+  const heroAlt = data?.image?.alt || "Mabel’s Pawfect Pet Services hero image";
 
   const handleBookNowClick = (e) => {
     e.preventDefault();
@@ -35,17 +33,30 @@ export default function HeroSection() {
       {/* Hero Image */}
       <div className="animate-fade-in">
         <div className="w-full max-w-4xl mx-auto">
-          <Image
-            src={src}
-            alt="Friendly dog and cat"
-            width={1200}
-            height={1600}
-            className="w-full h-auto rounded-lg shadow-lg"
-            priority
-            fetchPriority="high"
-            decoding="async"
-            sizes="(max-width: 768px) 100vw, 70vw"
-          />
+          {cloudImage ? (
+            <Image
+              src={cloudImage}
+              alt={heroAlt}
+              width={1200}
+              height={1600}
+              className="w-full h-auto rounded-lg shadow-lg"
+              priority
+              fetchPriority="high"
+              decoding="async"
+              sizes="(max-width: 768px) 100vw, 70vw"
+            />
+          ) : (
+            // ✅ Placeholder prevents broken /_next/image requests + keeps layout stable
+            <div
+              aria-hidden
+              className="w-full aspect-[3/4] rounded-lg bg-pink-50 border border-pink-100 shadow-lg"
+            />
+          )}
+
+          {/* Optional: tiny hint only while loading */}
+          {!cloudImage && isLoading && (
+            <p className="mt-3 text-xs text-gray-500">Loading…</p>
+          )}
         </div>
       </div>
 

@@ -1,25 +1,26 @@
 "use client";
+
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import useSWR from "swr";
 
-import MemberProfile from "./dashboard/MemberProfile";
 import { trackBookingCTA, trackDonationCTA } from "@/lib/ga-events";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const toggleMobileMenu = () => setIsOpen(!isOpen);
+  const toggleMobileMenu = () => setIsOpen((v) => !v);
 
-  // 🔥 Fetch logo-main from Cloudinary (if uploaded)
-  const { data } = useSWR("/api/admin/site-images?key=logo-main", fetcher);
-  const cloudLogo = data?.image?.imageUrl || null;
+  // Cloudinary site image (logo-main)
+  const { data, isLoading } = useSWR(
+    "/api/admin/site-images?key=logo-main",
+    fetcher
+  );
 
-  // 🔥 Fallback to your local logo until Cloudinary version is uploaded
-  const logoSrc = cloudLogo || "/images/christmas_logo_2025.png";
+  const cloudLogo = data?.image?.imageUrl || "";
   const logoAlt = data?.image?.alt || "Mabel’s Pawfect Pet Services Logo";
 
   return (
@@ -33,18 +34,30 @@ export default function Navbar() {
       >
         <div className="max-w-screen-xl mx-auto flex items-center justify-between px-4 py-3 md:py-4">
           <Link href="/" className="flex items-center gap-2">
-            <Image
-              src={logoSrc}
-              alt={logoAlt}
-              width={48}
-              height={48}
-              className="w-auto h-auto rounded-md"
-              priority
-            />
+            {cloudLogo ? (
+              <Image
+                src={cloudLogo}
+                alt={logoAlt}
+                width={48}
+                height={48}
+                className="w-auto h-auto rounded-md"
+                priority
+              />
+            ) : (
+              // Placeholder prevents broken /_next/image requests and keeps layout stable
+              <div
+                aria-hidden
+                className="w-[48px] h-[48px] rounded-md bg-pink-50 border border-pink-100"
+              />
+            )}
 
-            <span className="text-lg font-bold text-pink-600 ">
+            <span className="text-lg font-bold text-pink-600">
               Mabel’s Pawfect Pet Services
             </span>
+
+            {!cloudLogo && isLoading && (
+              <span className="sr-only">Loading logo</span>
+            )}
           </Link>
 
           {/* Desktop Nav Links (md and up) */}
@@ -70,14 +83,19 @@ export default function Navbar() {
             <Link
               href="/donations"
               className="hover:text-pink-600"
-              onClick={trackDonationCTA} // ✅ donation CTA
+              onClick={trackDonationCTA}
             >
               Donations
             </Link>
             <Link href="/about" className="hover:text-pink-600">
               About
             </Link>
-            <Link href="/training-and-credentials">Training & Credentials</Link>
+            <Link
+              href="/training-and-credentials"
+              className="hover:text-pink-600"
+            >
+              Training &amp; Credentials
+            </Link>
             <Link href="/contact" className="hover:text-pink-600">
               Contact
             </Link>
@@ -88,7 +106,7 @@ export default function Navbar() {
             <Link
               href="/booking"
               className="text-white bg-pink-500 hover:bg-pink-600 font-medium rounded-lg text-sm px-5 py-2.5"
-              onClick={trackBookingCTA} // ✅ booking CTA
+              onClick={trackBookingCTA}
             >
               Book Now
             </Link>
@@ -120,84 +138,97 @@ export default function Navbar() {
               <X className="w-6 h-6" />
             </button>
           </div>
+
           <ul className="flex flex-col gap-4 p-4 text-gray-700">
             <li>
               <Link href="/" onClick={toggleMobileMenu}>
                 Home
               </Link>
             </li>
+
             <li>
               <Link
                 href="/booking"
                 onClick={() => {
-                  trackBookingCTA(); // ✅ mobile Book event
+                  trackBookingCTA();
                   toggleMobileMenu();
                 }}
               >
                 Book
               </Link>
             </li>
+
             <li>
               <Link href="/services" onClick={toggleMobileMenu}>
                 Services
               </Link>
             </li>
+
             <li>
               <Link href="/pricing-seasonal" onClick={toggleMobileMenu}>
                 Pricing
               </Link>
             </li>
+
             <li>
               <Link href="/shop" onClick={toggleMobileMenu}>
                 Shop
               </Link>
             </li>
+
             <li>
               <Link href="/blog" onClick={toggleMobileMenu}>
                 Blog
               </Link>
             </li>
+
             <li>
               <Link href="/gallery" onClick={toggleMobileMenu}>
                 Gallery
               </Link>
             </li>
+
             <li>
               <Link href="/reviews" onClick={toggleMobileMenu}>
                 Reviews
               </Link>
             </li>
+
             <li>
               <Link
                 href="/donations"
                 onClick={() => {
-                  trackDonationCTA(); // ✅ mobile Donation event
+                  trackDonationCTA();
                   toggleMobileMenu();
                 }}
               >
                 Donations
               </Link>
             </li>
+
             <li>
               <Link href="/about" onClick={toggleMobileMenu}>
                 About
               </Link>
             </li>
+
             <li>
               <Link href="/training-and-credentials" onClick={toggleMobileMenu}>
-                Training & Credentials
+                Training &amp; Credentials
               </Link>
             </li>
+
             <li>
               <Link href="/contact" onClick={toggleMobileMenu}>
                 Contact
               </Link>
             </li>
+
             <li>
               <Link
                 href="/booking"
                 onClick={() => {
-                  trackBookingCTA(); // ✅ mobile Book Now button
+                  trackBookingCTA();
                   toggleMobileMenu();
                 }}
                 className="block mt-6 text-white bg-pink-500 hover:bg-pink-600 font-medium rounded-lg text-center px-4 py-2.5"
@@ -216,7 +247,6 @@ export default function Navbar() {
           />
         )}
       </nav>
-      {/* <MemberProfile /> */}
     </>
   );
 }

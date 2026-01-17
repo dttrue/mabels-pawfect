@@ -13,6 +13,7 @@ import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
 import OffSeasonSpecials from "@/components/specials/OffSeasonSpecials";
 import AnnouncementBlock from "@/components/AnnouncementBlock";
 import { getSeasonFlags } from "@/lib/seasonUtils";
+
 import SnowOverlay from "@/components/SnowOverlay";
 // import ValentinesSpecials from "@/components/specials/ValentinesSpecials"; // later
 
@@ -76,6 +77,35 @@ export default function Home() {
 
         <ServicesPreview />
         <TestimonialsSection />
+
+        <section className="mt-24 mb-24 px-6">
+      <div className="mx-auto max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+        
+        {/* Text */}
+        <div>
+          <h2 className="text-2xl font-semibold text-neutral-900 mb-4">
+            From the Pet Sitter’s Nook
+          </h2>
+
+          <p className="text-neutral-600 leading-relaxed max-w-prose">
+            Pet sitting isn’t just care — it’s connection.
+            This special edition reflects the love, memories, and pets
+            who shaped our journey as we said goodbye to 2025 and welcomed 2026.
+          </p>
+
+          {/* Soft link to Memoriam */}
+          <div className="mt-10">
+            <Link
+              href="/gallery/memoriam"
+              className="inline-flex items-center gap-2 text-pink-500 hover:text-pink-600 font-medium underline underline-offset-4"
+            >
+              Visit our Memorial Gallery 🤍
+            </Link>
+          </div>
+        </div>
+        </div>
+      </section>
+
         <NewsletterCarousel />
         <FinalCTA />
 
