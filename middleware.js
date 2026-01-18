@@ -29,15 +29,18 @@
 // };
 
 // middleware.js
+// middleware.js
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
 export default clerkMiddleware();
 
 export const config = {
   matcher: [
-    // protect admin UI
+    // ✅ protect admin UI with Clerk
     "/admin/:path*",
-    // protect admin API
-    "/api/admin/:path*",
+
+    // ❌ DO NOT protect admin API here
+    // "/api/admin/:path*",
   ],
 };
+
