@@ -16,7 +16,7 @@ import {
   ModalHeader,
 } from "flowbite-react";
 
-import { adminApiFetch } from "@/lib/adminApiClient";
+import { adminApiFetch, clearAdminKey } from "@/lib/adminApiClient";
 
 function money(cents = 0) {
   return new Intl.NumberFormat("en-US", {
@@ -31,14 +31,6 @@ function formatDate(d) {
   } catch {
     return "—";
   }
-}
-
-// ✅ must match lib/adminApiClient.js
-const ADMIN_KEY_STORAGE = "adminKey";
-
-function clearStoredAdminKey() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(ADMIN_KEY_STORAGE);
 }
 
 export function AdminClientsPage() {
@@ -105,6 +97,7 @@ export function AdminClientsPage() {
     try {
       await adminApiFetch("/api/admin/clients", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName,
           phone: form.phone?.trim() || null,
@@ -188,7 +181,7 @@ export function AdminClientsPage() {
           color="light"
           size="xs"
           onClick={() => {
-            clearStoredAdminKey();
+            clearAdminKey();
             setSuccess("Admin key cleared. Reload and enter it again.");
           }}
         >

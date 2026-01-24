@@ -2,6 +2,9 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import ClientPaymentsEditor from "@/components/dashboard/ClientPaymentsEditor";
+import ClientActionsBar from "@/components/dashboard/ClientActionsBar";
+import Link from "next/link";
+import ClientAppointmentEditor from "@/components/dashboard/ClientAppointmentEditor";
 
 function money(cents = 0) {
   const n = Number(cents);
@@ -51,7 +54,6 @@ function getAppointmentAmountAndMethod(a) {
   const fallback = toCents(a.priceCents);
   const amountCents = fromPayments > 0 ? fromPayments : fallback;
 
-  // method can live on Payment rows OR on Appointment (paymentType)
   const methodFromPayment = payments[0]?.method || null;
   const methodFromAppt = a.paymentType
     ? String(a.paymentType).toLowerCase()
@@ -62,8 +64,10 @@ function getAppointmentAmountAndMethod(a) {
   return { amountCents, method };
 }
 
-export default async function ClientDetailPage({ params }) {
-  const id = params?.id;
+export default async function ClientDetailPage(props) {
+  const { params } = await props;
+  const { id } = params;
+
   if (!id) notFound();
 
   const client = await prisma.client.findUnique({
@@ -95,7 +99,6 @@ export default async function ClientDetailPage({ params }) {
     .slice()
     .sort((a, b) => bestDateMs(b) - bestDateMs(a));
 
-  // Totals
   const allPayments = appointments.flatMap((a) => a.payments || []);
   const totalPaidCents =
     allPayments.reduce((sum, p) => sum + toCents(p.amountCents), 0) ||
@@ -107,6 +110,16 @@ export default async function ClientDetailPage({ params }) {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6">
+      {/* Back */}
+      <div className="mb-3">
+        <Link
+          href="/admin/clients"
+          className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+        >
+          ← Back to clients
+        </Link>
+      </div>
+
       {/* Header */}
       <h1 className="text-2xl font-semibold">{client.fullName}</h1>
 
@@ -123,6 +136,9 @@ export default async function ClientDetailPage({ params }) {
           {client.notes}
         </p>
       ) : null}
+
+      {/* 🔥 Edit client + add / edit pets */}
+      <ClientActionsBar client={client} pets={pets} />
 
       {/* Summary */}
       <section className="mt-6 grid gap-3 sm:grid-cols-4">
@@ -221,21 +237,28 @@ export default async function ClientDetailPage({ params }) {
                     </span>
                   </div>
 
-                  {/* High-level payment summary */}
-                  <div className="mt-2 text-gray-700">
-                    {amountCents > 0 ? (
-                      methodLabel ? (
-                        <>
-                          Paid {money(amountCents)} · {methodLabel}
-                        </>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="text-gray-700">
+                      {amountCents > 0 ? (
+                        methodLabel ? (
+                          <>
+                            Paid {money(amountCents)} · {methodLabel}
+                          </>
+                        ) : (
+                          <>Recorded amount: {money(amountCents)}</>
+                        )
                       ) : (
-                        <>Recorded amount: {money(amountCents)}</>
-                      )
-                    ) : (
-                      <span className="text-gray-400">
-                        No payment recorded yet
-                      </span>
-                    )}
+                        <span className="text-gray-400">
+                          No payment recorded yet
+                        </span>
+                      )}
+                    </div>
+
+                    <ClientAppointmentEditor appointment={a} />
+                  </div>
+
+                  <div className="mt-1 text-xs text-gray-500">
+                    ID: {a.id.slice(0, 8)}…
                   </div>
 
                   {/* Detailed payments editor (manual add/edit/delete) */}
