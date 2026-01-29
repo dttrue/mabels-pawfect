@@ -10,11 +10,8 @@ import CartButton from "@/components/cart/CartButton";
 import CartSheet from "@/components/cart/CartSheet";
 import { Toaster } from "react-hot-toast";
 
-// ✅ GA imports
 import Analytics from "@/components/Analytics";
 import GAProvider from "@/components/GAProvider";
-
-// ✅ Suspense for GAProvider (because it uses useSearchParams)
 import { Suspense } from "react";
 
 export const metadata = {
@@ -45,7 +42,6 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
         />
         <link rel="icon" href="/favicon-v2.ico" />
-
         <meta
           name="impact-site-verification"
           value="989723e1-0d46-437e-8417-a9218c3e0274"
@@ -53,19 +49,15 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className="min-h-screen bg-gradient-to-b from-white to-pink-50">
-        <Analytics />
-
-        {/* 👇 Wrap GAProvider (which uses useSearchParams) in Suspense */}
+        {/* ⬇️ Everything that uses useSearchParams / usePathname */}
         <Suspense fallback={null}>
+          <Analytics />
           <GAProvider>
-            {/* Provide cart state to the whole app */}
             <CartProvider>
-              {/* Reserve space for fixed navbar (matches Navbar height) */}
               <div aria-hidden className="h-[72px] md:h-[80px]" />
 
               <Navbar />
 
-              {/* Reserve space for banner to avoid CLS */}
               <div className="min-h-[72px] sm:min-h-[64px]">
                 {isOffSeason ? (
                   <NavAwareBanner
@@ -84,8 +76,6 @@ export default function RootLayout({ children }) {
               </div>
 
               <Toaster position="top-right" />
-
-              {/* Main should not have extra top padding (CLS fix) */}
               <main>{children}</main>
 
               <Footer />
