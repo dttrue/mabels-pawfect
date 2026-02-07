@@ -11,7 +11,6 @@ import BookingFloatingButton from "@/components/BookingFloatingButton";
 import ChristmasSpecials from "@/components/specials/ChristmasSpecials";
 import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
 import OffSeasonSpecials from "@/components/specials/OffSeasonSpecials";
-import AnnouncementBlock from "@/components/AnnouncementBlock";
 import { getSeasonFlags } from "@/lib/seasonUtils";
 
 import SnowOverlay from "@/components/SnowOverlay";
@@ -73,7 +72,7 @@ export default function Home() {
         {isChristmas && <ChristmasSpecials />}
         {isOffSeason && <OffSeasonSpecials />}
 
-        <AnnouncementBlock />
+        {/* <AnnouncementBlock /> */}
 
         <ServicesPreview />
         <TestimonialsSection />
