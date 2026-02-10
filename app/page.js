@@ -8,13 +8,17 @@ import NewsletterCarousel from "@/components/newsletter/NewsletterCarousel";
 import Link from "next/link";
 import ShopCTA from "@/components/home/ShopCTA";
 import BookingFloatingButton from "@/components/BookingFloatingButton";
+
 import ChristmasSpecials from "@/components/specials/ChristmasSpecials";
 import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
 import OffSeasonSpecials from "@/components/specials/OffSeasonSpecials";
+import ValentinesSpecials from "@/components/specials/ValentinesSpecials";
+
+import SeasonalBanner from "@/components/SeasonalBanner";
+import THEME_MAP from "@/lib/bannerThemes";
 import { getSeasonFlags } from "@/lib/seasonUtils";
 
 import SnowOverlay from "@/components/SnowOverlay";
-// import ValentinesSpecials from "@/components/specials/ValentinesSpecials"; // later
 
 export default function Home() {
   const FORCE_SEASON = (process.env.NEXT_PUBLIC_FORCE_SEASON || "")
@@ -24,15 +28,31 @@ export default function Home() {
   const { isSummer, isThanksgiving, isChristmas, isValentines, isOffSeason } =
     getSeasonFlags(FORCE_SEASON);
 
+  // For now, we only show the seasonal banner during Valentine’s,
+  // using the valentines theme we just added.
+  const valentinesTheme = THEME_MAP.valentines;
+
   return (
     <>
-      <SnowOverlay />
+      {/* Only show snow during the Christmas window */}
+      {isChristmas && <SnowOverlay />}
 
       <div className="relative z-10">
+        {/* Sticky seasonal banner for Valentine’s specials */}
+        {isValentines && (
+          <SeasonalBanner
+            {...valentinesTheme}
+            // Optional: tweak copy per homepage if you want
+            // title="Valentine’s Pet Care Specials"
+            // subtitle="Sweetheart rates through Feb 16 — book early for evenings and weekends."
+          />
+        )}
+
         <HeroSection isSummer={isSummer} />
         <ShopCTA />
         <AboutSection />
 
+        {/* Training & credentials promo */}
         <section className="py-4 px-6">
           <div className="max-w-4xl mx-auto bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -67,43 +87,42 @@ export default function Home() {
         </section>
 
         {/* Specials block (exactly one) */}
-        {/* {isValentines && <ValentinesSpecials />} */}
+        {isValentines && <ValentinesSpecials />}
         {isThanksgiving && <ThanksgivingSpecials />}
         {isChristmas && <ChristmasSpecials />}
         {isOffSeason && <OffSeasonSpecials />}
 
-        {/* <AnnouncementBlock /> */}
-
         <ServicesPreview />
         <TestimonialsSection />
 
+        {/* “From the Pet Sitter’s Nook” – updated copy (not locked to 2025/2026) */}
         <section className="mt-24 mb-24 px-6">
-      <div className="mx-auto max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-        
-        {/* Text */}
-        <div>
-          <h2 className="text-2xl font-semibold text-neutral-900 mb-4">
-            From the Pet Sitter’s Nook
-          </h2>
+          <div className="mx-auto max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+            {/* Text */}
+            <div>
+              <h2 className="text-2xl font-semibold text-neutral-900 mb-4">
+                From the Pet Sitter’s Nook
+              </h2>
 
-          <p className="text-neutral-600 leading-relaxed max-w-prose">
-            Pet sitting isn’t just care — it’s connection.
-            This special edition reflects the love, memories, and pets
-            who shaped our journey as we said goodbye to 2025 and welcomed 2026.
-          </p>
+              <p className="text-neutral-600 leading-relaxed max-w-prose">
+                Pet sitting isn’t just care — it’s connection. This little
+                corner is where we share the moments, memories, and stories of
+                the pets who’ve become part of our extended family, including
+                the ones we’ve had to say goodbye to with love.
+              </p>
 
-          {/* Soft link to Memoriam */}
-          <div className="mt-10">
-            <Link
-              href="/gallery/memoriam"
-              className="inline-flex items-center gap-2 text-pink-500 hover:text-pink-600 font-medium underline underline-offset-4"
-            >
-              Visit our Memorial Gallery 🤍
-            </Link>
+              {/* Soft link to Memoriam */}
+              <div className="mt-10">
+                <Link
+                  href="/gallery/memoriam"
+                  className="inline-flex items-center gap-2 text-pink-500 hover:text-pink-600 font-medium underline underline-offset-4"
+                >
+                  Visit our Memorial Gallery 🤍
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
-        </div>
-      </section>
+        </section>
 
         <NewsletterCarousel />
         <FinalCTA />

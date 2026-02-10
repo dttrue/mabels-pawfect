@@ -4,23 +4,24 @@ import { useEffect, useState } from "react";
 import { trackPricingCTA } from "@/lib/ga-events";
 
 export default function SeasonalBanner({
-  title = "Specials & Updates",
-  subtitle = "Check current pricing and availability",
+  // 💘 Default Valentine’s copy (can still be overridden by props)
+  title = "Valentine’s Day Specials",
+  subtitle = "Sweetheart rates are live through Feb 28.",
   link = "/pricing-seasonal",
-  ctaText = "View Pricing",
-  id = "seasonal-banner",
-  dismissible = true,
+  ctaText = "See Valentine’s Pricing",
+  id = "seasonal-banner-valentines-2026",
+  dismissible = false,
 
   offsetTop = 64,
   sticky = true,
   fixed = false,
   compactScrollY = 12,
 
-  // Icons (now configurable)
-  leftIcon = "🐾",
-  rightIcon = "📌",
+  // Icons (now configured for Valentine’s)
+  leftIcon = "❤️",
+  rightIcon = "🐾",
 
-  // Theme props
+  // Theme props (usually passed from THEME_MAP)
   bg,
   fg,
   accent,
@@ -30,7 +31,7 @@ export default function SeasonalBanner({
 
   // Analytics
   analyticsPage = "homepage",
-  analyticsLocation = "seasonal_banner",
+  analyticsLocation = "seasonal_banner_valentines",
 }) {
   const [hidden, setHidden] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -67,10 +68,10 @@ export default function SeasonalBanner({
     });
   };
 
-  // Fallback theme (homepage-ish)
+  // 💘 Fallback theme (if bg/fg/accent not passed)
   const safeBg = bg || "bg-white";
-  const safeFg = fg || "text-pink-700";
-  const safeAccent = accent || "bg-pink-500";
+  const safeFg = fg || "text-rose-700";
+  const safeAccent = accent || "bg-rose-400";
 
   return (
     <>
