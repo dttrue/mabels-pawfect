@@ -74,3 +74,49 @@ h3 {
 .pulse-dot {
   animation: softPulse 1.4s ease-in-out infinite;
 }
+
+/* ☘️ Shamrock fall / rain effects */
+
+@keyframes shamrock-fall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(0, 110vh, 0) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes shamrock-rain {
+  0% {
+    transform: translate3d(-5vw, -10vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(10vw, 110vh, 0) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+.animate-shamrock-fall {
+  animation-name: shamrock-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.animate-shamrock-rain {
+  animation-name: shamrock-rain;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}

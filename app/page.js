@@ -8,14 +8,15 @@ import NewsletterCarousel from "@/components/newsletter/NewsletterCarousel";
 import Link from "next/link";
 import ShopCTA from "@/components/home/ShopCTA";
 import BookingFloatingButton from "@/components/BookingFloatingButton";
-
+import StPatricksSpecials from "@/components/specials/StPatricksSpecials";
 import ChristmasSpecials from "@/components/specials/ChristmasSpecials";
 import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
 import OffSeasonSpecials from "@/components/specials/OffSeasonSpecials";
 import ValentinesSpecials from "@/components/specials/ValentinesSpecials";
+// 👉 later you can add:
+// import StPatricksSpecials from "@/components/specials/StPatricksSpecials";
+import ShamrockOverlay from "@/components/ShamrockOverlay";
 
-import SeasonalBanner from "@/components/SeasonalBanner";
-import THEME_MAP from "@/lib/bannerThemes";
 import { getSeasonFlags } from "@/lib/seasonUtils";
 
 import SnowOverlay from "@/components/SnowOverlay";
@@ -25,28 +26,25 @@ export default function Home() {
     .trim()
     .toLowerCase();
 
-  const { isSummer, isThanksgiving, isChristmas, isValentines, isOffSeason } =
-    getSeasonFlags(FORCE_SEASON);
-
-  // For now, we only show the seasonal banner during Valentine’s,
-  // using the valentines theme we just added.
-  const valentinesTheme = THEME_MAP.valentines;
+  const {
+    isSummer,
+    isThanksgiving,
+    isChristmas,
+    isValentines,
+    isStPatricks,
+    isOffSeason,
+  } = getSeasonFlags(FORCE_SEASON);
 
   return (
     <>
-      {/* Only show snow during the Christmas window */}
+      {/* Only show snow during Christmas */}
       {isChristmas && <SnowOverlay />}
 
+      {/* Make it rain shamrocks during St. Patrick’s */}
+      {isStPatricks && <ShamrockOverlay variant="snow" count={32} />}
+
       <div className="relative z-10">
-        {/* Sticky seasonal banner for Valentine’s specials */}
-        {isValentines && (
-          <SeasonalBanner
-            {...valentinesTheme}
-            // Optional: tweak copy per homepage if you want
-            // title="Valentine’s Pet Care Specials"
-            // subtitle="Sweetheart rates through Feb 16 — book early for evenings and weekends."
-          />
-        )}
+        {/* Sticky seasonal banner – prefer St. Patrick’s if active, otherwise Valentine’s */}
 
         <HeroSection isSummer={isSummer} />
         <ShopCTA />
@@ -87,6 +85,8 @@ export default function Home() {
         </section>
 
         {/* Specials block (exactly one) */}
+        {/* {isStPatricks && <StPatricksSpecials />}  // <- hook this up once built */}
+        {isStPatricks && <StPatricksSpecials />}
         {isValentines && <ValentinesSpecials />}
         {isThanksgiving && <ThanksgivingSpecials />}
         {isChristmas && <ChristmasSpecials />}
@@ -95,10 +95,9 @@ export default function Home() {
         <ServicesPreview />
         <TestimonialsSection />
 
-        {/* “From the Pet Sitter’s Nook” – updated copy (not locked to 2025/2026) */}
+        {/* “From the Pet Sitter’s Nook” */}
         <section className="mt-24 mb-24 px-6">
           <div className="mx-auto max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-            {/* Text */}
             <div>
               <h2 className="text-2xl font-semibold text-neutral-900 mb-4">
                 From the Pet Sitter’s Nook
@@ -111,7 +110,6 @@ export default function Home() {
                 the ones we’ve had to say goodbye to with love.
               </p>
 
-              {/* Soft link to Memoriam */}
               <div className="mt-10">
                 <Link
                   href="/gallery/memoriam"

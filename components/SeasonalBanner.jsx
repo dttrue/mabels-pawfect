@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { trackPricingCTA } from "@/lib/ga-events";
 
 export default function SeasonalBanner({
-  // 💘 Default Valentine’s copy (can still be overridden by props)
-  title = "Valentine’s Day Specials",
-  subtitle = "Sweetheart rates are live through Feb 28.",
+  // ☘️ Default St. Patrick’s copy (can still be overridden by props)
+  title = "St. Patrick’s Day Specials",
+  subtitle = "Lucky pet-sitting rates are live through March 31.",
   link = "/pricing-seasonal",
-  ctaText = "See Valentine’s Pricing",
-  id = "seasonal-banner-valentines-2026",
+  ctaText = "See St. Patrick’s Pricing",
+  id = "seasonal-banner-stpatricks-2026",
   dismissible = false,
 
   offsetTop = 64,
@@ -17,9 +17,9 @@ export default function SeasonalBanner({
   fixed = false,
   compactScrollY = 12,
 
-  // Icons (now configured for Valentine’s)
-  leftIcon = "❤️",
-  rightIcon = "🐾",
+  // Icons (defaults for St. Patrick’s)
+  leftIcon = "☘️",
+  rightIcon = "🍀",
 
   // Theme props (usually passed from THEME_MAP)
   bg,
@@ -31,7 +31,7 @@ export default function SeasonalBanner({
 
   // Analytics
   analyticsPage = "homepage",
-  analyticsLocation = "seasonal_banner_valentines",
+  analyticsLocation = "seasonal_banner_stpatricks",
 }) {
   const [hidden, setHidden] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -68,10 +68,10 @@ export default function SeasonalBanner({
     });
   };
 
-  // 💘 Fallback theme (if bg/fg/accent not passed)
+  // ☘️ Fallback theme (if bg/fg/accent not passed)
   const safeBg = bg || "bg-white";
-  const safeFg = fg || "text-rose-700";
-  const safeAccent = accent || "bg-rose-400";
+  const safeFg = fg || "text-emerald-800";
+  const safeAccent = accent || "bg-emerald-500";
 
   return (
     <>
@@ -82,7 +82,7 @@ export default function SeasonalBanner({
         aria-label={title}
         className={[
           placement,
-          "z-40 w-full border-b border-pink-100",
+          "z-40 w-full border-b border-neutral-200",
           safeBg,
           safeFg,
           pattern,
@@ -148,7 +148,7 @@ export default function SeasonalBanner({
                   localStorage.setItem(id, "1");
                 setHidden(true);
               }}
-              className="ml-2 hidden sm:grid place-items-center w-7 h-7 rounded-md text-pink-700/70 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 border border-pink-200"
+              className="ml-2 hidden sm:grid place-items-center w-7 h-7 rounded-md text-neutral-700 hover:text-neutral-900 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200"
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none">
                 <path

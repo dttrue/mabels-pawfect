@@ -31,8 +31,17 @@ export default function RootLayout({ children }) {
     isSummer,
     isThanksgiving,
     isChristmas,
+    isValentines,
+    isStPatricks,
     isOffSeason,
   } = getSeasonFlags(FORCE_SEASON);
+
+  // Optional: season-aware background. You can simplify if you want.
+  const bodyBgClass = isStPatricks
+    ? "min-h-screen bg-gradient-to-b from-[#f0fdf4] to-[#dcfce7]" // soft green
+    : isChristmas
+      ? "min-h-screen bg-gradient-to-b from-white to-sky-50"
+      : "min-h-screen bg-gradient-to-b from-white to-pink-50"; // default / valentines-ish
 
   return (
     <html lang="en">
@@ -48,7 +57,7 @@ export default function RootLayout({ children }) {
         />
       </head>
 
-      <body className="min-h-screen bg-gradient-to-b from-white to-pink-50">
+      <body className={bodyBgClass}>
         {/* ⬇️ Everything that uses useSearchParams / usePathname */}
         <Suspense fallback={null}>
           <Analytics />
@@ -59,12 +68,38 @@ export default function RootLayout({ children }) {
               <Navbar />
 
               <div className="min-h-[72px] sm:min-h-[64px]">
-                {isOffSeason ? (
+                {isStPatricks ? (
+                  <NavAwareBanner
+                    {...THEME_MAP.stpatricks}
+                    id="banner-stpatricks-2026"
+                    title="St. Patrick’s Day Specials"
+                    subtitle="Lucky pet-sitting rates are active through March 31."
+                    link="/pricing-seasonal"
+                    ctaText="See St. Patrick’s Pricing"
+                    leftIcon="☘️"
+                    rightIcon="🍀"
+                    dismissible={false}
+                    analyticsLocation="banner_stpatricks"
+                  />
+                ) : isValentines ? (
+                  <NavAwareBanner
+                    {...THEME_MAP.valentines}
+                    id="banner-valentines-2026"
+                    title="Valentine’s Day Specials"
+                    subtitle="Sweetheart rates are live through Feb 28."
+                    link="/pricing-seasonal"
+                    ctaText="See Valentine’s Pricing"
+                    leftIcon="❤️"
+                    rightIcon="🐾"
+                    dismissible={false}
+                    analyticsLocation="banner_valentines"
+                  />
+                ) : isOffSeason ? (
                   <NavAwareBanner
                     {...THEME_MAP.offSeason}
                     id="banner-off-season"
                     title="Off-Season Updates"
-                    subtitle="Regular pricing is active. Valentine’s specials return soon."
+                    subtitle="Regular pricing is active. Seasonal specials return soon."
                     link="/pricing-seasonal"
                     ctaText="View Pricing"
                     leftIcon="🐾"
