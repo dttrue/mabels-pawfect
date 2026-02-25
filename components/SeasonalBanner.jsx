@@ -5,8 +5,8 @@ import { trackPricingCTA } from "@/lib/ga-events";
 
 export default function SeasonalBanner({
   // ☘️ Default St. Patrick’s copy (can still be overridden by props)
-  title = "St. Patrick’s Day Specials",
-  subtitle = "Lucky pet-sitting rates are live through March 31.",
+  title = "Everyday Pet Care Pricing",
+  subtitle = "Reliable care for dogs and cats.",
   link = "/pricing-seasonal",
   ctaText = "See St. Patrick’s Pricing",
   id = "seasonal-banner-stpatricks-2026",

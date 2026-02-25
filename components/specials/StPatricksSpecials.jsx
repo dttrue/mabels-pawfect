@@ -9,11 +9,10 @@ import useSWR from "swr";
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function StPatricksSpecials({
-  title = "St. Patrick’s Day Specials ☘️",
-  subtitle = "Lucky pet-sitting rates are live through March 31.",
+  title = "Everyday Pet Care Pricing",
+  subtitle = "Reliable care for dogs and cats.",
   ctaHref = "/pricing-seasonal",
-  ctaText = "See St. Patrick’s Pricing",
-  imageSrc = "/images/seasonal-pricing/stpatricks-pricing-2026.jpg",
+  ctaText = "View Pricing",
   // 🔑 same stable key as Pricing.jsx so the latest flyer shows everywhere
   imageKey = "pricing-flyer-main",
 }) {
@@ -24,13 +23,13 @@ export default function StPatricksSpecials({
     fetcher
   );
 
-  const cloudImage = data?.image?.imageUrl || null;
-  const cloudAlt = data?.image?.alt || null;
+  const cloudImage = data?.image?.imageUrl ?? null;
+  const cloudAlt =
+    data?.image?.alt ||
+    "St. Patrick’s themed pet care price list flyer for dogs and cats.";
 
-  const finalImageSrc = cloudImage || imageSrc;
-  const finalAlt =
-    cloudAlt ||
-    "St. Patrick’s pet care pricing flyer for dogs and cats with shamrock theme";
+  const finalImageSrc = cloudImage || null;
+  const finalAlt = cloudAlt;
 
   const handlePricingClick = () => {
     trackPricingCTA({
@@ -120,21 +119,28 @@ export default function StPatricksSpecials({
         {/* flyer column */}
         <div className="relative">
           <div className="rounded-xl border border-white/10 bg-[#022c22] p-2 shadow-sm">
-            <Link
-              href={ctaHref}
-              onClick={handleFlyerClick}
-              aria-label="Open St. Patrick’s pricing"
-            >
-              <Image
-                src={finalImageSrc}
-                alt={finalAlt}
-                width={880}
-                height={1360}
-                className="h-auto w-full rounded-lg"
-                sizes="(max-width: 768px) 100vw, 880px"
-                priority
-              />
-            </Link>
+            {finalImageSrc ? (
+              <Link
+                href={ctaHref}
+                onClick={handleFlyerClick}
+                aria-label="Open seasonal pricing"
+              >
+                <Image
+                  src={finalImageSrc}
+                  alt={finalAlt}
+                  width={880}
+                  height={1360}
+                  className="h-auto w-full rounded-lg"
+                  sizes="(max-width: 768px) 100vw, 880px"
+                  priority
+                />
+              </Link>
+            ) : (
+              <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-emerald-400/40 text-xs text-emerald-50/80">
+                Seasonal pricing flyer will appear here once it’s uploaded in
+                the admin.
+              </div>
+            )}
           </div>
 
           <div className="pointer-events-none absolute -left-2 -top-2 h-8 w-8 rounded-full bg-emerald-400/40 blur-md md:h-10 md:w-10" />

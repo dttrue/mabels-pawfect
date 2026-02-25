@@ -72,12 +72,12 @@ export default function RootLayout({ children }) {
                   <NavAwareBanner
                     {...THEME_MAP.stpatricks}
                     id="banner-stpatricks-2026"
-                    title="St. Patrick’s Day Specials"
-                    subtitle="Lucky pet-sitting rates are active through March 31."
+                    title="Everyday Pet Care Pricing"
+                    subtitle="Reliable care for dogs and cats, all month long."
                     link="/pricing-seasonal"
-                    ctaText="See St. Patrick’s Pricing"
+                    ctaText="View Pricing"
                     leftIcon="☘️"
-                    rightIcon="🍀"
+                    rightIcon="🐾"
                     dismissible={false}
                     analyticsLocation="banner_stpatricks"
                   />
