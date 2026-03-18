@@ -3,11 +3,10 @@
 
 import Link from "next/link";
 import useSWR from "swr";
-import ShamrockOverlay from "@/components/ShamrockOverlay";
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Pricing() {
-  <ShamrockOverlay />
   const imageKey = "pricing-flyer-main";
 
   const { data } = useSWR(
@@ -19,17 +18,19 @@ export default function Pricing() {
 
   const src = data?.image?.imageUrl ?? null;
   const alt =
-    data?.image?.alt || "Seasonal pet care pricing flyer for dog and cat care.";
+    data?.image?.alt ||
+    "Easter seasonal pet care pricing flyer for dog and cat care.";
   const validity =
-    data?.image?.subtitle || "Seasonal pricing (limited-time availability)";
+    data?.image?.subtitle ||
+    "Easter seasonal pricing (limited-time availability)";
 
   return (
-    <main className="relative min-h-screen bg-white overflow-x-hidden">
+    <main className="relative min-h-screen overflow-x-hidden bg-white">
       {/* Sticky header */}
-      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-emerald-200">
-        <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-emerald-700">
-            St. Patrick’s Seasonal Pricing ☘️
+      <header className="sticky top-0 z-20 border-b border-amber-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+          <h1 className="text-lg font-semibold text-stone-900">
+            Easter Seasonal Pricing 🐣
           </h1>
 
           <div className="flex items-center gap-2">
@@ -38,7 +39,7 @@ export default function Pricing() {
                 href={src}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-md bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+                className="rounded-md bg-amber-300 px-3.5 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-200"
               >
                 Open Flyer
               </a>
@@ -46,7 +47,7 @@ export default function Pricing() {
 
             <Link
               href="/booking"
-              className="rounded-md border border-emerald-300 px-3.5 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+              className="rounded-md border border-stone-300 px-3.5 py-2 text-sm font-semibold text-stone-900 hover:bg-stone-50"
             >
               Book Now
             </Link>
@@ -55,33 +56,33 @@ export default function Pricing() {
       </header>
 
       {/* Content */}
-      <section className="relative z-10 py-12 px-4">
+      <section className="relative z-10 px-4 py-12">
         <div className="mx-auto max-w-5xl">
-          <figure className="bg-emerald-50 border border-emerald-100 rounded-2xl shadow-md p-4">
+          <figure className="rounded-2xl border border-amber-100 bg-gradient-to-br from-[#fff7ed] via-white to-[#fdf2f8] p-4 shadow-md">
             {src ? (
               <a
                 href={src}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Open full-size seasonal pricing flyer"
+                aria-label="Open full-size Easter seasonal pricing flyer"
               >
-                <img src={src} alt={alt} className="w-full h-auto rounded-xl" />
+                <img src={src} alt={alt} className="h-auto w-full rounded-xl" />
               </a>
             ) : (
-              <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-emerald-200 bg-white/60 text-xs text-emerald-700">
-                Seasonal pricing flyer will appear here once it’s uploaded in
-                the admin.
+              <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-amber-200 bg-white/60 text-xs text-stone-700">
+                Easter pricing flyer will appear here once it’s uploaded in the
+                admin.
               </div>
             )}
 
-            <figcaption className="mt-4 flex flex-wrap gap-2 text-xs text-emerald-800">
-              <span className="rounded-full bg-white px-3 py-1 border border-emerald-200">
+            <figcaption className="mt-4 flex flex-wrap gap-2 text-xs text-stone-800">
+              <span className="rounded-full border border-amber-200 bg-white px-3 py-1">
                 {validity}
               </span>
-              <span className="rounded-full bg-white px-3 py-1 border border-emerald-200">
-                St. Patrick’s period • March 1 – March 31
+              <span className="rounded-full border border-amber-200 bg-white px-3 py-1">
+                Easter period • Now – April 8
               </span>
-              <span className="rounded-full bg-white px-3 py-1 border border-emerald-200">
+              <span className="rounded-full border border-amber-200 bg-white px-3 py-1">
                 Peak evenings & weekends fill fast
               </span>
             </figcaption>

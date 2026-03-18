@@ -1,11 +1,11 @@
 import HappyPetsGrid from "@/components/gallery/HappyPetsGrid";
-import SnowOverlay from "@/components/SnowOverlay";
+
 import Link from "next/link";
 
 export default function GalleryPage() {
   return (
     <main className="relative bg-white min-h-screen">
-      <SnowOverlay />
+      
 
       <section className="py-16 px-4 bg-pinky-50">
         <div className="max-w-6xl mx-auto text-center">

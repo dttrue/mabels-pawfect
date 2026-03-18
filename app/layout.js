@@ -33,15 +33,15 @@ export default function RootLayout({ children }) {
     isChristmas,
     isValentines,
     isStPatricks,
+    isEaster,
     isOffSeason,
   } = getSeasonFlags(FORCE_SEASON);
 
-  // Optional: season-aware background. You can simplify if you want.
-  const bodyBgClass = isStPatricks
-    ? "min-h-screen bg-gradient-to-b from-[#f0fdf4] to-[#dcfce7]" // soft green
+  const bodyBgClass = isEaster
+    ? "min-h-screen bg-gradient-to-b from-[#fff7ed] to-[#fdf2f8]"
     : isChristmas
       ? "min-h-screen bg-gradient-to-b from-white to-sky-50"
-      : "min-h-screen bg-gradient-to-b from-white to-pink-50"; // default / valentines-ish
+      : "min-h-screen bg-gradient-to-b from-white to-pink-50";
 
   return (
     <html lang="en">
@@ -58,7 +58,6 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className={bodyBgClass}>
-        {/* ⬇️ Everything that uses useSearchParams / usePathname */}
         <Suspense fallback={null}>
           <Analytics />
           <GAProvider>
@@ -68,18 +67,18 @@ export default function RootLayout({ children }) {
               <Navbar />
 
               <div className="min-h-[72px] sm:min-h-[64px]">
-                {isStPatricks ? (
+                {isEaster ? (
                   <NavAwareBanner
-                    {...THEME_MAP.stpatricks}
-                    id="banner-stpatricks-2026"
-                    title="Everyday Pet Care Pricing"
-                    subtitle="Reliable care for dogs and cats, all month long."
+                    {...THEME_MAP.easter}
+                    id="banner-easter-2026"
+                    title="Easter Pet Care Specials"
+                    subtitle="Spring visits, festive updates, and reliable care for dogs and cats."
                     link="/pricing-seasonal"
-                    ctaText="View Pricing"
-                    leftIcon="☘️"
+                    ctaText="View Easter Pricing"
+                    leftIcon="🐣"
                     rightIcon="🐾"
                     dismissible={false}
-                    analyticsLocation="banner_stpatricks"
+                    analyticsLocation="banner_easter"
                   />
                 ) : isValentines ? (
                   <NavAwareBanner
@@ -96,16 +95,16 @@ export default function RootLayout({ children }) {
                   />
                 ) : isOffSeason ? (
                   <NavAwareBanner
-                    {...THEME_MAP.offSeason}
-                    id="banner-off-season"
-                    title="Off-Season Updates"
-                    subtitle="Regular pricing is active. Seasonal specials return soon."
+                    {...THEME_MAP.offseason}
+                    id="banner-offseason"
+                    title="Pawfect Pet Care"
+                    subtitle="Affordable, loving pet care you can trust."
                     link="/pricing-seasonal"
-                    ctaText="View Pricing"
+                    ctaText="See Pricing"
                     leftIcon="🐾"
-                    rightIcon="💗"
+                    rightIcon="✨"
                     dismissible={false}
-                    analyticsLocation="banner_off_season"
+                    analyticsLocation="banner_offseason"
                   />
                 ) : null}
               </div>

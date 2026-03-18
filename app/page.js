@@ -8,14 +8,11 @@ import NewsletterCarousel from "@/components/newsletter/NewsletterCarousel";
 import Link from "next/link";
 import ShopCTA from "@/components/home/ShopCTA";
 import BookingFloatingButton from "@/components/BookingFloatingButton";
-import StPatricksSpecials from "@/components/specials/StPatricksSpecials";
+import EasterSpecials from "@/components/specials/EasterSpecials";
 import ChristmasSpecials from "@/components/specials/ChristmasSpecials";
 import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
 import OffSeasonSpecials from "@/components/specials/OffSeasonSpecials";
 import ValentinesSpecials from "@/components/specials/ValentinesSpecials";
-// 👉 later you can add:
-// import StPatricksSpecials from "@/components/specials/StPatricksSpecials";
-import ShamrockOverlay from "@/components/ShamrockOverlay";
 
 import { getSeasonFlags } from "@/lib/seasonUtils";
 
@@ -31,28 +28,22 @@ export default function Home() {
     isThanksgiving,
     isChristmas,
     isValentines,
-    isStPatricks,
+    isEaster,
     isOffSeason,
   } = getSeasonFlags(FORCE_SEASON);
 
   return (
     <>
-      {/* Only show snow during Christmas */}
       {isChristmas && <SnowOverlay />}
 
-      {/* Make it rain shamrocks during St. Patrick’s */}
-      {isStPatricks && <ShamrockOverlay variant="snow" count={32} />}
-
       <div className="relative z-10">
-        {/* Sticky seasonal banner – prefer St. Patrick’s if active, otherwise Valentine’s */}
-
         <HeroSection isSummer={isSummer} />
         <ShopCTA />
         <AboutSection />
 
         {/* Training & credentials promo */}
-        <section className="py-4 px-6">
-          <div className="max-w-4xl mx-auto bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+        <section className="px-6 py-4">
+          <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 md:flex-row">
             <div className="flex items-center gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -60,7 +51,7 @@ export default function Home() {
                 viewBox="0 0 24 24"
                 strokeWidth={1.5}
                 stroke="currentColor"
-                className="w-5 h-5 text-blue-700"
+                className="h-5 w-5 text-blue-700"
               >
                 <path
                   strokeLinecap="round"
@@ -77,7 +68,7 @@ export default function Home() {
 
             <Link
               href="/training-and-credentials"
-              className="text-sm font-semibold text-blue-700 hover:text-blue-800 underline underline-offset-4"
+              className="text-sm font-semibold text-blue-700 underline underline-offset-4 hover:text-blue-800"
             >
               View my training &amp; credentials →
             </Link>
@@ -85,8 +76,7 @@ export default function Home() {
         </section>
 
         {/* Specials block (exactly one) */}
-        {/* {isStPatricks && <StPatricksSpecials />}  // <- hook this up once built */}
-        {isStPatricks && <StPatricksSpecials />}
+        {isEaster && <EasterSpecials />}
         {isValentines && <ValentinesSpecials />}
         {isThanksgiving && <ThanksgivingSpecials />}
         {isChristmas && <ChristmasSpecials />}
@@ -96,14 +86,14 @@ export default function Home() {
         <TestimonialsSection />
 
         {/* “From the Pet Sitter’s Nook” */}
-        <section className="mt-24 mb-24 px-6">
-          <div className="mx-auto max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+        <section className="mb-24 mt-24 px-6">
+          <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-10 md:grid-cols-2">
             <div>
-              <h2 className="text-2xl font-semibold text-neutral-900 mb-4">
+              <h2 className="mb-4 text-2xl font-semibold text-neutral-900">
                 From the Pet Sitter’s Nook
               </h2>
 
-              <p className="text-neutral-600 leading-relaxed max-w-prose">
+              <p className="max-w-prose leading-relaxed text-neutral-600">
                 Pet sitting isn’t just care — it’s connection. This little
                 corner is where we share the moments, memories, and stories of
                 the pets who’ve become part of our extended family, including
@@ -113,7 +103,7 @@ export default function Home() {
               <div className="mt-10">
                 <Link
                   href="/gallery/memoriam"
-                  className="inline-flex items-center gap-2 text-pink-500 hover:text-pink-600 font-medium underline underline-offset-4"
+                  className="inline-flex items-center gap-2 font-medium text-pink-500 underline underline-offset-4 hover:text-pink-600"
                 >
                   Visit our Memorial Gallery 🤍
                 </Link>

@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { trackPricingCTA } from "@/lib/ga-events";
 
 export default function SeasonalBanner({
-  // ☘️ Default St. Patrick’s copy (can still be overridden by props)
+  // ☘️ Default Easter copy (can still be overridden by props)
   title = "Everyday Pet Care Pricing",
   subtitle = "Reliable care for dogs and cats.",
   link = "/pricing-seasonal",
-  ctaText = "See St. Patrick’s Pricing",
-  id = "seasonal-banner-stpatricks-2026",
+  ctaText = "See Pricing",
+  id = "seasonal-banner",
   dismissible = false,
 
   offsetTop = 64,
@@ -17,9 +17,9 @@ export default function SeasonalBanner({
   fixed = false,
   compactScrollY = 12,
 
-  // Icons (defaults for St. Patrick’s)
-  leftIcon = "☘️",
-  rightIcon = "🍀",
+  // Icons (defaults for St. Easter)
+  leftIcon = "🐾",
+  rightIcon = "✨",
 
   // Theme props (usually passed from THEME_MAP)
   bg,
@@ -31,7 +31,7 @@ export default function SeasonalBanner({
 
   // Analytics
   analyticsPage = "homepage",
-  analyticsLocation = "seasonal_banner_stpatricks",
+  analyticsLocation = "seasonal_banner",
 }) {
   const [hidden, setHidden] = useState(false);
   const [compact, setCompact] = useState(false);
