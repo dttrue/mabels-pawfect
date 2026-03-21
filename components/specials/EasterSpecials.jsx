@@ -9,10 +9,10 @@ import useSWR from "swr";
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function EasterSpecials({
-  title = "Easter Pet Care Specials",
+  title = "Spring Pet Care",
   subtitle = "Spring visits, festive updates, and reliable care for dogs and cats.",
   ctaHref = "/pricing-seasonal",
-  ctaText = "View Easter Pricing",
+  ctaText = "View Pricing",
   imageKey = "pricing-flyer-main",
 }) {
   const { data } = useSWR(

@@ -30,7 +30,7 @@ export default function Pricing() {
       <header className="sticky top-0 z-20 border-b border-amber-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <h1 className="text-lg font-semibold text-stone-900">
-            Easter Seasonal Pricing 🐣
+            Easter Pricing 🐣
           </h1>
 
           <div className="flex items-center gap-2">

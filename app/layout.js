@@ -71,10 +71,10 @@ export default function RootLayout({ children }) {
                   <NavAwareBanner
                     {...THEME_MAP.easter}
                     id="banner-easter-2026"
-                    title="Easter Pet Care Specials"
+                    title="Spring Pet Care"
                     subtitle="Spring visits, festive updates, and reliable care for dogs and cats."
                     link="/pricing-seasonal"
-                    ctaText="View Easter Pricing"
+                    ctaText="View Pricing"
                     leftIcon="🐣"
                     rightIcon="🐾"
                     dismissible={false}
