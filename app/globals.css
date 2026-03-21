@@ -120,3 +120,51 @@ h3 {
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
+
+@keyframes spring-float {
+  0% {
+    transform: translateY(-10%) translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  50% {
+    transform: translateY(50vh) translateX(10px) rotate(90deg);
+  }
+
+  100% {
+    transform: translateY(110vh) translateX(-10px) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+@keyframes spring-rain {
+  0% {
+    transform: translateY(-10%);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(110vh);
+    opacity: 0;
+  }
+}
+
+.animate-spring-float {
+  animation-name: spring-float;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.animate-spring-rain {
+  animation-name: spring-rain;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}

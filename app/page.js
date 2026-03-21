@@ -13,11 +13,12 @@ import ChristmasSpecials from "@/components/specials/ChristmasSpecials";
 import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
 import OffSeasonSpecials from "@/components/specials/OffSeasonSpecials";
 import ValentinesSpecials from "@/components/specials/ValentinesSpecials";
+import AnnouncementBlock from "@/components/AnnouncementBlock";
 
 import { getSeasonFlags } from "@/lib/seasonUtils";
 
 import SnowOverlay from "@/components/SnowOverlay";
-
+import SpringOverlay from "@/components/SpringOverlay";
 export default function Home() {
   const FORCE_SEASON = (process.env.NEXT_PUBLIC_FORCE_SEASON || "")
     .trim()
@@ -34,6 +35,7 @@ export default function Home() {
 
   return (
     <>
+      {isEaster && <SpringOverlay variant="float" count={36} />}
       {isChristmas && <SnowOverlay />}
 
       <div className="relative z-10">
@@ -81,6 +83,9 @@ export default function Home() {
         {isThanksgiving && <ThanksgivingSpecials />}
         {isChristmas && <ChristmasSpecials />}
         {isOffSeason && <OffSeasonSpecials />}
+
+        {/* Seasonal announcement postcard */}
+        {isEaster && <AnnouncementBlock />}
 
         <ServicesPreview />
         <TestimonialsSection />

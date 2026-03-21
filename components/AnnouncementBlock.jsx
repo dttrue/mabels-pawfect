@@ -9,16 +9,16 @@ import { trackEvent } from "@/lib/ga-events";
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function AnnouncementBlock({
-  title = "Pricing & Updates 🐾",
-  body = "Regular pricing is active. Seasonal specials return for Valentine’s Week — check back soon!",
-  imageSrc = "/images/postcards/christmas-postcard-2025.jpg", // fallback if Cloudinary missing
+  title = "Easter Updates 🐰",
+  body = "Spring visits are here. Check out our pricing, seasonal updates, and festive pet care offerings.",
+  imageSrc = "/images/postcards/easter-postcard-2026.jpg",
   imageKey = "announcement-main",
   ctaHref = "/pricing-seasonal",
   ctaText = "View Pricing",
   secondaryHref = "/gallery",
   secondaryText = "See More Photos",
   analyticsPage = "homepage",
-  analyticsVariant = "off-season",
+  analyticsVariant = "easter",
 }) {
   const { data } = useSWR(
     imageKey
@@ -56,10 +56,10 @@ export default function AnnouncementBlock({
       aria-labelledby="announcement-heading"
       className="mx-auto max-w-6xl px-4 py-12"
     >
-      <div className="overflow-hidden rounded-3xl border border-pink-100 bg-white shadow-md">
+      <div className="overflow-hidden rounded-3xl border border-[#f3d7e4] bg-white shadow-md">
         <div className="grid gap-0 md:grid-cols-2">
           {/* image */}
-          <div className="relative">
+          <div className="relative bg-[#fdf7fb]">
             <Image
               src={finalImageSrc}
               alt={finalAlt}
@@ -68,14 +68,14 @@ export default function AnnouncementBlock({
               className="h-full w-full object-cover"
               priority
             />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-transparent" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-transparent" />
           </div>
 
           {/* copy */}
           <div className="relative p-6 md:p-8">
             <h3
               id="announcement-heading"
-              className="text-xl md:text-2xl font-bold text-pink-600"
+              className="text-xl font-bold text-pink-600 md:text-2xl"
             >
               {title}
             </h3>
@@ -83,16 +83,14 @@ export default function AnnouncementBlock({
             <p className="mt-2 text-gray-700">{body}</p>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              {/* PRIMARY CTA */}
               <Link
                 href={ctaHref}
                 onClick={trackPrimary}
-                className="inline-flex items-center justify-center rounded-md bg-pink-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-pink-600"
+                className="inline-flex items-center justify-center rounded-md bg-amber-300 px-4 py-2.5 text-sm font-semibold text-stone-900 hover:bg-amber-200"
               >
                 {ctaText}
               </Link>
 
-              {/* SECONDARY CTA */}
               {secondaryHref && secondaryText && (
                 <Link
                   href={secondaryHref}
@@ -104,7 +102,11 @@ export default function AnnouncementBlock({
               )}
             </div>
 
-            {/* soft accent */}
+            <div className="mt-6 rounded-2xl border border-pink-100 bg-[#fff8fc] px-4 py-3 text-sm text-stone-700">
+              Easter week and springtime bookings can fill quickly, especially
+              for evenings, weekends, and overnight care.
+            </div>
+
             <div className="pointer-events-none absolute -right-10 -bottom-10 h-24 w-24 rounded-full bg-pink-200/50 blur-2xl" />
           </div>
         </div>
