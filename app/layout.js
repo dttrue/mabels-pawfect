@@ -35,14 +35,16 @@ export default function RootLayout({ children }) {
     isStPatricks,
     isEaster,
     isOffSeason,
+    isRenaissance,
   } = getSeasonFlags(FORCE_SEASON);
 
-  const bodyBgClass = isEaster
-    ? "min-h-screen bg-gradient-to-b from-[#fff7ed] to-[#fdf2f8]"
-    : isChristmas
-      ? "min-h-screen bg-gradient-to-b from-white to-sky-50"
-      : "min-h-screen bg-gradient-to-b from-white to-pink-50";
-
+  const bodyBgClass = isRenaissance
+    ? "min-h-screen bg-gradient-to-b from-[#fff8ec] to-[#f4ead8]"
+    : isEaster
+      ? "min-h-screen bg-gradient-to-b from-[#fff7ed] to-[#fdf2f8]"
+      : isChristmas
+        ? "min-h-screen bg-gradient-to-b from-white to-sky-50"
+        : "min-h-screen bg-gradient-to-b from-white to-pink-50";
   return (
     <html lang="en">
       <head>
@@ -67,7 +69,20 @@ export default function RootLayout({ children }) {
               <Navbar />
 
               <div className="min-h-[72px] sm:min-h-[64px]">
-                {isEaster ? (
+                {isRenaissance ? (
+                  <NavAwareBanner
+                    {...THEME_MAP.renaissance}
+                    id="banner-renaissance-2026"
+                    title="Renaissance Season at Mabel’s"
+                    subtitle="Royal care for loyal companions — see our current pet care pricing."
+                    link="/pricing-seasonal"
+                    ctaText="See Pricing"
+                    leftIcon="⚜️"
+                    rightIcon="👑"
+                    dismissible={false}
+                    analyticsLocation="banner_renaissance"
+                  />
+                ) : isEaster ? (
                   <NavAwareBanner
                     {...THEME_MAP.easter}
                     id="banner-easter-2026"

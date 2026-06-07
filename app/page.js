@@ -14,7 +14,7 @@ import ThanksgivingSpecials from "@/components/specials/ThanksgivingSpecials";
 import OffSeasonSpecials from "@/components/specials/OffSeasonSpecials";
 import ValentinesSpecials from "@/components/specials/ValentinesSpecials";
 import AnnouncementBlock from "@/components/AnnouncementBlock";
-
+import RenaissanceSeasonSpecials from "@/components/specials/RenaissanceSeasonSpecials";
 import { getSeasonFlags } from "@/lib/seasonUtils";
 
 import SnowOverlay from "@/components/SnowOverlay";
@@ -31,6 +31,7 @@ export default function Home() {
     isValentines,
     isEaster,
     isOffSeason,
+    isRenaissance,
   } = getSeasonFlags(FORCE_SEASON);
 
   return (
@@ -78,6 +79,7 @@ export default function Home() {
         </section>
 
         {/* Specials block (exactly one) */}
+        {isRenaissance && <RenaissanceSeasonSpecials />}
         {isEaster && <EasterSpecials />}
         {isValentines && <ValentinesSpecials />}
         {isThanksgiving && <ThanksgivingSpecials />}
