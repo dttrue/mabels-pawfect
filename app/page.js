@@ -16,7 +16,7 @@ import ValentinesSpecials from "@/components/specials/ValentinesSpecials";
 import AnnouncementBlock from "@/components/AnnouncementBlock";
 import RenaissanceSeasonSpecials from "@/components/specials/RenaissanceSeasonSpecials";
 import { getSeasonFlags } from "@/lib/seasonUtils";
-
+import MedievalRainOverlay from "@/components/MedievalRainOverlay";
 import SnowOverlay from "@/components/SnowOverlay";
 import SpringOverlay from "@/components/SpringOverlay";
 export default function Home() {
@@ -36,6 +36,7 @@ export default function Home() {
 
   return (
     <>
+      {isRenaissance && <MedievalRainOverlay count={40} />}
       {isEaster && <SpringOverlay variant="float" count={36} />}
       {isChristmas && <SnowOverlay />}
 

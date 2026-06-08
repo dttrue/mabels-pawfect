@@ -41,6 +41,7 @@ h2,
 h3 {
   font-family: 'Dancing Script', cursive;
 }
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -165,6 +166,22 @@ h3 {
 
 .animate-spring-rain {
   animation-name: spring-rain;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes medieval-rain {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+  }
+
+  100% {
+    transform: translateY(110vh) rotate(360deg);
+  }
+}
+
+.animate-medieval-rain {
+  animation-name: medieval-rain;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
 }
