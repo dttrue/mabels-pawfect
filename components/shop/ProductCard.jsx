@@ -5,10 +5,6 @@ import { useState, useMemo, useEffect } from "react";
 import { useCart } from "@/components/cart/CartContext";
 import { CldImage } from "next-cloudinary";
 import { trackEvent, trackAddToCart } from "@/lib/ga-events";
-import {
-  isBlackFridayActive,
-  isBlackFridayEligibleSlug,
-} from "@/lib/blackFridayHelpers"; // 🔹 NEW
 
 // Simple name→swatch mapping. Extend as needed.
 const SWATCH = {
@@ -42,7 +38,7 @@ const SWATCH = {
   pepperoniBlackOlive:
     "bg-gradient-to-r from-red-600 via-gray-600 to-amber-400",
 
-  // 🧶 NEW clean slugs
+  // 🧶 Clean slugs
   redWhite: "bg-gradient-to-r from-red-500 via-red-100 to-white",
   black: "bg-gray-900",
 };
@@ -56,20 +52,21 @@ export default function ProductCard({ product }) {
   const { add } = useCart();
   const img = product.images?.[0];
 
-  // variants merged in ShopGrid
+  // Variants merged in ShopGrid
   const variants = product._variants ?? [];
   const hasVariants = variants.length > 0;
 
-  // injected from ShopGrid
+  // Injected from ShopGrid
   const gridIndex = product._index ?? null;
-  const isLowStock = product._lowStock ?? null;
+  const isLowStock = Boolean(product._lowStock);
+
+  // ☀️ Summer sale flags injected from ShopGrid
+  const isSummerSale = Boolean(product._isSummerSale);
+  const originalPrice = product._originalPrice || product._price;
+  const salePrice = product._salePrice || null;
+  const salePriceCents = product._salePriceCents || null;
 
   const [selectedId, setSelectedId] = useState(null);
-
-  // 🔹 Black Friday flags
-  const bfActive = isBlackFridayActive();
-  const bfEligible = isBlackFridayEligibleSlug(product.slug);
-  const showBogoBadge = bfActive && bfEligible;
 
   // If there is exactly one in-stock variant, preselect it
   useEffect(() => {
@@ -90,7 +87,7 @@ export default function ProductCard({ product }) {
 
   const canAdd = !hasVariants || !!selectedVariant || !!singleInStock;
 
-  // 🔹 GA: product card impression (fires on mount)
+  // GA: product card impression
   useEffect(() => {
     trackEvent("product_card_impression", {
       product_id: product.id,
@@ -100,9 +97,8 @@ export default function ProductCard({ product }) {
       has_variants: hasVariants,
       grid_index: gridIndex,
       location: "shop_grid",
-      // optional: track if this card is part of BF promo
-      is_black_friday_eligible: bfEligible,
-      is_black_friday_active: bfActive,
+      is_summer_sale: isSummerSale,
+      sale_price_cents: salePriceCents,
     });
   }, [
     product.id,
@@ -111,8 +107,8 @@ export default function ProductCard({ product }) {
     hasVariants,
     gridIndex,
     isLowStock,
-    bfEligible,
-    bfActive,
+    isSummerSale,
+    salePriceCents,
   ]);
 
   function handleAdd(e) {
@@ -127,19 +123,22 @@ export default function ProductCard({ product }) {
         ? product.priceCents / 100
         : undefined;
 
-    // 🔹 GA: add_to_cart
+    const finalPriceNumber =
+      typeof salePriceCents === "number" ? salePriceCents / 100 : priceNumber;
+
     trackAddToCart({
       productId: product.id,
       title: product.title,
-      price: priceNumber,
+      price: finalPriceNumber,
+      originalPrice,
+      salePrice,
       variant: v?.name || null,
       category: product.category || null,
       inventoryRemaining: typeof v?.onHand === "number" ? v.onHand : null,
       isLowStock,
       gridIndex,
       location: "shop_grid",
-      isBlackFridayEligible: bfEligible,
-      isBlackFridayActive: bfActive,
+      isSummerSale,
     });
 
     add({
@@ -152,13 +151,13 @@ export default function ProductCard({ product }) {
   function handlePickVariant(e, id, disabled) {
     e.preventDefault();
     e.stopPropagation();
+
     if (disabled) return;
 
     setSelectedId(id);
 
     const variant = variants.find((v) => v.id === id);
 
-    // 🔹 GA: variant_select
     trackEvent("variant_select", {
       product_id: product.id,
       product_slug: product.slug,
@@ -168,11 +167,11 @@ export default function ProductCard({ product }) {
         typeof variant?.onHand === "number" ? variant.onHand : null,
       grid_index: gridIndex,
       location: "shop_grid",
+      is_summer_sale: isSummerSale,
     });
   }
 
   function handleCardClick() {
-    // 🔹 GA: product_card_click
     trackEvent("product_card_click", {
       product_id: product.id,
       product_slug: product.slug,
@@ -181,8 +180,8 @@ export default function ProductCard({ product }) {
       has_variants: hasVariants,
       grid_index: gridIndex,
       location: "shop_grid",
-      isBlackFridayEligible: bfEligible,
-      isBlackFridayActive: bfActive,
+      is_summer_sale: isSummerSale,
+      sale_price_cents: salePriceCents,
     });
   }
 
@@ -190,21 +189,26 @@ export default function ProductCard({ product }) {
     <a
       href={`/shop/${product.slug}`}
       onClick={handleCardClick}
-      className="relative card bg-white border hover:shadow-lg transition"
+      className="relative card bg-white border hover:shadow-lg transition overflow-hidden"
     >
-      {/* 🔹 Black Friday BOGO badge */}
-      {showBogoBadge && (
-        <div className="absolute top-2 left-2 z-10">
-          <span
-            className="bg-black text-white text-[10px] font-semibold uppercase px-2 py-1 rounded shadow-sm 
-                 whitespace-nowrap tracking-tight"
-          >
-            BLACK FRIDAY • BOGO 50% OFF
-          </span>
+      {/* Badges */}
+      {(isSummerSale || isLowStock) && (
+        <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1">
+          {isSummerSale && (
+            <span className="bg-amber-400 text-amber-950 text-[10px] font-bold uppercase px-2 py-1 rounded shadow-sm whitespace-nowrap tracking-tight">
+              Summer Sale
+            </span>
+          )}
+
+          {isLowStock && (
+            <span className="bg-rose-100 text-rose-700 text-[10px] font-semibold uppercase px-2 py-1 rounded shadow-sm whitespace-nowrap tracking-tight">
+              Low Stock
+            </span>
+          )}
         </div>
       )}
 
-      <figure className="aspect-square overflow-hidden">
+      <figure className="aspect-square overflow-hidden bg-base-100">
         {img ? (
           img.publicId ? (
             <CldImage
@@ -215,6 +219,7 @@ export default function ProductCard({ product }) {
               gravity="auto"
               alt={img.alt ?? product.title}
               sizes="(max-width:768px) 100vw, (max-width:1024px) 50vw, 33vw"
+              className="h-full w-full object-cover"
             />
           ) : (
             <img
@@ -231,14 +236,30 @@ export default function ProductCard({ product }) {
         )}
       </figure>
 
-      <div className="card-body p-3">
+      <div className="card-body p-3 pb-14">
         <h3 className="font-semibold leading-tight line-clamp-2">
           {product.title}
         </h3>
+
         {product.subtitle ? (
           <p className="text-xs opacity-70 line-clamp-1">{product.subtitle}</p>
         ) : null}
-        <div className="mt-2 font-medium">{product._price}</div>
+
+        {/* Price display */}
+        <div className="mt-2 min-h-[1.75rem]">
+          {isSummerSale && salePrice ? (
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-sm text-base-content/45 line-through">
+                {originalPrice}
+              </span>
+              <span className="text-lg font-bold text-amber-700">
+                {salePrice}
+              </span>
+            </div>
+          ) : (
+            <div className="font-medium">{product._price}</div>
+          )}
+        </div>
 
         {/* Variant swatches */}
         {hasVariants && (
@@ -246,6 +267,7 @@ export default function ProductCard({ product }) {
             {variants.map((v) => {
               const out = v.onHand <= 0;
               const selected = selectedId === v.id;
+
               return (
                 <button
                   key={v.id}
@@ -277,8 +299,10 @@ export default function ProductCard({ product }) {
         onClick={handleAdd}
         disabled={!canAdd}
         className={[
-          "absolute bottom-3 right-3 rounded-full text-white text-sm px-3 py-1.5 shadow-md active:scale-95",
-          canAdd ? "bg-pink-300" : "bg-gray-300 cursor-not-allowed",
+          "absolute bottom-3 right-3 rounded-full text-white text-sm px-3 py-1.5 shadow-md active:scale-95 transition",
+          canAdd
+            ? "bg-pink-300 hover:bg-pink-400"
+            : "bg-gray-300 cursor-not-allowed",
         ].join(" ")}
         aria-label={
           hasVariants && !selectedVariant ? "Select a color" : "Add to cart"

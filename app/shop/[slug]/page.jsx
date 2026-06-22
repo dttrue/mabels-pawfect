@@ -3,7 +3,11 @@ import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { centsToUSD } from "@/lib/money";
 import ProductSizeGuide from "@/components/shop/ProductSizeGuide";
-import ProductImageGallery from "@/components/shop/ProductImageGallery"; // 👈 NEW
+import ProductImageGallery from "@/components/shop/ProductImageGallery";
+import {
+  isSummerSaleActive,
+  getSummerSalePriceCents,
+} from "@/lib/summerSaleHelpers";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +23,7 @@ export default async function ProductPage(props) {
     where: { slug },
     include: {
       images: {
-        where: { deletedAt: null }, // ignore soft-deleted
+        where: { deletedAt: null },
         orderBy: { sort: "asc" },
       },
       categories: { select: { name: true, slug: true } },
@@ -27,6 +31,15 @@ export default async function ProductPage(props) {
   });
 
   if (!product) return notFound();
+
+  const summerSaleActive = isSummerSaleActive();
+  const salePriceCents = summerSaleActive
+    ? getSummerSalePriceCents(product.slug, product.priceCents)
+    : null;
+
+  const isSummerSale = Boolean(salePriceCents);
+  const originalPrice = centsToUSD(product.priceCents);
+  const salePrice = salePriceCents ? centsToUSD(salePriceCents) : null;
 
   const hasWeight = typeof product.weightOz === "number";
   const hasDims =
@@ -69,14 +82,41 @@ export default async function ProductPage(props) {
 
         {/* Info */}
         <div>
+          {isSummerSale && (
+            <div className="mb-3">
+              <span className="inline-flex rounded-full bg-amber-400 px-3 py-1 text-xs font-bold uppercase tracking-tight text-amber-950 shadow-sm">
+                Summer Sale
+              </span>
+            </div>
+          )}
+
           <h1 className="text-3xl font-bold mb-2">{product.title}</h1>
+
           {product.subtitle && (
             <p className="text-base-content/70 mb-4">{product.subtitle}</p>
           )}
 
-          <p className="text-xl font-semibold mb-4">
-            {centsToUSD(product.priceCents)}
-          </p>
+          {/* Price */}
+          <div className="mb-4">
+            {isSummerSale && salePrice ? (
+              <div className="flex items-baseline gap-3">
+                <span className="text-lg text-base-content/45 line-through">
+                  {originalPrice}
+                </span>
+                <span className="text-2xl font-bold text-amber-700">
+                  {salePrice}
+                </span>
+              </div>
+            ) : (
+              <p className="text-xl font-semibold">{originalPrice}</p>
+            )}
+          </div>
+
+          {isSummerSale && (
+            <p className="mb-4 text-sm font-medium text-amber-700">
+              Marked down for our Summer Toy Clearout. While supplies last.
+            </p>
+          )}
 
           {product.description && (
             <p className="mb-6 whitespace-pre-line">{product.description}</p>

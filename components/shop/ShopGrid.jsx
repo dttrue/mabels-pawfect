@@ -4,11 +4,9 @@ import { centsToUSD } from "@/lib/money";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopFilterBar from "@/components/shop/ShopFilterBar";
 import {
-  isBlackFridayActive,
-  isBlackFridayEligibleSlug,
-} from "@/lib/blackFridayHelpers";
-import { BLACK_FRIDAY_PROMO } from "@/lib/blackFridayConfig";
-import BlackFridayCountdown from "@/components/specials/BlackFridayCountdown";
+  isSummerSaleActive,
+  getSummerSalePriceCents,
+} from "@/lib/summerSaleHelpers";
 
 export const dynamic = "force-dynamic";
 
@@ -64,57 +62,77 @@ export default async function ShopGrid({
     take: 24,
   });
 
-  // 🔹 Black Friday flags
-  const bfActive = isBlackFridayActive();
-  const bfOnlySet = new Set(BLACK_FRIDAY_PROMO.bfOnlySlugs || []);
+  // ☀️ Summer Toy Clearout flags
+  const summerSaleActive = isSummerSaleActive();
 
-  // Merge variants with inventory counts
+  // Merge variants with inventory counts + sale pricing
   const baseItems = products.map((p) => {
     const invMap = Object.fromEntries(
       p.inventory.map((r) => [r.variantId, r.onHand])
     );
 
+    const productSalePriceCents = summerSaleActive
+      ? getSummerSalePriceCents(p.slug, p.priceCents)
+      : null;
+
+    const _isSummerSale = Boolean(productSalePriceCents);
+
     const _variants =
       (p.variants || [])
         .filter((v) => v.active !== false)
-        .map((v) => ({
-          id: v.id,
-          name: v.name,
-          priceCents: v.priceCents ?? p.priceCents,
-          onHand: invMap[v.id] ?? 0,
-        })) || [];
+        .map((v) => {
+          const originalPriceCents = v.priceCents ?? p.priceCents;
 
-    const _isBlackFriday = bfActive && isBlackFridayEligibleSlug(p.slug);
-    const _isBlackFridayOnly = _isBlackFriday && bfOnlySet.has(p.slug);
+          const variantSalePriceCents = summerSaleActive
+            ? getSummerSalePriceCents(p.slug, originalPriceCents)
+            : null;
+
+          return {
+            id: v.id,
+            name: v.name,
+            priceCents: originalPriceCents,
+            originalPriceCents,
+            salePriceCents: variantSalePriceCents,
+            isSummerSale: Boolean(variantSalePriceCents),
+            onHand: invMap[v.id] ?? 0,
+          };
+        }) || [];
 
     return {
       ...p,
+
+      // Normal price
       _price: centsToUSD(p.priceCents),
+
+      // Summer sale display values
+      _isSummerSale,
+      _originalPrice: centsToUSD(p.priceCents),
+      _salePrice: productSalePriceCents
+        ? centsToUSD(productSalePriceCents)
+        : null,
+      _salePriceCents: productSalePriceCents,
+
       _variants,
-      _isBlackFriday,
-      _isBlackFridayOnly,
     };
   });
 
-  // 🔹 When BF is active, bubble BF toys to the top of the grid
-  const items = bfActive
+  // ☀️ When summer sale is active, bubble sale toys to the top
+  const items = summerSaleActive
     ? [...baseItems].sort((a, b) => {
-        const aBF = a._isBlackFriday ? 1 : 0;
-        const bBF = b._isBlackFriday ? 1 : 0;
-        return bBF - aBF;
+        const aSale = a._isSummerSale ? 1 : 0;
+        const bSale = b._isSummerSale ? 1 : 0;
+        return bSale - aSale;
       })
     : baseItems;
 
   return (
     <main className="mx-auto w-full max-w-7xl px-3 sm:px-4 pb-20 pt-6 md:pt-8">
-      {/* ❄️ Reusable Snow Component */}
-      
-
       {/* Header */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between gap-3">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
           {title}
         </h1>
+
         {showBackLink && (
           <a
             href="/"
@@ -134,17 +152,18 @@ export default async function ShopGrid({
             query={query}
             inStockOnly={inStockOnly}
           />
+
           <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs sm:text-sm text-base-content/70">
             <span>
               {items.length} result{items.length === 1 ? "" : "s"}
               {query ? <> • “{query}”</> : null}
             </span>
 
-            {/* 🔹 Black Friday helper text */}
-            {bfActive && (
-              <span className="text-[11px] sm:text-xs font-medium text-black">
-                🖤 Black Friday: Buy 1, Get 1 50% Off on eligible toys. Mix &
-                match any marked item. Gift Box toy is Black Friday only.
+            {/* ☀️ Summer Sale helper text */}
+            {summerSaleActive && (
+              <span className="text-[11px] sm:text-xs font-medium text-amber-700">
+                ☀️ Summer Toy Clearout: select toys marked down while supplies
+                last.
               </span>
             )}
 
@@ -159,9 +178,6 @@ export default async function ShopGrid({
           </div>
         </div>
       </div>
-
-      {/* ⏳ Black Friday countdown just under filters */}
-      {bfActive && <BlackFridayCountdown />}
 
       {/* Responsive grid with auto-fit columns */}
       <div
@@ -186,8 +202,10 @@ export default async function ShopGrid({
                 ...p,
                 _index: i,
                 _lowStock: isLowStock,
-                _isBlackFriday: p._isBlackFriday,
-                _isBlackFridayOnly: p._isBlackFridayOnly,
+                _isSummerSale: p._isSummerSale,
+                _originalPrice: p._originalPrice,
+                _salePrice: p._salePrice,
+                _salePriceCents: p._salePriceCents,
               }}
             />
           );

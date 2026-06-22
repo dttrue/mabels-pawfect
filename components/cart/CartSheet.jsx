@@ -9,7 +9,7 @@ function money(cents) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-  }).format(cents / 100);
+  }).format((cents || 0) / 100);
 }
 
 // ✅ Normalize slug so it matches backend/config slugs
@@ -31,6 +31,10 @@ function getCartIdFromCookie() {
 }
 
 // ✅ Helper to build items payload safely (with SLUG)
+// IMPORTANT:
+// - Cart display may use sale price in it.priceCents.
+// - Checkout should receive the original/base price when available.
+// - Checkout route then applies Summer Sale once.
 function buildItemsPayload(cart) {
   return (cart?.items || []).map((it) => {
     const product = it.product || {};
@@ -38,7 +42,6 @@ function buildItemsPayload(cart) {
 
     const name = product.title + (variant.name ? ` (${variant.name})` : "");
 
-    // Try several sources for slug, then normalize
     const rawSlug =
       it.slug ||
       product.slug ||
@@ -49,18 +52,23 @@ function buildItemsPayload(cart) {
 
     const slug = normalizeSlug(rawSlug);
 
+    const originalUnitAmount =
+      typeof it.originalPriceCents === "number"
+        ? it.originalPriceCents
+        : it.priceCents;
+
     return {
       productId: it.productId || product.id || "",
       variantId: it.variantId || variant.id || "",
       name,
-      slug, // 🔥 used by buildLineItemsWithBogo50 on the server
-      unitAmount: Math.round(it.priceCents || 0),
+      slug,
+      unitAmount: Math.round(originalUnitAmount || 0),
       quantity: Math.max(1, Math.floor(it.qty || 1)),
     };
   });
 }
 
-// ✅ Updated CheckoutButton
+// ✅ CheckoutButton
 function CheckoutButton({ cart, cartIsEmpty }) {
   const [busy, setBusy] = useState(false);
 
@@ -169,53 +177,91 @@ export default function CartSheet() {
                     <div className="py-10 text-center">Loading…</div>
                   ) : cart.items?.length ? (
                     <div className="space-y-4">
-                      {cart.items.map((it) => (
-                        <div key={it.id} className="flex gap-3">
-                          <img
-                            src={it.product.imageUrl || "/placeholder.png"}
-                            alt={it.product.title}
-                            className="w-16 h-16 rounded object-cover bg-gray-100"
-                          />
-                          <div className="flex-1">
-                            <div className="font-medium">
-                              {it.product.title}
-                            </div>
-                            {it.variant?.name && (
-                              <div className="text-xs opacity-70">
-                                {it.variant.name}
+                      {cart.items.map((it) => {
+                        const isSummerSale = Boolean(it.isSummerSale);
+                        const originalPriceCents =
+                          typeof it.originalPriceCents === "number"
+                            ? it.originalPriceCents
+                            : it.priceCents;
+                        const salePriceCents =
+                          typeof it.salePriceCents === "number"
+                            ? it.salePriceCents
+                            : isSummerSale
+                              ? it.priceCents
+                              : null;
+
+                        return (
+                          <div key={it.id} className="flex gap-3">
+                            <img
+                              src={it.product.imageUrl || "/placeholder.png"}
+                              alt={it.product.title}
+                              className="w-16 h-16 rounded object-cover bg-gray-100"
+                            />
+
+                            <div className="flex-1">
+                              <div className="font-medium">
+                                {it.product.title}
                               </div>
-                            )}
-                            <div className="text-sm">
-                              {money(it.priceCents)}
-                            </div>
-                            <div className="mt-2 flex items-center gap-2">
-                              <button
-                                className="px-2 py-1 rounded bg-gray-100"
-                                onClick={() =>
-                                  updateQty(it.id, Math.max(1, it.qty - 1))
-                                }
-                              >
-                                −
-                              </button>
-                              <span className="min-w-6 text-center">
-                                {it.qty}
-                              </span>
-                              <button
-                                className="px-2 py-1 rounded bg-gray-100"
-                                onClick={() => updateQty(it.id, it.qty + 1)}
-                              >
-                                +
-                              </button>
-                              <button
-                                className="ml-2 text-red-600 text-sm"
-                                onClick={() => remove(it.id)}
-                              >
-                                Remove
-                              </button>
+
+                              {it.variant?.name && (
+                                <div className="text-xs opacity-70">
+                                  {it.variant.name}
+                                </div>
+                              )}
+
+                              <div className="text-sm">
+                                {isSummerSale && salePriceCents ? (
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-xs text-gray-400 line-through">
+                                      {money(originalPriceCents)}
+                                    </span>
+                                    <span className="font-medium text-green-700">
+                                      {money(salePriceCents)}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span>{money(it.priceCents)}</span>
+                                )}
+                              </div>
+
+                              {isSummerSale && (
+                                <div className="mt-0.5 text-[11px] font-medium text-green-700">
+                                  Summer sale
+                                </div>
+                              )}
+
+                              <div className="mt-2 flex items-center gap-2">
+                                <button
+                                  className="px-2 py-1 rounded bg-gray-100"
+                                  onClick={() =>
+                                    updateQty(it.id, Math.max(1, it.qty - 1))
+                                  }
+                                >
+                                  −
+                                </button>
+
+                                <span className="min-w-6 text-center">
+                                  {it.qty}
+                                </span>
+
+                                <button
+                                  className="px-2 py-1 rounded bg-gray-100"
+                                  onClick={() => updateQty(it.id, it.qty + 1)}
+                                >
+                                  +
+                                </button>
+
+                                <button
+                                  className="ml-2 text-red-600 text-sm"
+                                  onClick={() => remove(it.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="py-10 text-center opacity-70">
@@ -242,7 +288,7 @@ export default function CartSheet() {
 
                         {discount > 0 && (
                           <div className="mt-1 flex justify-between text-sm text-green-700">
-                            <span>Black Friday savings</span>
+                            <span>Summer sale discount</span>
                             <span>-{money(discount)}</span>
                           </div>
                         )}
@@ -256,7 +302,6 @@ export default function CartSheet() {
                           Taxes &amp; shipping calculated at checkout.
                         </p>
 
-                        {/* ✅ Checkout button */}
                         <CheckoutButton
                           cart={cart}
                           cartIsEmpty={!cart.items?.length}

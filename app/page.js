@@ -16,9 +16,11 @@ import ValentinesSpecials from "@/components/specials/ValentinesSpecials";
 import AnnouncementBlock from "@/components/AnnouncementBlock";
 import RenaissanceSeasonSpecials from "@/components/specials/RenaissanceSeasonSpecials";
 import { getSeasonFlags } from "@/lib/seasonUtils";
+import { isSummerSaleActive } from "@/lib/summerSaleHelpers";
 import MedievalRainOverlay from "@/components/MedievalRainOverlay";
 import SnowOverlay from "@/components/SnowOverlay";
 import SpringOverlay from "@/components/SpringOverlay";
+
 export default function Home() {
   const FORCE_SEASON = (process.env.NEXT_PUBLIC_FORCE_SEASON || "")
     .trim()
@@ -34,6 +36,8 @@ export default function Home() {
     isRenaissance,
   } = getSeasonFlags(FORCE_SEASON);
 
+  const summerSaleActive = isSummerSaleActive();
+
   return (
     <>
       {isRenaissance && <MedievalRainOverlay count={40} />}
@@ -42,7 +46,9 @@ export default function Home() {
 
       <div className="relative z-10">
         <HeroSection isSummer={isSummer} />
-        <ShopCTA />
+
+        <ShopCTA summerSaleActive={summerSaleActive} />
+
         <AboutSection />
 
         {/* Training & credentials promo */}

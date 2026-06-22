@@ -1,8 +1,13 @@
 // app/api/shop/checkout/route.js
 import Stripe from "stripe";
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { BLACK_FRIDAY_PROMO } from "@/lib/blackFridayConfig";
+import {
+  isSummerSaleActive,
+  getSummerSalePriceCents,
+} from "@/lib/summerSaleHelpers";
+import { SUMMER_TOY_CLEAROUT } from "@/lib/summerSaleConfig";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ✅ Manual NJ sales tax for TOYS ONLY (line items)
@@ -14,13 +19,15 @@ const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
  * Build an absolute base URL from request Host header (preferred)
  * with fallback to NEXT_PUBLIC_APP_URL, then localhost.
  */
-function getAppBase() {
+async function getAppBase() {
   try {
-    const h = headers();
+    const h = await headers();
     const host = h.get("host");
     const proto = h.get("x-forwarded-proto") || "https";
-    if (host) return `${proto}://${host}`;
+
+    if (host) return `${proto}://${host}`.replace(/\/+$/, "");
   } catch {}
+
   return (
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ||
     "http://localhost:3000"
@@ -28,119 +35,70 @@ function getAppBase() {
 }
 
 /**
- * 🔥 Black Friday BOGO 50% OFF helper
- *
- * - Expands cart into per-unit list
- * - Sorts by price DESC
- * - Applies 50% off to the *second* most expensive unit
- * - Rebuilds Stripe line_items with:
- *    • all other units at full price
- *    • ONE unit at half price
- * - Preserves quantity grouping where possible
+ * Plain Stripe line items with no sale pricing.
  */
-function buildLineItemsWithBogo50(items, taxRateId) {
-  const eligibleSlugs = Array.isArray(BLACK_FRIDAY_PROMO?.eligibleSlugs)
-    ? new Set(BLACK_FRIDAY_PROMO.eligibleSlugs)
-    : null;
+function buildPlainLineItems(items, taxRateId) {
+  return items.map((i) => ({
+    price_data: {
+      currency: "usd",
+      unit_amount: i.unitAmount,
+      product_data: {
+        name: i.name,
+        metadata: {
+          productId: i.productId || "",
+          variantId: i.variantId || "",
+          slug: i.slug || "",
+        },
+      },
+    },
+    quantity: i.quantity,
+    ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
+  }));
+}
 
-  // Helper: plain, no-discount line items
-  const buildPlainLineItems = () =>
-    items.map((i) => ({
+/**
+ * ☀️ Summer Toy Clearout helper
+ *
+ * - Looks up sale price by product slug
+ * - Only applies sale price if it is lower than the incoming price
+ * - Keeps non-sale products at normal price
+ */
+function buildLineItemsWithSummerSale(items, taxRateId) {
+  return items.map((i) => {
+    const salePriceCents = i.slug
+      ? getSummerSalePriceCents(i.slug, i.unitAmount)
+      : null;
+
+    const unitAmount =
+      Number.isInteger(salePriceCents) &&
+      salePriceCents > 0 &&
+      salePriceCents < i.unitAmount
+        ? salePriceCents
+        : i.unitAmount;
+
+    const isOnSale = unitAmount !== i.unitAmount;
+
+    return {
       price_data: {
         currency: "usd",
-        unit_amount: i.unitAmount,
+        unit_amount: unitAmount,
         product_data: {
-          name: i.name,
+          name: isOnSale ? `${i.name} — Summer Sale` : i.name,
           metadata: {
             productId: i.productId || "",
             variantId: i.variantId || "",
+            slug: i.slug || "",
+            originalUnitAmount: String(i.unitAmount),
+            saleUnitAmount: isOnSale ? String(unitAmount) : "",
+            campaign: isOnSale ? SUMMER_TOY_CLEAROUT.campaign : "",
           },
         },
       },
       quantity: i.quantity,
       ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
-    }));
-
-  // If we somehow have no config, just bail to normal pricing
-  if (!eligibleSlugs) {
-    return buildPlainLineItems();
-  }
-
-  // 🔥 Build unit list **only from eligible items**
-  const unitList = [];
-  items.forEach((item, idx) => {
-    const slug = item.slug;
-    const isEligible = slug && eligibleSlugs.has(slug);
-
-    if (!isEligible) return;
-
-    for (let q = 0; q < item.quantity; q++) {
-      unitList.push({ idx, unitAmount: item.unitAmount });
-    }
-  });
-
-  // Fewer than 2 eligible units → no BOGO at all
-  if (unitList.length < 2) {
-    return buildPlainLineItems();
-  }
-
-  // Sort eligible units by price DESC so “buy 1, get 2nd of equal/lesser value 50% off”
-  unitList.sort((a, b) => b.unitAmount - a.unitAmount);
-
-  // Mark discounted units: every 2nd unit in each pair (1–2, 3–4, 5–6, …)
-  const discountedCountByItem = new Map(); // idx -> count
-  for (let i = 1; i < unitList.length; i += 2) {
-    const { idx } = unitList[i];
-    discountedCountByItem.set(idx, (discountedCountByItem.get(idx) || 0) + 1);
-  }
-
-  const lineItems = [];
-
-  items.forEach((item, idx) => {
-    const discountedQty = discountedCountByItem.get(idx) || 0;
-    const fullQty = item.quantity - discountedQty;
-
-    const baseProduct = {
-      product_data: {
-        name: item.name,
-        metadata: {
-          productId: item.productId || "",
-          variantId: item.variantId || "",
-        },
-      },
     };
-
-    // Full-price units (includes all non-eligible toys)
-    if (fullQty > 0) {
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          unit_amount: item.unitAmount,
-          ...baseProduct,
-        },
-        quantity: fullQty,
-        ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
-      });
-    }
-
-    // 50%-off units (eligible items only)
-    if (discountedQty > 0) {
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          unit_amount: Math.round(item.unitAmount / 2),
-          ...baseProduct,
-        },
-        quantity: discountedQty,
-        ...(taxRateId ? { tax_rates: [taxRateId] } : {}),
-      });
-    }
   });
-
-  return lineItems;
 }
-
-
 
 export async function POST(req) {
   // Basic key presence check
@@ -153,13 +111,15 @@ export async function POST(req) {
   }
 
   let body;
+
   try {
     body = await req.json();
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const { cartId, items, successUrl, cancelUrl } = body || {};
+
   if (!cartId || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json(
       { error: "Missing cart or items" },
@@ -185,7 +145,7 @@ export async function POST(req) {
     }
   }
 
-  const appBase = getAppBase();
+  const appBase = await getAppBase();
 
   // Mode safety: prevent test key on prod domain & vice-versa
   const keyIsTest = process.env.STRIPE_SECRET_KEY.startsWith("sk_test_");
@@ -193,7 +153,9 @@ export async function POST(req) {
     .replace(/^https?:\/\//, "")
     .replace(/\/.*$/, "")
     .toLowerCase();
+
   const looksProd = /^(www\.)?mabelspawfectpetservices\.com$/.test(domain);
+
   if (keyIsTest && looksProd) {
     return NextResponse.json(
       { error: "Stripe mode mismatch (test key + prod domain)" },
@@ -201,7 +163,9 @@ export async function POST(req) {
     );
   }
 
-  // 🧮 Cart subtotal in cents (pre-discount, for shipping thresholds)
+  const summerSaleActive = isSummerSaleActive();
+
+  // 🧮 Cart subtotal in cents, pre-discount, for shipping thresholds
   const subtotalCents = items.reduce(
     (sum, i) => sum + i.unitAmount * i.quantity,
     0
@@ -211,11 +175,12 @@ export async function POST(req) {
   const standardRate = process.env.STRIPE_RATE_STANDARD?.trim() || null;
   const freeRate = process.env.STRIPE_RATE_FREE?.trim() || null;
 
-  // Threshold in cents (default: $75 if not set)
+  // Threshold in cents, default $75
   const FREE_SHIP_THRESHOLD =
     Number(process.env.STRIPE_FREE_SHIP_THRESHOLD) || 7500;
 
   console.log("[checkout] subtotal (cents):", subtotalCents);
+  console.log("[checkout] summer sale active:", summerSaleActive);
   console.log("[checkout] STRIPE_RATE_STANDARD:", standardRate || "(none)");
   console.log("[checkout] STRIPE_RATE_FREE:", freeRate || "(none)");
   console.log("[checkout] FREE_SHIP_THRESHOLD (cents):", FREE_SHIP_THRESHOLD);
@@ -227,8 +192,8 @@ export async function POST(req) {
   const qualifiesForFree = !!freeRate && subtotalCents >= FREE_SHIP_THRESHOLD;
 
   // Build shipping_options:
-  // - < $75  -> standard only
-  // - >= $75 -> free only
+  // - < threshold  -> standard only
+  // - >= threshold -> free only
   let shipping_options = [];
 
   if (qualifiesForFree) {
@@ -242,8 +207,9 @@ export async function POST(req) {
   }
 
   try {
-    // 🔥 Apply Black Friday BOGO 50% OFF to line items (products)
-    const lineItems = buildLineItemsWithBogo50(items, TAX_RATE_NJ);
+    const lineItems = summerSaleActive
+      ? buildLineItemsWithSummerSale(items, TAX_RATE_NJ)
+      : buildPlainLineItems(items, TAX_RATE_NJ);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -258,7 +224,9 @@ export async function POST(req) {
       metadata: {
         orderType: "shop",
         cartId: String(cartId),
-        campaign: "BLACK_FRIDAY_BOGO_50",
+        campaign: summerSaleActive
+          ? SUMMER_TOY_CLEAROUT.campaign
+          : "STANDARD_SHOP_CHECKOUT",
       },
 
       success_url:
@@ -269,7 +237,6 @@ export async function POST(req) {
 
     return NextResponse.json({ url: session.url }, { status: 200 });
   } catch (err) {
-    // Stripe error transparency for server logs
     const detail = {
       type: err?.type,
       code: err?.code,
@@ -279,7 +246,9 @@ export async function POST(req) {
       rawType: err?.rawType,
       http_status: err?.statusCode,
     };
+
     console.error("[checkout] Stripe error:", detail);
+
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }
