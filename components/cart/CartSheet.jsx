@@ -2,8 +2,10 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Dialog, Transition } from "@headlessui/react";
 import { useCart } from "./CartContext";
+import { createEmployeeCheckoutAction } from "@/app/admin1313/employee-store/actions";
 
 function money(cents) {
   return new Intl.NumberFormat("en-US", {
@@ -12,9 +14,9 @@ function money(cents) {
   }).format((cents || 0) / 100);
 }
 
-// ✅ Normalize slug so it matches backend/config slugs
 function normalizeSlug(raw) {
   if (!raw) return "";
+
   return String(raw)
     .toLowerCase()
     .trim()
@@ -24,52 +26,46 @@ function normalizeSlug(raw) {
     .replace(/(^-|-$)/g, "");
 }
 
-// ✅ Helper to read cart_id cookie (fallback)
 function getCartIdFromCookie() {
-  const m = document.cookie.match(/(?:^|;\s*)cart_id=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
+  const match = document.cookie.match(/(?:^|;\s*)cart_id=([^;]+)/);
+
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
-// ✅ Helper to build items payload safely (with SLUG)
-// IMPORTANT:
-// - Cart display may use sale price in it.priceCents.
-// - Checkout should receive the original/base price when available.
-// - Checkout route then applies Summer Sale once.
+// The cart may display a sale price, but checkout receives the original
+// price so the server can apply the active sale exactly once.
 function buildItemsPayload(cart) {
-  return (cart?.items || []).map((it) => {
-    const product = it.product || {};
-    const variant = it.variant || {};
+  return (cart?.items || []).map((item) => {
+    const product = item.product || {};
+    const variant = item.variant || {};
 
     const name = product.title + (variant.name ? ` (${variant.name})` : "");
 
     const rawSlug =
-      it.slug ||
+      item.slug ||
       product.slug ||
       (typeof product.slug === "object" && product.slug.current) ||
       product.handle ||
       product.title ||
       name;
 
-    const slug = normalizeSlug(rawSlug);
-
     const originalUnitAmount =
-      typeof it.originalPriceCents === "number"
-        ? it.originalPriceCents
-        : it.priceCents;
+      typeof item.originalPriceCents === "number"
+        ? item.originalPriceCents
+        : item.priceCents;
 
     return {
-      productId: it.productId || product.id || "",
-      variantId: it.variantId || variant.id || "",
+      productId: item.productId || product.id || "",
+      variantId: item.variantId || variant.id || "",
       name,
-      slug,
+      slug: normalizeSlug(rawSlug),
       unitAmount: Math.round(originalUnitAmount || 0),
-      quantity: Math.max(1, Math.floor(it.qty || 1)),
+      quantity: Math.max(1, Math.floor(item.qty || 1)),
     };
   });
 }
 
-// ✅ CheckoutButton
-function CheckoutButton({ cart, cartIsEmpty }) {
+function CheckoutButton({ cart, cartIsEmpty, employeeCheckout }) {
   const [busy, setBusy] = useState(false);
 
   async function handleCheckout() {
@@ -85,53 +81,80 @@ function CheckoutButton({ cart, cartIsEmpty }) {
         return;
       }
 
+      if (employeeCheckout) {
+        const result = await createEmployeeCheckoutAction({
+          cartId,
+          items,
+        });
+
+        if (!result?.url) {
+          throw new Error("Employee checkout did not return a Stripe URL.");
+        }
+
+        window.location.href = result.url;
+        return;
+      }
+
       const payload = {
         cartId,
         items,
-        successUrl: `${location.origin}/success`,
-        cancelUrl: `${location.origin}/shop`,
+        successUrl: `${window.location.origin}/success`,
+        cancelUrl: `${window.location.origin}/shop`,
+        employeeCheckout: false,
       };
 
-      const res = await fetch("/api/shop/checkout", {
+      const response = await fetch("/api/shop/checkout", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+        },
         cache: "no-store",
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({}));
 
-      if (res.ok && data?.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data?.error || "Checkout failed");
-        setBusy(false);
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.error || "Checkout failed");
       }
-    } catch (e) {
-      console.error("[checkout] client error:", e);
-      alert("Checkout failed");
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("[checkout] client error:", error);
+
+      alert(error?.message || "Checkout failed. Please try again.");
+
       setBusy(false);
     }
   }
 
   return (
     <button
+      type="button"
       disabled={busy || cartIsEmpty}
       onClick={handleCheckout}
-      className="mt-3 inline-flex w-full items-center justify-center rounded bg-green-500 px-4 py-3 font-medium text-white disabled:opacity-60 active:scale-[0.99] transition"
+      className="mt-3 inline-flex w-full items-center justify-center rounded bg-green-500 px-4 py-3 font-medium text-white transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {busy ? "Redirecting…" : "Checkout"}
+      {busy
+        ? "Redirecting..."
+        : employeeCheckout
+          ? "Employee Checkout"
+          : "Checkout"}
     </button>
   );
 }
 
 export default function CartSheet() {
+  const pathname = usePathname();
+
+  const employeeCheckout =
+    pathname?.startsWith("/admin1313/employee-store") ?? false;
+
   const { open, setOpen, cart, loading, updateQty, remove } = useCart();
 
   return (
     <Transition show={open} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={() => setOpen(false)}>
-        {/* Backdrop */}
         <Transition.Child
           as={Fragment}
           enter="transition-opacity ease-out duration-200"
@@ -144,7 +167,6 @@ export default function CartSheet() {
           <div className="fixed inset-0 bg-black/40" />
         </Transition.Child>
 
-        {/* Panel */}
         <div className="fixed inset-0 overflow-hidden">
           <div className="absolute inset-y-0 right-0 flex max-w-full">
             <Transition.Child
@@ -156,71 +178,74 @@ export default function CartSheet() {
               leaveFrom="translate-x-0"
               leaveTo="translate-x-full"
             >
-              <Dialog.Panel className="w-screen max-w-md bg-white shadow-xl flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b">
+              <Dialog.Panel className="flex w-screen max-w-md flex-col bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b p-4">
                   <Dialog.Title className="text-lg font-semibold">
-                    Your Cart
+                    {employeeCheckout ? "Employee Cart" : "Your Cart"}
                   </Dialog.Title>
+
                   <button
+                    type="button"
                     onClick={() => setOpen(false)}
                     className="inline-flex h-8 w-8 items-center justify-center rounded hover:bg-gray-100"
                     aria-label="Close cart"
                   >
-                    ✕
+                    ×
                   </button>
                 </div>
 
-                {/* Body */}
                 <div className="flex-1 overflow-y-auto p-4">
                   {loading ? (
-                    <div className="py-10 text-center">Loading…</div>
-                  ) : cart.items?.length ? (
+                    <div className="py-10 text-center">Loading...</div>
+                  ) : cart?.items?.length ? (
                     <div className="space-y-4">
-                      {cart.items.map((it) => {
-                        const isSummerSale = Boolean(it.isSummerSale);
+                      {cart.items.map((item) => {
+                        const isSummerSale = Boolean(item.isSummerSale);
+
                         const originalPriceCents =
-                          typeof it.originalPriceCents === "number"
-                            ? it.originalPriceCents
-                            : it.priceCents;
+                          typeof item.originalPriceCents === "number"
+                            ? item.originalPriceCents
+                            : item.priceCents;
+
                         const salePriceCents =
-                          typeof it.salePriceCents === "number"
-                            ? it.salePriceCents
+                          typeof item.salePriceCents === "number"
+                            ? item.salePriceCents
                             : isSummerSale
-                              ? it.priceCents
+                              ? item.priceCents
                               : null;
 
                         return (
-                          <div key={it.id} className="flex gap-3">
+                          <div key={item.id} className="flex gap-3">
                             <img
-                              src={it.product.imageUrl || "/placeholder.png"}
-                              alt={it.product.title}
-                              className="w-16 h-16 rounded object-cover bg-gray-100"
+                              src={item.product?.imageUrl || "/placeholder.png"}
+                              alt={item.product?.title || "Cart item"}
+                              className="h-16 w-16 rounded bg-gray-100 object-cover"
                             />
 
                             <div className="flex-1">
                               <div className="font-medium">
-                                {it.product.title}
+                                {item.product?.title}
                               </div>
 
-                              {it.variant?.name && (
+                              {item.variant?.name && (
                                 <div className="text-xs opacity-70">
-                                  {it.variant.name}
+                                  {item.variant.name}
                                 </div>
                               )}
 
                               <div className="text-sm">
-                                {isSummerSale && salePriceCents ? (
+                                {isSummerSale && salePriceCents !== null ? (
                                   <div className="flex items-baseline gap-2">
                                     <span className="text-xs text-gray-400 line-through">
                                       {money(originalPriceCents)}
                                     </span>
+
                                     <span className="font-medium text-green-700">
                                       {money(salePriceCents)}
                                     </span>
                                   </div>
                                 ) : (
-                                  <span>{money(it.priceCents)}</span>
+                                  <span>{money(item.priceCents)}</span>
                                 )}
                               </div>
 
@@ -232,28 +257,42 @@ export default function CartSheet() {
 
                               <div className="mt-2 flex items-center gap-2">
                                 <button
-                                  className="px-2 py-1 rounded bg-gray-100"
+                                  type="button"
+                                  className="rounded bg-gray-100 px-2 py-1"
                                   onClick={() =>
-                                    updateQty(it.id, Math.max(1, it.qty - 1))
+                                    updateQty(
+                                      item.id,
+                                      Math.max(1, item.qty - 1)
+                                    )
                                   }
+                                  aria-label={`Decrease quantity for ${
+                                    item.product?.title || "cart item"
+                                  }`}
                                 >
                                   −
                                 </button>
 
                                 <span className="min-w-6 text-center">
-                                  {it.qty}
+                                  {item.qty}
                                 </span>
 
                                 <button
-                                  className="px-2 py-1 rounded bg-gray-100"
-                                  onClick={() => updateQty(it.id, it.qty + 1)}
+                                  type="button"
+                                  className="rounded bg-gray-100 px-2 py-1"
+                                  onClick={() =>
+                                    updateQty(item.id, item.qty + 1)
+                                  }
+                                  aria-label={`Increase quantity for ${
+                                    item.product?.title || "cart item"
+                                  }`}
                                 >
                                   +
                                 </button>
 
                                 <button
-                                  className="ml-2 text-red-600 text-sm"
-                                  onClick={() => remove(it.id)}
+                                  type="button"
+                                  className="ml-2 text-sm text-red-600"
+                                  onClick={() => remove(item.id)}
                                 >
                                   Remove
                                 </button>
@@ -270,13 +309,14 @@ export default function CartSheet() {
                   )}
                 </div>
 
-                {/* Footer */}
                 <div className="border-t p-4">
                   {(() => {
-                    const subtotal = cart.totals?.subtotalCents ?? 0;
-                    const discount = cart.totals?.discountCents ?? 0;
+                    const subtotal = cart?.totals?.subtotalCents ?? 0;
+
+                    const discount = cart?.totals?.discountCents ?? 0;
+
                     const total =
-                      cart.totals?.totalCents ??
+                      cart?.totals?.totalCents ??
                       Math.max(0, subtotal - discount);
 
                     return (
@@ -286,25 +326,38 @@ export default function CartSheet() {
                           <span>{money(subtotal)}</span>
                         </div>
 
-                        {discount > 0 && (
+                        {discount > 0 && !employeeCheckout && (
                           <div className="mt-1 flex justify-between text-sm text-green-700">
                             <span>Summer sale discount</span>
                             <span>-{money(discount)}</span>
                           </div>
                         )}
 
-                        <div className="mt-2 flex justify-between text-base font-semibold border-t pt-2">
-                          <span>Total</span>
+                        {employeeCheckout && (
+                          <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                            Your 50% employee discount and free shipping will be
+                            applied automatically at checkout.
+                          </div>
+                        )}
+
+                        <div className="mt-3 flex justify-between border-t pt-3 text-base font-semibold">
+                          <span>
+                            {employeeCheckout ? "Current subtotal" : "Total"}
+                          </span>
+
                           <span>{money(total)}</span>
                         </div>
 
-                        <p className="text-xs opacity-70 mt-1">
-                          Taxes &amp; shipping calculated at checkout.
+                        <p className="mt-1 text-xs opacity-70">
+                          {employeeCheckout
+                            ? "Employee pricing, taxes, and shipping will be finalized at checkout."
+                            : "Taxes and shipping are calculated at checkout."}
                         </p>
 
                         <CheckoutButton
                           cart={cart}
-                          cartIsEmpty={!cart.items?.length}
+                          cartIsEmpty={!cart?.items?.length}
+                          employeeCheckout={employeeCheckout}
                         />
                       </>
                     );

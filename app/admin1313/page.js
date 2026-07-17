@@ -1,4 +1,4 @@
-// app/admin/page.js
+// app/admin1313/page.js
 
 import NewsletterDashboard from "@/components/dashboard/AdminDashboard";
 

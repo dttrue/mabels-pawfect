@@ -1,14 +1,16 @@
-// components/dashboard/NewsletterDashboard.jsx
+// components/dashboard/AdminDashboard.jsx
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import axios from "axios";
 import NewsletterAdminForm from "@/components/dashboard/NewsletterAdminForm";
 import ImagePreviewModal from "@/components/modals/ImagePreviewModal";
 import OvernightBlocker from "@/components/dashboard/OvernightBlocker";
 import GalleryDashboard from "@/components/dashboard/GalleryDashboard";
 import ToggleSection from "@/components/common/ToggleSection";
-import ProductAndImageUploader from "@/components/dashboard/ProductAndImageUploader";import SiteImageUploader from "@/components/dashboard/SiteImageUploader";
+import ProductAndImageUploader from "@/components/dashboard/ProductAndImageUploader";
+import SiteImageUploader from "@/components/dashboard/SiteImageUploader";
 import SiteImageList from "@/components/dashboard/SiteImageList";
 import ContestUploader from "@/components/dashboard/ContestUploader";
 import ContestList from "@/components/dashboard/ContestList";
@@ -71,6 +73,28 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-12 max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-center">🛠️ Admin Dashboard</h1>
+
+      <section className="rounded-xl border border-green-200 bg-green-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-green-950">
+              Bridget Employee Store
+            </h2>
+
+            <p className="mt-1 text-sm text-green-900/75">
+              Shop available products with the automatic 50% employee discount
+              and free shipping.
+            </p>
+          </div>
+
+          <Link
+            href="/admin1313/employee-store"
+            className="btn btn-success whitespace-nowrap"
+          >
+            Open Employee Store
+          </Link>
+        </div>
+      </section>
 
       {/* Newsletters */}
       <NewsletterAdminForm onSuccess={fetchNewsletters} />
@@ -221,8 +245,7 @@ export default function AdminDashboard() {
           />
         </ToggleSection>
 
-        
-          {/* 
+        {/* 
   ───────────────────────────────────────────────
   📌 SITE-WIDE IMAGE KEYS (Cloudinary-configurable)
   Update images across the whole website without code changes.
@@ -260,8 +283,6 @@ export default function AdminDashboard() {
   ───────────────────────────────────────────────
 */}
 
-         
-        
         <ToggleSection title="🖼 Site Image Uploader" defaultOpen={false}>
           {/*
     SITE IMAGE KEYS (Cloudinary + SiteImage)
