@@ -56,9 +56,9 @@ export default function Donation({ className = "" }) {
     <div className={`text-center ${className}`}>
       <section className="mb-8 overflow-hidden rounded-xl border border-pink-200 bg-gradient-to-br from-pink-50 to-rose-100 text-left shadow-sm">
         <img
-          src="/images/kitten-rescue.webp"
-          alt="Rescued kitten receiving care"
-          className="h-44 w-full object-cover rounded-t-xl"
+          src="/images/kitten-rescue.jpeg"
+          alt="Rescued kittens receiving care"
+          className="w-full rounded-t-xl bg-white object-contain"
         />
 
         <div className="p-5">
