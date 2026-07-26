@@ -1,22 +1,60 @@
 // components/gallery/MemorialGrid.jsx
+
+import prisma from "@/lib/prisma";
 import MemorialGridClient from "./MemorialGridClient";
 
 export default async function MemorialGrid() {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/gallery`,
-    { cache: "no-store" }
-  );
+  const memorials = await prisma.petMemorial.findMany({
+    where: {
+      status: "PUBLISHED",
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      slug: true,
+      petName: true,
+      headline: true,
+      story: true,
+      birthYear: true,
+      passedYear: true,
+      publishedAt: true,
+      images: {
+        where: {
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          imageUrl: true,
+          altText: true,
+          caption: true,
+          isCover: true,
+          sortOrder: true,
+        },
+        orderBy: {
+          sortOrder: "asc",
+        },
+      },
+    },
+    orderBy: {
+      publishedAt: "desc",
+    },
+  });
 
-  if (!res.ok) {
-    console.error("Failed to fetch memorial gallery images");
-    return <MemorialGridClient memorials={[]} />;
-  }
+  const formattedMemorials = memorials
+    .map((memorial) => {
+      const coverImage =
+        memorial.images.find((image) => image.isCover) || memorial.images[0];
 
-  const images = await res.json();
+      if (!coverImage) {
+        return null;
+      }
 
-  const memorials = images
-    .filter((img) => img.category === "MEMORIAM" && img.deletedAt === null)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return {
+        ...memorial,
+        coverImage,
+      };
+    })
+    .filter(Boolean);
 
-  return <MemorialGridClient memorials={memorials} />;
+  return <MemorialGridClient memorials={formattedMemorials} />;
 }

@@ -71,8 +71,7 @@ export async function POST(req) {
         caption: caption || null,
         altText: altText || null,
         category: category || "HAPPY",
-        // ✅ Assuming you've added this field in your schema
-        keywords: keywords.join(", "),
+        keywords,
       },
     });
 

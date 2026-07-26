@@ -1,4 +1,4 @@
-// app/api/admin/gallery/undo/route.js
+// app/api/admin/gallery/undo/[id]/route.js
 
 import { getAuth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";

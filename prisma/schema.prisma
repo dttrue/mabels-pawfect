@@ -414,3 +414,125 @@ enum GalleryCategory {
   HAPPY
   MEMORIAM
 }
+
+model PetMemorial {
+  id     String         @id @default(cuid())
+  slug   String?        @unique
+  status MemorialStatus @default(DRAFT)
+
+  // Person submitting the memorial
+  ownerName  String
+  ownerEmail String
+  ownerPhone String?
+
+  // Pet information
+  petName      String
+  petType      MemorialPetType?
+  speciesOther String?
+  breed        String?
+
+  birthDate  DateTime?
+  passedDate DateTime?
+  birthYear  Int?
+  passedYear Int?
+
+  // Memorial content
+  headline       String?
+  story          String
+  favoriteThings String?
+  closingMessage String?
+
+  // Public presentation
+  isFeatured Boolean @default(false)
+
+  // Donation and payment
+  donationAmountCents Int?
+  currency            String @default("usd")
+
+  stripeSessionId       String? @unique
+  stripePaymentIntentId String? @unique
+  stripeChargeId        String? @unique
+
+  paidAt     DateTime?
+  refundedAt DateTime?
+
+  // Permissions
+  permissionToPublish      Boolean @default(false)
+  permissionToAdvertise    Boolean @default(false)
+  submitterConfirmedRights Boolean @default(false)
+
+  // Admin workflow
+  adminNotes      String?
+  rejectionReason String?
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  publishedAt     DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime?
+  deletedAt DateTime?
+
+  images PetMemorialImage[]
+
+  @@index([status])
+  @@index([ownerEmail])
+  @@index([createdAt])
+  @@index([publishedAt])
+  @@index([deletedAt])
+  @@index([status, publishedAt])
+}
+
+model PetMemorialImage {
+  id         String @id @default(cuid())
+  memorialId String
+
+  // Cloudinary information
+  imageUrl     String
+  publicId     String  @unique
+  assetId      String?
+  version      Int?
+  format       String?
+  resourceType String? @default("image")
+
+  width  Int?
+  height Int?
+  bytes  Int?
+
+  // Gallery presentation
+  altText   String?
+  caption   String?
+  sortOrder Int     @default(0)
+  isCover   Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  memorial PetMemorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+
+  @@index([memorialId])
+  @@index([memorialId, sortOrder])
+  @@index([memorialId, isCover])
+  @@index([deletedAt])
+}
+
+enum MemorialStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PAID
+  IN_REVIEW
+  PUBLISHED
+  REJECTED
+  REFUNDED
+  EXPIRED
+}
+
+enum MemorialPetType {
+  DOG
+  CAT
+  BIRD
+  RABBIT
+  REPTILE
+  OTHER
+}
