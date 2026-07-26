@@ -1,80 +1,197 @@
 // components/DonateSuccessClient.jsx
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+
+function formatCurrency(value) {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return null;
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+}
 
 export default function DonateSuccessClient() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
 
+  const receiptRequested = useRef(false);
+
+  const [status, setStatus] = useState("loading");
   const [amount, setAmount] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchDonation() {
-      console.log("📦 sessionId from URL:", sessionId);
-      if (!sessionId) return;
+    const controller = new AbortController();
+
+    async function verifyDonation() {
+      if (!sessionId) {
+        setStatus("invalid");
+        return;
+      }
 
       try {
-        const res = await fetch("/api/get-donation", {
+        const response = await fetch("/api/get-donation", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ sessionId }),
+          signal: controller.signal,
         });
 
-        const data = await res.json();
-        console.log("💰 Donation data response:", data);
-        setAmount(data.amount);
-      } catch (err) {
-        console.error("❌ Failed to fetch donation amount:", err);
-      } finally {
-        setLoading(false);
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Unable to verify this donation.");
+        }
+
+        setAmount(data?.amount ?? null);
+        setStatus("success");
+
+        if (!receiptRequested.current) {
+          receiptRequested.current = true;
+
+          fetch("/api/email/send-donation-receipt", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ sessionId }),
+          }).catch((error) => {
+            console.error("[donation receipt] request failed:", error);
+          });
+        }
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          return;
+        }
+
+        console.error("[donation] verification failed:", error);
+        setStatus("error");
       }
     }
 
-    fetchDonation();
+    verifyDonation();
+
+    return () => {
+      controller.abort();
+    };
   }, [sessionId]);
 
-console.log("✅ Rendered with amount:", amount);
+  const formattedAmount = formatCurrency(amount);
 
-useEffect(() => {
-  if (!sessionId) return;
+  if (status === "loading") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-pink-50 to-white px-4 py-16">
+        <section
+          className="w-full max-w-xl rounded-2xl border border-pink-200 bg-white p-8 text-center shadow-sm"
+          aria-live="polite"
+        >
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-pink-200 border-t-pink-600" />
 
-  // fire-and-forget; no need to block the UI
-  fetch("/api/email/send-donation-receipt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId }),
-  }).catch(() => {});
-}, [sessionId]);
+          <h1 className="mt-5 text-2xl font-bold text-gray-900">
+            Confirming Your Donation
+          </h1>
 
+          <p className="mt-3 text-gray-600">
+            Please wait while we verify your payment with Stripe.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (status === "invalid" || status === "error") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-amber-50 to-white px-4 py-16">
+        <section className="w-full max-w-xl rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm sm:p-10">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+            Kitten Rescue Fund
+          </p>
+
+          <h1 className="mt-3 text-3xl font-bold text-gray-900">
+            We Could Not Confirm Your Donation
+          </h1>
+
+          <p className="mt-4 text-gray-700">
+            We could not verify a completed Stripe payment from this page.
+          </p>
+
+          <p className="mt-3 text-sm text-gray-500">
+            If you received a payment confirmation from Stripe, please contact
+            us before trying again so you are not charged twice.
+          </p>
+
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link
+              href="/donations"
+              className="inline-flex items-center justify-center rounded-lg bg-pink-600 px-6 py-3 font-semibold text-white transition hover:bg-pink-700"
+            >
+              Return to Donations
+            </Link>
+
+            <Link
+              href="/contact"
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              Contact Us
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center px-4">
-      <div className="bg-white shadow-md p-6 rounded-lg max-w-xl text-center">
-        <h1 className="text-2xl font-bold text-green-600 mb-2">
-          🎉 Thank You for Your Donation!
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-pink-50 to-white px-4 py-16">
+      <section className="w-full max-w-xl rounded-2xl border border-pink-200 bg-white p-8 text-center shadow-sm sm:p-10">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-pink-600">
+          Kitten Rescue Fund
+        </p>
+
+        <h1 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">
+          Thank You for Your Donation
         </h1>
-        <p className="text-lg text-gray-700 mb-4">
-          {loading
-            ? "Processing your donation..."
-            : amount
-              ? `Your donation of $${amount} was successful. Your support helps us rescue, feed, and care for stray animals in need.`
-              : `Your support helps us rescue, feed, and care for stray animals in need.`}
+
+        <p className="mt-4 text-lg text-gray-700">
+          {formattedAmount
+            ? `Your donation of ${formattedAmount} was successful.`
+            : "Your donation was successful."}
         </p>
-        <p className="text-sm text-gray-500 mb-4">
-          A confirmation email will be sent to you shortly. We truly appreciate
-          your kindness 💗
+
+        <p className="mt-3 leading-7 text-gray-600">
+          Your support helps provide food, litter, formula, medical care, and a
+          safe temporary home for rescued kittens.
         </p>
-        <Link href="/">
-          <button className="mt-6 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 transition">
-            Back to Home
-          </button>
-        </Link>
-      </div>
-    </div>
+
+        <p className="mt-4 text-sm text-gray-500">
+          A confirmation receipt will be sent to the email address used during
+          checkout.
+        </p>
+
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-lg bg-pink-600 px-6 py-3 font-semibold text-white transition hover:bg-pink-700"
+          >
+            Return Home
+          </Link>
+
+          <Link
+            href="/donations"
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            Make Another Donation
+          </Link>
+        </div>
+      </section>
+    </main>
   );
 }

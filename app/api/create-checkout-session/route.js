@@ -123,8 +123,8 @@ export async function POST(req) {
           },
         },
 
-        success_url: `${appBase}/donations?donation=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appBase}/donations?donation=canceled`,
+        success_url: `${appBase}/donate-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appBase}/donate-cancel`,
       });
 
       console.log("[checkout] donation session created:", {
