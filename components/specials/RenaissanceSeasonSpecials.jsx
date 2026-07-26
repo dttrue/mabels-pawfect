@@ -13,6 +13,7 @@ export default function RenaissanceSeasonSpecials({
   subtitle = "A royal little refresh is here. Regular pricing is active for pet sitting, walks, and drop-in visits.",
   ctaHref = "/pricing",
   ctaText = "View Pricing",
+  imageSrc = "/images/specials/renaissance-season.jpg",
   imageKey = "pricing-flyer-main",
 }) {
   const apiUrl = imageKey
