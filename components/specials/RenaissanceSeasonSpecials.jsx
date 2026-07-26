@@ -3,24 +3,32 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { trackPricingCTA, trackBookingCTA } from "@/lib/ga-events";
 import useSWR from "swr";
+import { trackPricingCTA, trackBookingCTA } from "@/lib/ga-events";
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+const fetcher = async (url) => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error("Unable to load site image");
+  }
+
+  return response.json();
+};
 
 export default function RenaissanceSeasonSpecials({
   title = "Renaissance Season at Mabel’s 🏰",
   subtitle = "A royal little refresh is here. Regular pricing is active for pet sitting, walks, and drop-in visits.",
   ctaHref = "/pricing",
   ctaText = "View Pricing",
-  imageSrc = "/images/specials/renaissance-season.jpg",
+  imageSrc = null,
   imageKey = "pricing-flyer-main",
 }) {
   const apiUrl = imageKey
     ? `/api/admin/site-images?key=${encodeURIComponent(imageKey)}`
     : null;
 
-  const { data } = useSWR(apiUrl, fetcher);
+  const { data, error, isLoading } = useSWR(apiUrl, fetcher);
 
   const cloudImage = data?.image?.imageUrl || null;
   const cloudAlt = data?.image?.alt || null;
@@ -56,7 +64,7 @@ export default function RenaissanceSeasonSpecials({
       aria-labelledby="renaissance-season-heading"
       className="relative isolate mx-auto max-w-6xl px-4 py-12 md:py-16"
     >
-      <div className="absolute inset-0 -z-10 rounded-3xl bg-[#f4ead8] ring-1 ring-[#6f4e2f]/20 shadow-sm" />
+      <div className="absolute inset-0 -z-10 rounded-3xl bg-[#f4ead8] shadow-sm ring-1 ring-[#6f4e2f]/20" />
 
       <div className="pointer-events-none absolute inset-3 -z-10 rounded-[1.35rem] border border-[#8b6a3f]/25" />
 
@@ -82,10 +90,12 @@ export default function RenaissanceSeasonSpecials({
               <span aria-hidden>⚜️</span>
               <span>Regular rates for drop-ins, walks, and sitting</span>
             </li>
+
             <li className="flex items-start gap-2">
               <span aria-hidden>📜</span>
               <span>Peak weeks can fill up fast — early booking is wise</span>
             </li>
+
             <li className="flex items-start gap-2">
               <span aria-hidden>👑</span>
               <span>Seasonal specials and royal updates return soon</span>
@@ -113,21 +123,41 @@ export default function RenaissanceSeasonSpecials({
 
         <div className="relative">
           <div className="rounded-2xl border border-[#6f4e2f]/25 bg-[#fff7e8] p-2 shadow-sm">
-            <Link
-              href={ctaHref}
-              onClick={handleFlyerClick}
-              aria-label="Open pricing"
-            >
-              <Image
-                src={finalImageSrc}
-                alt={finalAlt}
-                width={880}
-                height={1360}
-                className="h-auto w-full rounded-xl"
-                sizes="(max-width: 768px) 100vw, 880px"
-                priority
-              />
-            </Link>
+            {finalImageSrc ? (
+              <Link
+                href={ctaHref}
+                onClick={handleFlyerClick}
+                aria-label="Open pricing"
+              >
+                <Image
+                  src={finalImageSrc}
+                  alt={finalAlt}
+                  width={880}
+                  height={1360}
+                  className="h-auto w-full rounded-xl"
+                  sizes="(max-width: 768px) 100vw, 880px"
+                  priority
+                />
+              </Link>
+            ) : (
+              <div
+                className="flex aspect-[11/17] w-full items-center justify-center rounded-xl bg-[#eadcc4]"
+                aria-live="polite"
+              >
+                {error ? (
+                  <p className="px-4 text-center text-sm text-[#5f4630]">
+                    The pricing flyer is temporarily unavailable.
+                  </p>
+                ) : (
+                  <div
+                    className={`h-full w-full rounded-xl bg-[#eadcc4] ${
+                      isLoading ? "animate-pulse" : ""
+                    }`}
+                    aria-label="Loading Renaissance pricing flyer"
+                  />
+                )}
+              </div>
+            )}
           </div>
 
           <div className="pointer-events-none absolute -right-3 -top-3 rounded-full bg-[#c69b5c]/25 px-3 py-1 text-xs font-semibold text-[#5a3822] ring-1 ring-[#8b6a3f]/20 backdrop-blur-sm">
