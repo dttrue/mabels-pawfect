@@ -536,3 +536,100 @@ enum MemorialPetType {
   REPTILE
   OTHER
 }
+
+enum FosterCatStatus {
+  ACTIVE
+  FUNDED
+  ADOPTED
+  ARCHIVED
+}
+
+enum DonationTarget {
+  GENERAL
+  FOSTER_CAT
+}
+
+enum DonationStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model FosterCat {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  shortBio  String
+  story     String?
+  careNeeds String?
+
+  // Optional information shown on the foster card
+  ageLabel String?
+  sex      String?
+
+  // Cloudinary information
+  imageUrl      String
+  imagePublicId String  @unique
+  imageAssetId  String?
+  imageWidth    Int?
+  imageHeight   Int?
+  imageFormat   String?
+  imageBytes    Int?
+  imageAlt      String?
+
+  // Fundraising and public presentation
+  goalCents  Int?
+  status     FosterCatStatus @default(ACTIVE)
+  isFeatured Boolean         @default(true)
+  sortOrder  Int             @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  donations Donation[]
+
+  @@index([status])
+  @@index([isFeatured, sortOrder])
+  @@index([deletedAt])
+}
+
+model Donation {
+  id String @id @default(cuid())
+
+  target      DonationTarget
+  status      DonationStatus @default(PENDING)
+  amountCents Int
+  currency    String         @default("usd")
+
+  // Null for a general rescue-fund donation
+  fosterCatId String?
+  fosterCat   FosterCat? @relation(fields: [fosterCatId], references: [id], onDelete: SetNull)
+
+  // Donor details received from Stripe
+  donorName  String?
+  donorEmail String?
+  donorPhone String?
+
+  // Stripe reconciliation
+  stripeSessionId       String  @unique
+  stripePaymentIntentId String? @unique
+  stripeChargeId        String? @unique
+
+  paidAt        DateTime?
+  failedAt      DateTime?
+  refundedAt    DateTime?
+  receiptSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([target])
+  @@index([fosterCatId])
+  @@index([paidAt])
+  @@index([createdAt])
+  @@index([fosterCatId, status])
+}
