@@ -96,6 +96,50 @@ export default function AdminDashboard() {
         </div>
       </section>
 
+      <section className="rounded-xl border border-pink-200 bg-pink-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-pink-950">
+              Foster Cat Donations
+            </h2>
+
+            <p className="mt-1 text-sm text-pink-900/75">
+              Add foster cats, upload their photos, manage fundraising goals,
+              and control which cats appear on the donation page.
+            </p>
+          </div>
+
+          <Link
+            href="/admin1313/foster-cats"
+            className="btn whitespace-nowrap border-pink-600 bg-pink-600 text-white hover:border-pink-700 hover:bg-pink-700"
+          >
+            Manage Foster Cats
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-rose-950">
+              Donation Transactions
+            </h2>
+
+            <p className="mt-1 text-sm leading-6 text-rose-900/75">
+              Review donation amounts, payment statuses, donor details, selected
+              support purposes, and the foster cats receiving funds.
+            </p>
+          </div>
+
+          <Link
+            href="/admin1313/donations"
+            className="btn whitespace-nowrap border-rose-600 bg-rose-600 text-white hover:border-rose-700 hover:bg-rose-700"
+          >
+            Review Donations
+          </Link>
+        </div>
+      </section>
+
       {/* Newsletters */}
       <NewsletterAdminForm onSuccess={fetchNewsletters} />
       <div>

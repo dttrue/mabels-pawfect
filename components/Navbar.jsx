@@ -80,6 +80,10 @@ export default function Navbar() {
             <Link href="/blog" className="hover:text-pink-600">
               Blog
             </Link>
+            <Link href="/foster-cats" className="hover:text-pink-600">
+              Foster Cats
+            </Link>
+
             <Link
               href="/donations"
               className="hover:text-pink-600"
@@ -191,6 +195,12 @@ export default function Navbar() {
             <li>
               <Link href="/reviews" onClick={toggleMobileMenu}>
                 Reviews
+              </Link>
+            </li>
+
+            <li>
+              <Link href="/foster-cats" onClick={toggleMobileMenu}>
+                Foster Cats
               </Link>
             </li>
 

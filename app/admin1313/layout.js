@@ -1,6 +1,8 @@
 // app/admin1313/layout.js
 
+import { ClerkProvider } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
+
 import { requireAdmin } from "@/lib/adminAuth";
 
 export default async function Admin1313Layout({ children }) {
@@ -14,5 +16,5 @@ export default async function Admin1313Layout({ children }) {
     redirect("/not-authorized");
   }
 
-  return children;
+  return <ClerkProvider>{children}</ClerkProvider>;
 }

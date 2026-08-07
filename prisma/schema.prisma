@@ -556,6 +556,14 @@ enum DonationStatus {
   REFUNDED
 }
 
+enum DonationPurpose {
+  GENERAL
+  FOOD_LITTER
+  TOYS_ENRICHMENT
+  KITTEN_RESCUE
+  PREMIUM_RESCUE
+}
+
 model FosterCat {
   id   String @id @default(cuid())
   name String
@@ -600,20 +608,20 @@ model Donation {
   id String @id @default(cuid())
 
   target      DonationTarget
-  status      DonationStatus @default(PENDING)
+  purpose     DonationPurpose @default(GENERAL)
+  status      DonationStatus  @default(PENDING)
   amountCents Int
-  currency    String         @default("usd")
+  currency    String          @default("usd")
 
-  // Null for a general rescue-fund donation
   fosterCatId String?
   fosterCat   FosterCat? @relation(fields: [fosterCatId], references: [id], onDelete: SetNull)
 
-  // Donor details received from Stripe
+  items DonationItem[]
+
   donorName  String?
   donorEmail String?
   donorPhone String?
 
-  // Stripe reconciliation
   stripeSessionId       String  @unique
   stripePaymentIntentId String? @unique
   stripeChargeId        String? @unique
@@ -628,8 +636,25 @@ model Donation {
 
   @@index([status])
   @@index([target])
+  @@index([purpose])
   @@index([fosterCatId])
   @@index([paidAt])
   @@index([createdAt])
   @@index([fosterCatId, status])
+}
+
+model DonationItem {
+  id String @id @default(cuid())
+
+  donationId String
+  donation   Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+
+  purpose     DonationPurpose
+  amountCents Int
+  quantity    Int             @default(1)
+
+  createdAt DateTime @default(now())
+
+  @@index([donationId])
+  @@index([purpose])
 }
