@@ -82,6 +82,15 @@ async function getPaymentInformation(session) {
   };
 }
 
+async function getCheckoutSessionForPaymentIntent(paymentIntentId) {
+  const sessions = await stripe.checkout.sessions.list({
+    payment_intent: paymentIntentId,
+    limit: 1,
+  });
+
+  return sessions.data[0] || null;
+}
+
 async function markDonationPaid(session, eventCreated) {
   const donation = getDonationMetadata(session);
 
@@ -289,6 +298,32 @@ export async function POST(req) {
 
   try {
     switch (event.type) {
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object;
+        const orderType = paymentIntent.metadata?.orderType;
+
+        console.log("[webhook] payment intent succeeded:", {
+          paymentIntentId: paymentIntent.id,
+          orderType,
+        });
+
+        if (orderType !== "donation") {
+          break;
+        }
+
+        const session = await getCheckoutSessionForPaymentIntent(
+          paymentIntent.id
+        );
+
+        if (!session) {
+          throw new Error(
+            `No Checkout Session found for PaymentIntent ${paymentIntent.id}`
+          );
+        }
+
+        await markDonationPaid(session, event.created);
+        break;
+      }
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object;
