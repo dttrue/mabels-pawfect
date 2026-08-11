@@ -1,7 +1,7 @@
 // components/DonateSuccessClient.jsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -22,7 +22,7 @@ export default function DonateSuccessClient() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
 
-  const receiptRequested = useRef(false);
+  
 
   const [status, setStatus] = useState("loading");
   const [amount, setAmount] = useState(null);
@@ -55,19 +55,7 @@ export default function DonateSuccessClient() {
         setAmount(data?.amount ?? null);
         setStatus("success");
 
-        if (!receiptRequested.current) {
-          receiptRequested.current = true;
-
-          fetch("/api/email/send-donation-receipt", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ sessionId }),
-          }).catch((error) => {
-            console.error("[donation receipt] request failed:", error);
-          });
-        }
+        
       } catch (error) {
         if (error?.name === "AbortError") {
           return;

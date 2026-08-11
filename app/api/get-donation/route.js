@@ -1,49 +1,98 @@
 // app/api/get-donation/route.js
+
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
-});
+function getDonationStripe() {
+  const secretKey = process.env.STRIPE_DONATION_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    throw new Error("Donation Stripe is not configured.");
+  }
+
+  return new Stripe(secretKey, {
+    apiVersion: "2024-09-30.acacia",
+  });
+}
+
+function stripeModesMatch(secretKey, sessionId) {
+  const testKey =
+    secretKey.startsWith("sk_test_") || secretKey.startsWith("rk_test_");
+
+  const testSession = sessionId.startsWith("cs_test_");
+
+  return testKey === testSession;
+}
 
 export async function POST(req) {
   try {
-    const { sessionId } = await req.json();
-    if (!sessionId)
-      return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+    const body = await req.json();
+    const sessionId = String(body?.sessionId || "").trim();
 
-    const key = process.env.STRIPE_SECRET_KEY || "";
-    console.log("🔑 key prefix:", key.slice(0, 10)); // must be sk_test_ or rk_test_
-    console.log("🧾 sessionId:", sessionId.slice(0, 12)); // cs_test_...
-
-    // Guard against mode mismatch
-    const isTestKey = key.startsWith("sk_test_") || key.startsWith("rk_test_");
-    const isTestSession = sessionId.startsWith("cs_test_");
-    if (isTestKey !== isTestSession) {
+    if (!sessionId || !sessionId.startsWith("cs_")) {
       return NextResponse.json(
-        {
-          error:
-            "Stripe mode mismatch: use sk_test/rk_test with cs_test and sk_live/rk_live with cs_live.",
-        },
+        { error: "A valid donation session is required." },
         { status: 400 }
       );
     }
 
+    const secretKey = process.env.STRIPE_DONATION_SECRET_KEY?.trim() || "";
+
+    if (!secretKey) {
+      return NextResponse.json(
+        { error: "Donation payments are not configured." },
+        { status: 500 }
+      );
+    }
+
+    if (!stripeModesMatch(secretKey, sessionId)) {
+      return NextResponse.json(
+        { error: "The donation session is unavailable." },
+        { status: 400 }
+      );
+    }
+
+    const stripe = getDonationStripe();
+
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent.charges"],
+      expand: ["payment_intent.latest_charge"],
     });
 
-    const amount = (session.amount_total ?? 0) / 100;
-    const receiptUrl =
-      session.payment_intent?.charges?.data?.[0]?.receipt_url || "";
-    return NextResponse.json({ amount, receiptUrl });
-  } catch (err) {
-    console.error("❌ get-donation error:", err);
+    if (session.metadata?.orderType !== "donation") {
+      return NextResponse.json(
+        { error: "Donation session not found." },
+        { status: 404 }
+      );
+    }
+
+    const paymentIntent =
+      session.payment_intent && typeof session.payment_intent === "object"
+        ? session.payment_intent
+        : null;
+
+    const latestCharge =
+      paymentIntent?.latest_charge &&
+      typeof paymentIntent.latest_charge === "object"
+        ? paymentIntent.latest_charge
+        : null;
+
+    return NextResponse.json({
+      amount: (session.amount_total ?? 0) / 100,
+      receiptUrl: latestCharge?.receipt_url || "",
+      paymentStatus: session.payment_status || "unpaid",
+    });
+  } catch (error) {
+    console.error("[get donation] error:", {
+      type: error?.type,
+      code: error?.code,
+      message: error?.message,
+    });
+
     return NextResponse.json(
-      { error: "Failed to fetch donation amount" },
+      { error: "Failed to fetch donation details." },
       { status: 500 }
     );
   }

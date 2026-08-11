@@ -5,15 +5,13 @@ export const runtime = "nodejs";
 import Stripe from "stripe";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+
 import prisma from "@/lib/prisma";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-09-30.acacia",
-});
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const API_VERSION = "2024-09-30.acacia";
 
 const ALLOWED_TARGETS = new Set(["GENERAL", "FOSTER_CAT"]);
+
 const ALLOWED_PURPOSES = new Set([
   "GENERAL",
   "FOOD_LITTER",
@@ -22,8 +20,33 @@ const ALLOWED_PURPOSES = new Set([
   "PREMIUM_RESCUE",
 ]);
 
+function getDonationStripe() {
+  const secretKey = process.env.STRIPE_DONATION_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    throw new Error("STRIPE_DONATION_SECRET_KEY is missing.");
+  }
+
+  return new Stripe(secretKey, {
+    apiVersion: API_VERSION,
+  });
+}
+
+function getWebhookSecret() {
+  const webhookSecret = process.env.STRIPE_DONATION_WEBHOOK_SECRET?.trim();
+
+  if (!webhookSecret) {
+    throw new Error("STRIPE_DONATION_WEBHOOK_SECRET is missing.");
+  }
+
+  return webhookSecret;
+}
+
 function getStripeId(value) {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
+
   return typeof value === "string" ? value : value.id || null;
 }
 
@@ -31,6 +54,7 @@ function getDonationMetadata(session) {
   const metadata = session.metadata || {};
 
   const requestedTarget = String(metadata.target || "GENERAL").toUpperCase();
+
   const requestedPurpose = String(metadata.purpose || "GENERAL").toUpperCase();
 
   const target = ALLOWED_TARGETS.has(requestedTarget)
@@ -63,6 +87,7 @@ function getDonationMetadata(session) {
 }
 
 async function getPaymentInformation(session) {
+  const stripe = getDonationStripe();
   const paymentIntentId = getStripeId(session.payment_intent);
 
   if (!paymentIntentId) {
@@ -83,6 +108,8 @@ async function getPaymentInformation(session) {
 }
 
 async function getCheckoutSessionForPaymentIntent(paymentIntentId) {
+  const stripe = getDonationStripe();
+
   const sessions = await stripe.checkout.sessions.list({
     payment_intent: paymentIntentId,
     limit: 1,
@@ -113,7 +140,8 @@ async function markDonationPaid(session, eventCreated) {
     verifiedFosterCatId = fosterCat?.id || null;
   }
 
-  // Preserve the money even if the cat was removed after checkout started.
+  // Preserve the donation if the foster cat was removed after
+  // Checkout began, but convert its destination to the general fund.
   const finalTarget = verifiedFosterCatId
     ? "FOSTER_CAT"
     : donation.target === "FOSTER_CAT"
@@ -136,31 +164,16 @@ async function markDonationPaid(session, eventCreated) {
 
   const paidAt = new Date(eventCreated * 1000);
 
-  await prisma.donation.upsert({
+  /*
+   * The pending Donation and its DonationItem records are created
+   * before the donor is redirected to Stripe. Updating instead of
+   * upserting prevents incomplete paid records without line items.
+   */
+  await prisma.donation.update({
     where: {
       stripeSessionId: session.id,
     },
-
-    create: {
-      target: finalTarget,
-      purpose: donation.purpose,
-      amountCents: donation.amountCents,
-      currency: session.currency || "usd",
-      fosterCatId: verifiedFosterCatId,
-
-      donorName,
-      donorEmail,
-      donorPhone,
-
-      stripeSessionId: session.id,
-      stripePaymentIntentId: paymentIntentId,
-      stripeChargeId: chargeId,
-
-      status: "PAID",
-      paidAt,
-    },
-
-    update: {
+    data: {
       target: finalTarget,
       purpose: donation.purpose,
       amountCents: donation.amountCents,
@@ -180,11 +193,8 @@ async function markDonationPaid(session, eventCreated) {
     },
   });
 
-  console.log("[webhook] donation marked paid:", {
+  console.log("[donation webhook] donation marked paid:", {
     stripeSessionId: session.id,
-    target: finalTarget,
-    purpose: donation.purpose,
-    fosterCatId: verifiedFosterCatId,
     amountCents: donation.amountCents,
   });
 }
@@ -192,7 +202,7 @@ async function markDonationPaid(session, eventCreated) {
 async function markDonationFailed(session, eventCreated) {
   const failedAt = new Date(eventCreated * 1000);
 
-  const result = await prisma.donation.updateMany({
+  await prisma.donation.updateMany({
     where: {
       stripeSessionId: session.id,
       status: "PENDING",
@@ -202,11 +212,6 @@ async function markDonationFailed(session, eventCreated) {
       failedAt,
     },
   });
-
-  console.log("[webhook] donation marked failed:", {
-    stripeSessionId: session.id,
-    updated: result.count,
-  });
 }
 
 async function markDonationRefunded(charge, eventCreated) {
@@ -214,7 +219,11 @@ async function markDonationRefunded(charge, eventCreated) {
   const paymentIntentId = getStripeId(charge.payment_intent);
   const refundedAt = new Date(eventCreated * 1000);
 
-  const result = await prisma.donation.updateMany({
+  if (!chargeId && !paymentIntentId) {
+    return;
+  }
+
+  await prisma.donation.updateMany({
     where: {
       OR: [
         ...(chargeId ? [{ stripeChargeId: chargeId }] : []),
@@ -228,43 +237,22 @@ async function markDonationRefunded(charge, eventCreated) {
       refundedAt,
     },
   });
-
-  console.log("[webhook] donation marked refunded:", {
-    chargeId,
-    paymentIntentId,
-    updated: result.count,
-  });
-}
-
-async function clearCompletedShopCart(session) {
-  const cartId = session.metadata?.cartId || null;
-
-  if (!cartId) {
-    console.warn("[webhook] shop session is missing cartId:", session.id);
-    return;
-  }
-
-  try {
-    await prisma.cartItem.deleteMany({
-      where: {
-        cartId,
-      },
-    });
-
-    console.log("[webhook] cleared completed shop cart:", cartId);
-  } catch (error) {
-    // Preserve the existing behavior so Stripe does not repeatedly retry
-    // a successfully paid shop checkout solely because cart cleanup failed.
-    console.error("[webhook] failed clearing shop cart:", error);
-  }
 }
 
 export async function POST(req) {
-  if (!webhookSecret) {
-    console.error("[webhook] STRIPE_WEBHOOK_SECRET is missing");
+  let stripe;
+  let webhookSecret;
+
+  try {
+    stripe = getDonationStripe();
+    webhookSecret = getWebhookSecret();
+  } catch (error) {
+    console.error("[donation webhook] configuration error:", {
+      message: error?.message,
+    });
 
     return NextResponse.json(
-      { error: "Webhook is not configured" },
+      { error: "Donation webhook is not configured." },
       { status: 500 }
     );
   }
@@ -274,7 +262,7 @@ export async function POST(req) {
 
   if (!signature) {
     return NextResponse.json(
-      { error: "Missing Stripe signature" },
+      { error: "Missing Stripe signature." },
       { status: 400 }
     );
   }
@@ -283,31 +271,24 @@ export async function POST(req) {
 
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-
-    console.log("[webhook] received event:", {
-      id: event.id,
-      type: event.type,
-    });
   } catch (error) {
-    console.error("[webhook] signature verification failed:", error.message);
+    console.error(
+      "[donation webhook] signature verification failed:",
+      error?.message
+    );
 
-    return new NextResponse(`Webhook Error: ${error.message}`, {
-      status: 400,
-    });
+    return NextResponse.json(
+      { error: "Invalid Stripe signature." },
+      { status: 400 }
+    );
   }
 
   try {
     switch (event.type) {
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object;
-        const orderType = paymentIntent.metadata?.orderType;
 
-        console.log("[webhook] payment intent succeeded:", {
-          paymentIntentId: paymentIntent.id,
-          orderType,
-        });
-
-        if (orderType !== "donation") {
+        if (paymentIntent.metadata?.orderType !== "donation") {
           break;
         }
 
@@ -324,29 +305,16 @@ export async function POST(req) {
         await markDonationPaid(session, event.created);
         break;
       }
+
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object;
-        const orderType = session.metadata?.orderType;
 
-        console.log("[webhook] completed checkout:", {
-          sessionId: session.id,
-          orderType,
-          paymentStatus: session.payment_status,
-          metadata: session.metadata,
-        });
-
-        if (orderType === "donation" && session.payment_status === "paid") {
+        if (
+          session.metadata?.orderType === "donation" &&
+          session.payment_status === "paid"
+        ) {
           await markDonationPaid(session, event.created);
-          break;
-        }
-
-        // Existing shop logic...
-
-        if (orderType === "shop" || (!orderType && session.metadata?.cartId)) {
-          if (session.payment_status === "paid") {
-            await clearCompletedShopCart(session);
-          }
         }
 
         break;
@@ -377,16 +345,15 @@ export async function POST(req) {
       type: event.type,
     });
   } catch (error) {
-    console.error("[webhook] event processing failed:", {
+    console.error("[donation webhook] processing failed:", {
       eventId: event.id,
       eventType: event.type,
       message: error?.message,
-      error,
+      code: error?.code,
     });
 
-    // Returning 500 tells Stripe to retry the webhook.
     return NextResponse.json(
-      { error: "Webhook processing failed" },
+      { error: "Donation webhook processing failed." },
       { status: 500 }
     );
   }

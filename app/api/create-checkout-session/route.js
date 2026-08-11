@@ -5,7 +5,25 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getShopStripe() {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    throw new Error("STRIPE_SECRET_KEY is not configured.");
+  }
+
+  return new Stripe(secretKey);
+}
+
+function getDonationStripe() {
+  const secretKey = process.env.STRIPE_DONATION_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    throw new Error("STRIPE_DONATION_SECRET_KEY is not configured.");
+  }
+
+  return new Stripe(secretKey);
+}
 
 const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
 
@@ -228,22 +246,22 @@ function normalizeDonationItems(body) {
 
 async function createDonationCheckout(body, appBase) {
   const target = String(body?.target || "GENERAL").toUpperCase();
-    const donorName = normalizeDonorName(body?.donorName);
-    const donorEmail = normalizeDonorEmail(body?.donorEmail);
+  const donorName = normalizeDonorName(body?.donorName);
+  const donorEmail = normalizeDonorEmail(body?.donorEmail);
 
-    if (!donorName) {
-      return NextResponse.json(
-        { error: "Please enter your name." },
-        { status: 400 }
-      );
-    }
+  if (!donorName) {
+    return NextResponse.json(
+      { error: "Please enter your name." },
+      { status: 400 }
+    );
+  }
 
-    if (!donorEmail) {
-      return NextResponse.json(
-        { error: "Please enter a valid email address." },
-        { status: 400 }
-      );
-    }
+  if (!donorEmail) {
+    return NextResponse.json(
+      { error: "Please enter a valid email address." },
+      { status: 400 }
+    );
+  }
 
   if (!ALLOWED_TARGETS.has(target)) {
     return NextResponse.json(
@@ -304,18 +322,18 @@ async function createDonationCheckout(body, appBase) {
 
   const purposeList = donationItems.map((item) => item.purpose).join(",");
 
-    const metadata = {
-      orderType: "donation",
-      donationType: "kitten-rescue",
-      target,
-      purpose: legacyPurpose,
-      donationPurposes: purposeList,
-      donationItemCount: String(donationItems.length),
-      donationAmountCents: String(donationAmountCents),
-      fosterCatId: fosterCat?.id || "",
-      fosterCatName: fosterCat?.name || "",
-      donorName,
-    };
+  const metadata = {
+    orderType: "donation",
+    donationType: "kitten-rescue",
+    target,
+    purpose: legacyPurpose,
+    donationPurposes: purposeList,
+    donationItemCount: String(donationItems.length),
+    donationAmountCents: String(donationAmountCents),
+    fosterCatId: fosterCat?.id || "",
+    fosterCatName: fosterCat?.name || "",
+    donorName,
+  };
 
   const stripeLineItems = donationItems.map((item) => {
     const productName = fosterCat
@@ -347,57 +365,57 @@ async function createDonationCheckout(body, appBase) {
     };
   });
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_creation: "if_required",
-      customer_email: donorEmail,
+  const donationStripe = getDonationStripe();
 
-      phone_number_collection: {
-        enabled: true,
-      },
+  const session = await donationStripe.checkout.sessions.create({
+    mode: "payment",
+    customer_creation: "if_required",
+    customer_email: donorEmail,
 
-      line_items: stripeLineItems,
+    phone_number_collection: {
+      enabled: true,
+    },
+
+    line_items: stripeLineItems,
+    metadata,
+
+    payment_intent_data: {
       metadata,
+    },
 
-      payment_intent_data: {
-        metadata,
-      },
-
-      success_url:
-        `${appBase}/donate-success` + "?session_id={CHECKOUT_SESSION_ID}",
-
-      cancel_url: `${appBase}/donate-cancel`,
-    });
+    success_url: `${appBase}/donate-success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appBase}/donate-cancel`,
+  });
 
   try {
-      await prisma.donation.create({
-        data: {
-          target,
-          purpose: legacyPurpose,
-          amountCents: donationAmountCents,
-          currency: "usd",
-          fosterCatId: fosterCat?.id || null,
+    await prisma.donation.create({
+      data: {
+        target,
+        purpose: legacyPurpose,
+        amountCents: donationAmountCents,
+        currency: "usd",
+        fosterCatId: fosterCat?.id || null,
 
-          donorName,
-          donorEmail,
+        donorName,
+        donorEmail,
 
-          stripeSessionId: session.id,
-          status: "PENDING",
+        stripeSessionId: session.id,
+        status: "PENDING",
 
-          items: {
-            create: donationItems.map((item) => ({
-              purpose: item.purpose,
-              amountCents: item.amountCents,
-              quantity: item.quantity,
-            })),
-          },
+        items: {
+          create: donationItems.map((item) => ({
+            purpose: item.purpose,
+            amountCents: item.amountCents,
+            quantity: item.quantity,
+          })),
         },
-      });
+      },
+    });
   } catch (error) {
     console.error("[checkout] failed to save pending donation:", error);
 
     try {
-      await stripe.checkout.sessions.expire(session.id);
+      await donationStripe.checkout.sessions.expire(session.id);
     } catch (expireError) {
       console.error(
         "[checkout] failed to expire untracked session:",
@@ -432,7 +450,6 @@ export async function POST(req) {
 
   try {
     body = await req.json();
-    console.log("[checkout] body:", body);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -464,6 +481,7 @@ export async function POST(req) {
     }
 
     const standardRate = process.env.STRIPE_RATE_STANDARD?.trim();
+    const shopStripe = getShopStripe();
 
     const shippingOptions = standardRate
       ? [{ shipping_rate: standardRate }]
@@ -471,7 +489,7 @@ export async function POST(req) {
 
     if (standardRate) {
       try {
-        await stripe.shippingRates.retrieve(standardRate);
+        await shopStripe.shippingRates.retrieve(standardRate);
       } catch (error) {
         console.error("[checkout] shipping rate verification failed:", error);
 
@@ -485,7 +503,7 @@ export async function POST(req) {
       }
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await shopStripe.checkout.sessions.create({
       mode: "payment",
       customer_creation: "if_required",
 
