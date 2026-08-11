@@ -434,7 +434,7 @@ export default function Donation({ className = "" }) {
             <>
               <div className="mt-6 flex items-center justify-between gap-4">
                 <p className="text-sm font-semibold text-gray-700">
-                  Or support a specific foster cat
+                  Or support a specific Rescue cat
                 </p>
 
                 <Link
