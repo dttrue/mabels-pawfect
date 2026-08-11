@@ -6,9 +6,9 @@ import { getPublicFosterCats } from "@/lib/publicFosterCats";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Meet Our Foster Cats | Mabel’s Pawfect Pet Services",
+  title: "Meet Our Rescue Cats | Mabel’s Pawfect Pet Services",
   description:
-    "Meet the foster cats receiving rescue care and learn how your donations help provide food, litter, enrichment, and medical support.",
+    "Meet the cats receiving rescue care and learn how your donations help provide food, litter, enrichment, and medical support.",
 };
 
 function formatCurrency(cents) {
@@ -50,7 +50,7 @@ export default async function FosterCatsPage() {
           </p>
 
           <h1 className="mt-3 text-4xl font-bold text-gray-900 md:text-5xl">
-            Meet Our Foster Cats
+            Meet Our Rescue Cats
           </h1>
 
           <p className="mt-5 text-lg leading-8 text-gray-600">

@@ -166,6 +166,9 @@ export default function DonationManager() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [expandedDonationIds, setExpandedDonationIds] = useState(
+    () => new Set()
+  );
 
   const loadDonations = useCallback(
     async ({ showRefreshState = false } = {}) => {
@@ -242,6 +245,20 @@ export default function DonationManager() {
     setPurpose("");
     setFosterCatId("");
     setPage(1);
+  }
+
+  function toggleDonationDetails(donationId) {
+    setExpandedDonationIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(donationId)) {
+        next.delete(donationId);
+      } else {
+        next.add(donationId);
+      }
+
+      return next;
+    });
   }
 
   const hasFilters = search || status || target || purpose || fosterCatId;
@@ -570,64 +587,125 @@ export default function DonationManager() {
               </div>
 
               <div className="divide-y divide-gray-100 lg:hidden">
-                {donations.map((donation) => (
-                  <article key={donation.id} className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {donation.donorName || "Donor name not provided"}
-                        </p>
+                {donations.map((donation) => {
+                  const isExpanded = expandedDonationIds.has(donation.id);
+                  const detailsId = `donation-details-${donation.id}`;
 
-                        <p className="mt-1 text-xs text-gray-500">
-                          {donation.donorEmail || "No email provided"}
-                        </p>
-                      </div>
+                  return (
+                    <article key={donation.id} className="p-4">
+                      <button
+                        type="button"
+                        onClick={() => toggleDonationDetails(donation.id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={detailsId}
+                        className="w-full rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2"
+                      >
+                        <span className="flex items-start justify-between gap-4">
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold text-gray-900">
+                              {donation.donorName || "Donor name not provided"}
+                            </span>
 
-                      <p className="text-lg font-bold text-gray-900">
-                        {formatCurrency(
-                          donation.amountCents,
-                          donation.currency
-                        )}
-                      </p>
-                    </div>
+                            <span className="mt-1 block truncate text-xs text-gray-500">
+                              {donation.donorEmail || "No email provided"}
+                            </span>
+                          </span>
 
-                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-xs font-semibold uppercase text-gray-400">
-                          Destination
-                        </p>
+                          <span className="shrink-0 text-right">
+                            <span className="block text-lg font-bold text-gray-900">
+                              {formatCurrency(
+                                donation.amountCents,
+                                donation.currency
+                              )}
+                            </span>
 
-                        <p className="mt-1 text-gray-700">
-                          {donation.target === "FOSTER_CAT"
-                            ? donation.fosterCat?.name || "Removed foster cat"
-                            : TARGET_LABELS[donation.target] || donation.target}
-                        </p>
-                      </div>
+                            <span className="mt-1 block text-xs font-semibold text-pink-700">
+                              {isExpanded ? "Hide details" : "View details"}
+                              <svg
+                                aria-hidden="true"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                className={`ml-1 inline-block h-3.5 w-3.5 transition-transform ${
+                                  isExpanded ? "rotate-180" : ""
+                                }`}
+                              >
+                                <path d="m5 7.5 5 5 5-5" />
+                              </svg>
+                            </span>
+                          </span>
+                        </span>
 
-                      <div>
-                        <p className="text-xs font-semibold uppercase text-gray-400">
-                          Ways They Are Helping
-                        </p>
+                        <span className="mt-3 flex items-center justify-between gap-3">
+                          <StatusBadge status={donation.status} />
 
-                        <div className="mt-1 text-sm">
-                          <DonationPurposeList donation={donation} />
+                          <span className="text-xs text-gray-500">
+                            {formatDate(donation.paidAt || donation.createdAt)}
+                          </span>
+                        </span>
+                      </button>
+
+                      {isExpanded ? (
+                        <div
+                          id={detailsId}
+                          className="mt-4 border-t border-gray-100 pt-4"
+                        >
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-xs font-semibold uppercase text-gray-400">
+                                Destination
+                              </p>
+
+                              <p className="mt-1 text-gray-700">
+                                {donation.target === "FOSTER_CAT"
+                                  ? donation.fosterCat?.name ||
+                                    "Removed foster cat"
+                                  : TARGET_LABELS[donation.target] ||
+                                    donation.target}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs font-semibold uppercase text-gray-400">
+                                Ways They Are Helping
+                              </p>
+
+                              <div className="mt-1 text-sm">
+                                <DonationPurposeList donation={donation} />
+                              </div>
+                            </div>
+                          </div>
+
+                          {donation.donorPhone ? (
+                            <div className="mt-4">
+                              <p className="text-xs font-semibold uppercase text-gray-400">
+                                Phone
+                              </p>
+
+                              <p className="mt-1 text-sm text-gray-700">
+                                {donation.donorPhone}
+                              </p>
+                            </div>
+                          ) : null}
+
+                          <div className="mt-4">
+                            <p className="text-xs font-semibold uppercase text-gray-400">
+                              Stripe Reference
+                            </p>
+
+                            <p
+                              className="mt-1 break-all font-mono text-[11px] text-gray-500"
+                              title={donation.stripeSessionId}
+                            >
+                              {donation.stripeSessionId || "Not available"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between gap-4">
-                      <StatusBadge status={donation.status} />
-
-                      <p className="text-xs text-gray-500">
-                        {formatDate(donation.paidAt || donation.createdAt)}
-                      </p>
-                    </div>
-
-                    <p className="mt-4 break-all font-mono text-[11px] text-gray-400">
-                      {donation.stripeSessionId}
-                    </p>
-                  </article>
-                ))}
+                      ) : null}
+                    </article>
+                  );
+                })}
               </div>
             </>
           )}
