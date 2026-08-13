@@ -1,7 +1,7 @@
 // components/DonateSuccessClient.jsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -21,7 +21,7 @@ function formatCurrency(value) {
 export default function DonateSuccessClient() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
-
+  const donateEventSent = useRef(false);
   
 
   const [status, setStatus] = useState("loading");
@@ -52,8 +52,41 @@ export default function DonateSuccessClient() {
           throw new Error(data?.error || "Unable to verify this donation.");
         }
 
+        const verifiedAmount = Number(data?.amount);
+
         setAmount(data?.amount ?? null);
         setStatus("success");
+
+        try {
+          if (
+            !donateEventSent.current &&
+            Number.isFinite(verifiedAmount) &&
+            verifiedAmount > 0 &&
+            typeof window.fbq === "function"
+          ) {
+            const storageKey = `meta_donate_${sessionId}`;
+
+            if (!window.sessionStorage.getItem(storageKey)) {
+              donateEventSent.current = true;
+
+              window.fbq(
+                "track",
+                "Donate",
+                {
+                  value: verifiedAmount,
+                  currency: "USD",
+                },
+                {
+                  eventID: `donation_${sessionId}`,
+                }
+              );
+
+              window.sessionStorage.setItem(storageKey, "sent");
+            }
+          }
+        } catch (trackingError) {
+          console.error("[meta] Donate tracking failed:", trackingError);
+        }
 
         
       } catch (error) {
