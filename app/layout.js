@@ -1,4 +1,5 @@
 // app/layout.js
+import MetaPixel from "@/components/MetaPixel";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }) {
 
       <body className={bodyBgClass}>
         <Suspense fallback={null}>
+          <MetaPixel />
           <Analytics />
           <GAProvider>
             <CartProvider>
