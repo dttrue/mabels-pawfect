@@ -2,25 +2,25 @@
 import { v2 as cloudinary } from "cloudinary";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { requireAdmin } from "@/lib/adminAuth";
 
-// Cloudinary setup
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+export const runtime = "nodejs";
 
-// Optional: List of users allowed to trigger hard deletes
-const ALLOWED_ADMIN_IDS = [
-  "user_2xYcBxcVUeYD9RmUOhCdEErW4ef", // Daniel
-];
+export async function POST() {
+  const admin = await requireAdmin();
 
-export async function POST(req) {
-  const { userId } = getAuth(req);
-  if (!userId || !ALLOWED_ADMIN_IDS.includes(userId)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!admin.authorized) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
   }
+
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
 
   const now = new Date();
   const cutoff = new Date(now.getTime() - 15 * 60 * 1000); // 15 mins ago

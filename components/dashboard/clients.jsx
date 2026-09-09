@@ -16,7 +16,7 @@ import {
   ModalHeader,
 } from "flowbite-react";
 
-import { adminApiFetch, clearAdminKey } from "@/lib/adminApiClient";
+import { adminApiFetch } from "@/lib/adminApiClient";
 
 function money(cents = 0) {
   return new Intl.NumberFormat("en-US", {
@@ -112,12 +112,9 @@ export function AdminClientsPage() {
       setSuccess("Client added.");
       await load(q);
     } catch (e) {
-      // Most common case: missing/wrong key
       const msg = e?.message || "Failed to add client.";
       if (msg.toLowerCase().includes("unauthorized")) {
-        setError(
-          "Unauthorized. Your admin key is missing/wrong. Click “Reset admin key”, reload, and enter it again."
-        );
+        setError("Unauthorized. Sign in with an approved administrator account.");
       } else {
         setError(msg);
       }
@@ -174,19 +171,6 @@ export function AdminClientsPage() {
             </Button>
           </div>
         </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button
-          color="light"
-          size="xs"
-          onClick={() => {
-            clearAdminKey();
-            setSuccess("Admin key cleared. Reload and enter it again.");
-          }}
-        >
-          Reset admin key
-        </Button>
       </div>
 
       {error ? (

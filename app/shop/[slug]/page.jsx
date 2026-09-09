@@ -1,6 +1,7 @@
 // app/shop/[slug]/page.jsx
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { centsToUSD } from "@/lib/money";
 import ProductSizeGuide from "@/components/shop/ProductSizeGuide";
 import ProductImageGallery from "@/components/shop/ProductImageGallery";
@@ -139,9 +140,9 @@ export default async function ProductPage(props) {
             ))}
           </div>
 
-          <a href="/shop" className="btn btn-outline">
+          <Link href="/shop" className="btn btn-outline">
             ← Back to Shop
-          </a>
+          </Link>
         </div>
       </div>
     </main>

@@ -1,7 +1,7 @@
 // components/modals/BookingIntroModal.jsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 export default function BookingIntroModal({ onClose }) {
   const [dontShowAgain, setDontShowAgain] = useState(false);

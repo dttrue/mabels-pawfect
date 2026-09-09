@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
 
-// POST JSON: { productId: string, variantId: string, onHand: number, reason?: string, userId?: string }
+function unauthorizedResponse(admin) {
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+  );
+}
+
+// POST JSON: { productId: string, variantId: string, onHand: number, reason?: string }
 export async function POST(req) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
   try {
     const body = await req.json();
-    const {
-      productId,
-      variantId,
-      onHand,
-      reason,
-      userId,
-      source = "admin_ui",
-    } = body || {};
+    const { productId, variantId, onHand, reason, source = "admin_ui" } =
+      body || {};
 
     if (!productId || !variantId || typeof onHand !== "number" || onHand < 0) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
@@ -28,7 +33,7 @@ export async function POST(req) {
           await tx.inventory.create({
             data: { productId, variantId, onHand: 0 },
           });
-        } catch (e) {
+        } catch {
           /* swallow P2002 and continue */
         }
         prev = await tx.inventory.findUnique({
@@ -48,7 +53,7 @@ export async function POST(req) {
         data: {
           productId,
           variantId,
-          userId: userId ?? null,
+          userId: admin.userId,
           action: "UPSERT",
           delta: onHand - fromQty,
           fromQty,

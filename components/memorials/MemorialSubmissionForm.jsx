@@ -1,7 +1,8 @@
 // components/memorials/MemorialSubmissionForm.jsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Script from "next/script";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const MAX_IMAGES = 6;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -10,9 +11,10 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
-  "image/heic",
-  "image/heif",
 ]);
+
+const DRAFT_STORAGE_PREFIX = "mabels-memorial-draft:";
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 const PET_TYPE_OPTIONS = [
   { value: "DOG", label: "Dog" },
@@ -69,9 +71,40 @@ function getFileValidationError(file) {
   return null;
 }
 
+function draftStorageKey(memorialId) {
+  return `${DRAFT_STORAGE_PREFIX}${memorialId}`;
+}
+
+function formFromMemorial(memorial) {
+  return {
+    ownerName: memorial.ownerName || "",
+    ownerEmail: memorial.ownerEmail || "",
+    ownerPhone: memorial.ownerPhone || "",
+    petName: memorial.petName || "",
+    petType: memorial.petType || "",
+    speciesOther: memorial.speciesOther || "",
+    breed: memorial.breed || "",
+    birthYear: memorial.birthYear ? String(memorial.birthYear) : "",
+    passedYear: memorial.passedYear ? String(memorial.passedYear) : "",
+    headline: memorial.headline || "",
+    story: memorial.story || "",
+    favoriteThings: memorial.favoriteThings || "",
+    closingMessage: memorial.closingMessage || "",
+    donationAmount: Number.isInteger(memorial.donationAmountCents)
+      ? String(memorial.donationAmountCents / 100)
+      : "3",
+    permissionToPublish: memorial.permissionToPublish === true,
+    permissionToAdvertise: memorial.permissionToAdvertise === true,
+    submitterConfirmedRights: memorial.submitterConfirmedRights === true,
+  };
+}
+
 export default function MemorialSubmissionForm() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [selectedImages, setSelectedImages] = useState([]);
+  const [existingImageCount, setExistingImageCount] = useState(0);
+  const [draftAccess, setDraftAccess] = useState(null);
+  const [restoringDraft, setRestoringDraft] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({
@@ -82,6 +115,10 @@ export default function MemorialSubmissionForm() {
   const [error, setError] = useState("");
   const [createdMemorial, setCreatedMemorial] = useState(null);
   const [startingCheckout, setStartingCheckout] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileError, setTurnstileError] = useState("");
+  const turnstileContainerRef = useRef(null);
+  const turnstileWidgetIdRef = useRef(null);
   const storyCharactersRemaining = 5000 - form.story.length;
 
   const donationAmount = useMemo(
@@ -96,6 +133,147 @@ export default function MemorialSubmissionForm() {
       });
     };
   }, [selectedImages]);
+
+  const renderTurnstile = () => {
+    if (
+      draftAccess ||
+      !TURNSTILE_SITE_KEY ||
+      !turnstileContainerRef.current ||
+      !window.turnstile ||
+      turnstileWidgetIdRef.current !== null
+    ) {
+      return;
+    }
+
+    turnstileWidgetIdRef.current = window.turnstile.render(
+      turnstileContainerRef.current,
+      {
+        sitekey: TURNSTILE_SITE_KEY,
+        action: "memorial_create",
+        callback: (token) => {
+          setTurnstileToken(token);
+          setTurnstileError("");
+        },
+        "expired-callback": () => {
+          setTurnstileToken("");
+          setTurnstileError(
+            "Verification expired. Please complete it again."
+          );
+        },
+        "error-callback": () => {
+          setTurnstileToken("");
+          setTurnstileError(
+            "Verification could not load. Please refresh and try again."
+          );
+        },
+      }
+    );
+  };
+
+  const resetTurnstile = () => {
+    setTurnstileToken("");
+
+    if (
+      window.turnstile &&
+      turnstileWidgetIdRef.current !== null
+    ) {
+      window.turnstile.reset(turnstileWidgetIdRef.current);
+    }
+  };
+
+  useEffect(() => {
+    if (window.turnstile) {
+      renderTurnstile();
+    }
+
+    return () => {
+      if (
+        window.turnstile &&
+        turnstileWidgetIdRef.current !== null
+      ) {
+        window.turnstile.remove(turnstileWidgetIdRef.current);
+        turnstileWidgetIdRef.current = null;
+      }
+    };
+    // The widget is needed only while creating the initial draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftAccess]);
+
+  useEffect(() => {
+    let canceled = false;
+
+    async function restoreDraft() {
+      const memorialId = new URLSearchParams(window.location.search).get(
+        "memorialId"
+      );
+
+      if (!memorialId) {
+        setRestoringDraft(false);
+        return;
+      }
+
+      const draftCapability = window.sessionStorage.getItem(
+        draftStorageKey(memorialId)
+      );
+
+      if (!draftCapability) {
+        setError(
+          "This browser session does not have the secure access needed to restore that memorial draft. Please start a new submission."
+        );
+        setRestoringDraft(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/memorials/${encodeURIComponent(memorialId)}/resume`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ draftCapability }),
+          }
+        );
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data?.memorial?.id) {
+          throw new Error(
+            data?.error || "The memorial draft could not be restored."
+          );
+        }
+
+        if (canceled) {
+          return;
+        }
+
+        setForm(formFromMemorial(data.memorial));
+        setExistingImageCount(data.memorial.imageCount || 0);
+        setDraftAccess({
+          memorialId: data.memorial.id,
+          draftCapability,
+        });
+
+        if (data.memorial.status === "PENDING_PAYMENT") {
+          setCreatedMemorial(data.memorial);
+        }
+      } catch (restoreError) {
+        if (!canceled) {
+          setError(
+            restoreError?.message || "The memorial draft could not be restored."
+          );
+        }
+      } finally {
+        if (!canceled) {
+          setRestoringDraft(false);
+        }
+      }
+    }
+
+    restoreDraft();
+
+    return () => {
+      canceled = true;
+    };
+  }, []);
 
   const updateField = (field, value) => {
     setForm((current) => ({
@@ -113,7 +291,8 @@ export default function MemorialSubmissionForm() {
       return;
     }
 
-    const availableSlots = MAX_IMAGES - selectedImages.length;
+    const availableSlots =
+      MAX_IMAGES - existingImageCount - selectedImages.length;
 
     if (availableSlots <= 0) {
       setError(`You can upload up to ${MAX_IMAGES} photos.`);
@@ -193,7 +372,7 @@ export default function MemorialSubmissionForm() {
       return "Your pet's story cannot exceed 5,000 characters.";
     }
 
-    if (selectedImages.length === 0) {
+    if (selectedImages.length + existingImageCount === 0) {
       return "Please upload at least one photo of your pet.";
     }
 
@@ -211,6 +390,12 @@ export default function MemorialSubmissionForm() {
 
     if (!form.submitterConfirmedRights) {
       return "Please confirm that you have permission to submit these photos and this story.";
+    }
+
+    if (!draftAccess && (!TURNSTILE_SITE_KEY || !turnstileToken)) {
+      return TURNSTILE_SITE_KEY
+        ? "Please complete the verification challenge."
+        : "Memorial verification is not configured.";
     }
 
     return null;
@@ -245,58 +430,235 @@ export default function MemorialSubmissionForm() {
         permissionToPublish: form.permissionToPublish,
         permissionToAdvertise: form.permissionToAdvertise,
         submitterConfirmedRights: form.submitterConfirmedRights,
+        turnstileToken,
       }),
     });
 
     const data = await response.json().catch(() => ({}));
 
-    if (!response.ok || !data?.memorial?.id) {
+    if (
+      !response.ok ||
+      !data?.memorial?.id ||
+      typeof data?.draftCapability !== "string"
+    ) {
       throw new Error(
         data?.error || "The memorial draft could not be created."
       );
     }
 
-    return data.memorial;
+    window.sessionStorage.setItem(
+      draftStorageKey(data.memorial.id),
+      data.draftCapability
+    );
+
+    return {
+      memorial: data.memorial,
+      draftCapability: data.draftCapability,
+    };
   };
 
-  const uploadMemorialImages = async (memorialId) => {
-    setUploadProgress({
-      completed: 0,
-      total: selectedImages.length,
-    });
-
-    for (let index = 0; index < selectedImages.length; index += 1) {
-      const selectedImage = selectedImages[index];
-
-      const imageFormData = new FormData();
-      imageFormData.append("file", selectedImage.file);
-      imageFormData.append(
-        "altText",
-        `${form.petName.trim()} memorial photo ${index + 1}`
-      );
-
-      const response = await fetch(`/api/memorials/${memorialId}/images`, {
-        method: "POST",
-        body: imageFormData,
+  const markReservationForReview = async (
+    memorialId,
+    draftCapability,
+    reservationId
+  ) => {
+    try {
+      await fetch(`/api/memorials/${encodeURIComponent(memorialId)}/images`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftCapability, reservationId }),
       });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok || !data?.image?.id) {
-        throw new Error(
-          data?.error || `Photo ${index + 1} could not be uploaded.`
-        );
-      }
-
-      setUploadProgress({
-        completed: index + 1,
-        total: selectedImages.length,
-      });
+    } catch {
+      // The server-side reservation remains available for manual review.
     }
   };
 
+  const restoreImageCount = async (memorialId, draftCapability) => {
+    const response = await fetch(
+      `/api/memorials/${encodeURIComponent(memorialId)}/resume`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftCapability }),
+      }
+    );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data?.memorial?.id) {
+      return null;
+    }
+
+    return data.memorial.imageCount;
+  };
+
+  const uploadMemorialImages = async (memorialId, draftCapability) => {
+    const imagesToUpload = [...selectedImages];
+    let finalizedImageCount = existingImageCount;
+
+    setUploadProgress({
+      completed: 0,
+      total: imagesToUpload.length,
+    });
+
+    for (let index = 0; index < imagesToUpload.length; index += 1) {
+      const selectedImage = imagesToUpload[index];
+      const grantResponse = await fetch(
+        `/api/memorials/${encodeURIComponent(memorialId)}/images`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ draftCapability }),
+        }
+      );
+      const grant = await grantResponse.json().catch(() => ({}));
+
+      if (
+        !grantResponse.ok ||
+        !grant?.reservation?.id ||
+        !grant?.uploadUrl ||
+        !grant?.signature
+      ) {
+        throw new Error(
+          grant?.error || `Photo ${index + 1} could not be prepared.`
+        );
+      }
+
+      const imageFormData = new FormData();
+      imageFormData.append("file", selectedImage.file);
+      imageFormData.append("api_key", grant.apiKey);
+      imageFormData.append("signature", grant.signature);
+
+      Object.entries(grant.uploadParams || {}).forEach(([key, value]) => {
+        imageFormData.append(key, String(value));
+      });
+
+      let cloudinaryResponse;
+
+      try {
+        cloudinaryResponse = await fetch(grant.uploadUrl, {
+          method: "POST",
+          body: imageFormData,
+        });
+      } catch (uploadError) {
+        await markReservationForReview(
+          memorialId,
+          draftCapability,
+          grant.reservation.id
+        );
+        throw uploadError;
+      }
+
+      const cloudinaryData = await cloudinaryResponse
+        .json()
+        .catch(() => ({}));
+
+      if (!cloudinaryResponse.ok) {
+        await markReservationForReview(
+          memorialId,
+          draftCapability,
+          grant.reservation.id
+        );
+        throw new Error(`Photo ${index + 1} could not be uploaded.`);
+      }
+
+      const finalizationBody = {
+        draftCapability,
+        reservationId: grant.reservation.id,
+        altText: `${form.petName.trim()} memorial photo ${
+          finalizedImageCount + 1
+        }`,
+        proof: {
+          publicId: cloudinaryData.public_id,
+          assetId: cloudinaryData.asset_id,
+          version: cloudinaryData.version,
+          responseSignature: cloudinaryData.signature,
+        },
+      };
+
+      let finalizationResponse;
+      let finalizationData;
+
+      try {
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          finalizationResponse = await fetch(
+            `/api/memorials/${encodeURIComponent(memorialId)}/images`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(finalizationBody),
+            }
+          );
+          finalizationData = await finalizationResponse
+            .json()
+            .catch(() => ({}));
+
+          if (finalizationResponse.ok || finalizationResponse.status < 500) {
+            break;
+          }
+        }
+      } catch (finalizationError) {
+        await markReservationForReview(
+          memorialId,
+          draftCapability,
+          grant.reservation.id
+        );
+        throw finalizationError;
+      }
+
+      if (!finalizationResponse.ok || !finalizationData?.image?.id) {
+        if (finalizationResponse.status === 409) {
+          const restoredCount = await restoreImageCount(
+            memorialId,
+            draftCapability
+          );
+
+          if (
+            Number.isInteger(restoredCount) &&
+            restoredCount > finalizedImageCount
+          ) {
+            finalizedImageCount = restoredCount;
+          } else {
+            throw new Error(
+              finalizationData?.error ||
+                `Photo ${index + 1} could not be finalized.`
+            );
+          }
+        } else {
+          await markReservationForReview(
+            memorialId,
+            draftCapability,
+            grant.reservation.id
+          );
+          throw new Error(
+            finalizationData?.error ||
+              `Photo ${index + 1} could not be finalized.`
+          );
+        }
+      } else {
+        finalizedImageCount = finalizationData.imageCount;
+      }
+
+      URL.revokeObjectURL(selectedImage.previewUrl);
+      setSelectedImages((current) =>
+        current.filter((image) => image.id !== selectedImage.id)
+      );
+      setExistingImageCount(finalizedImageCount);
+
+      setUploadProgress({
+        completed: index + 1,
+        total: imagesToUpload.length,
+      });
+    }
+
+    return finalizedImageCount;
+  };
+
   const handleCheckout = async () => {
-    if (!createdMemorial?.id || startingCheckout) {
+    if (
+      !createdMemorial?.id ||
+      !draftAccess?.draftCapability ||
+      startingCheckout
+    ) {
       return;
     }
 
@@ -311,6 +673,7 @@ export default function MemorialSubmissionForm() {
         },
         body: JSON.stringify({
           memorialId: createdMemorial.id,
+          draftCapability: draftAccess.draftCapability,
         }),
       });
 
@@ -353,11 +716,47 @@ export default function MemorialSubmissionForm() {
     try {
       setSubmitting(true);
 
-      const memorial = await createMemorialDraft();
+      let access = draftAccess;
+      let memorial;
 
-      await uploadMemorialImages(memorial.id);
+      if (!access) {
+        let created;
 
-      setCreatedMemorial(memorial);
+        try {
+          created = await createMemorialDraft();
+        } catch (creationError) {
+          resetTurnstile();
+          throw creationError;
+        }
+
+        memorial = created.memorial;
+        access = {
+          memorialId: created.memorial.id,
+          draftCapability: created.draftCapability,
+        };
+        setDraftAccess(access);
+        setTurnstileToken("");
+      } else {
+        memorial = {
+          id: access.memorialId,
+          donationAmountCents: Math.round(donationAmount * 100),
+          currency: "usd",
+        };
+      }
+
+      const imageCount =
+        selectedImages.length > 0
+          ? await uploadMemorialImages(
+              access.memorialId,
+              access.draftCapability
+            )
+          : existingImageCount;
+
+      setCreatedMemorial({
+        ...memorial,
+        id: access.memorialId,
+        imageCount,
+      });
     } catch (submissionError) {
       console.error("[memorial-submission] submission error:", submissionError);
 
@@ -382,8 +781,8 @@ export default function MemorialSubmissionForm() {
         </h2>
 
         <p className="mx-auto mt-4 max-w-xl leading-7 text-gray-600">
-          Your story and {selectedImages.length} photo
-          {selectedImages.length === 1 ? "" : "s"} were uploaded successfully.
+          Your story and {createdMemorial.imageCount || existingImageCount} photo
+          {(createdMemorial.imageCount || existingImageCount) === 1 ? "" : "s"} were uploaded successfully.
           The next step is completing your ${donationAmount.toFixed(2)} memorial
           donation.
         </p>
@@ -755,7 +1154,7 @@ export default function MemorialSubmissionForm() {
           </div>
 
           <p className="text-sm font-medium text-gray-600">
-            {selectedImages.length} of {MAX_IMAGES} selected
+            {existingImageCount + selectedImages.length} of {MAX_IMAGES} ready
           </p>
         </div>
 
@@ -763,28 +1162,32 @@ export default function MemorialSubmissionForm() {
           <label
             htmlFor="memorialPhotos"
             className={`flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-5 py-6 text-center transition ${
-              selectedImages.length >= MAX_IMAGES
+              existingImageCount + selectedImages.length >= MAX_IMAGES
                 ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
                 : "border-pink-300 bg-pink-50 text-pink-800 hover:border-pink-500 hover:bg-pink-100"
             }`}
           >
             <span className="font-semibold">
-              {selectedImages.length >= MAX_IMAGES
+              {existingImageCount + selectedImages.length >= MAX_IMAGES
                 ? "Maximum photos selected"
                 : "Choose photos"}
             </span>
 
             <span className="mt-1 text-xs">
-              JPEG, PNG, WebP, HEIC, or HEIF. Maximum 10 MB each.
+              JPEG, PNG, or WebP. Maximum 10 MB each.
             </span>
           </label>
 
           <input
             id="memorialPhotos"
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            accept="image/jpeg,image/png,image/webp"
             multiple
-            disabled={selectedImages.length >= MAX_IMAGES || submitting}
+            disabled={
+              existingImageCount + selectedImages.length >= MAX_IMAGES ||
+              submitting ||
+              restoringDraft
+            }
             onChange={handleImageSelection}
             className="sr-only"
           />
@@ -947,6 +1350,26 @@ export default function MemorialSubmissionForm() {
         </div>
       </section>
 
+      {!draftAccess && (
+        <section className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <Script
+            src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+            strategy="lazyOnload"
+            onLoad={renderTurnstile}
+            onReady={renderTurnstile}
+          />
+          <p className="mb-3 text-sm text-gray-600">
+            Complete the verification below before saving your memorial.
+          </p>
+          <div ref={turnstileContainerRef} />
+          {turnstileError && (
+            <p className="mt-3 text-sm text-red-700" role="alert">
+              {turnstileError}
+            </p>
+          )}
+        </section>
+      )}
+
       {error && (
         <div
           role="alert"
@@ -985,10 +1408,16 @@ export default function MemorialSubmissionForm() {
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={
+          submitting ||
+          restoringDraft ||
+          (!draftAccess && (!TURNSTILE_SITE_KEY || !turnstileToken))
+        }
         className="mt-8 w-full rounded-xl bg-pink-600 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {submitting
+        {restoringDraft
+          ? "Restoring secure draft..."
+          : submitting
           ? uploadProgress.total > 0
             ? `Uploading photo ${Math.min(
                 uploadProgress.completed + 1,

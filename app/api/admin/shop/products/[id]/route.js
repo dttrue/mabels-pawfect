@@ -1,19 +1,23 @@
 // app/api/admin/shop/products/[id]/route.js
 
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
 
-// small helpers
-function numOrNull(value) {
-  if (value === null) return null;
-  if (value === undefined || value === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
+function unauthorizedResponse(admin) {
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+  );
 }
 
 /* ✅ GET /api/admin/shop/products/[id]
    Fetch one product + categories so we can hydrate the edit form */
-export async function GET(_req, { params }) {
+export async function GET(_req, context) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
+  const params = await context.params;
   const { id } = params || {};
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
@@ -71,10 +75,16 @@ export async function GET(_req, { params }) {
 
 // ✅ DELETE /api/admin/shop/products/[id]
 // Soft-deletes the product by setting deletedAt
-export async function DELETE(_req, { params }) {
+export async function DELETE(_req, context) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
+  const params = await context.params;
+  const { id } = params;
+
   try {
     const found = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, deletedAt: true },
     });
     if (!found)
@@ -85,7 +95,7 @@ export async function DELETE(_req, { params }) {
     }
 
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         deletedAt: new Date(),
         active: false, // optional but nice: hide from shop
@@ -101,7 +111,11 @@ export async function DELETE(_req, { params }) {
 
 // ✅ POST /api/admin/shop/products/[id]/undo
 // Restores a recently deleted product (within 15 minutes)
-export async function POST(_req, { params }) {
+export async function POST(_req, context) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
+  const params = await context.params;
   const { id } = params;
 
   try {
@@ -144,7 +158,11 @@ export async function POST(_req, { params }) {
  * - weight / dimensions (imperial + metric)
  * - categorySlugs → categories relation
  */
-export async function PATCH(req, { params }) {
+export async function PATCH(req, context) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
+  const params = await context.params;
   const { id } = params;
 
   try {

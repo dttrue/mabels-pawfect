@@ -3,19 +3,17 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/adminAuth";
+import {
+  AdminUploadError,
+  consumeAdminUploadGrant,
+  markAdminUploadPersisted,
+  readSmallJson,
+  verifyAdminUploadProof,
+} from "@/lib/adminCloudinaryUpload";
+
+export const runtime = "nodejs";
 
 const ALLOWED_STATUSES = new Set(["ACTIVE", "FUNDED", "ADOPTED", "ARCHIVED"]);
-
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-
-const CLOUDINARY_CLOUD_NAME =
-  process.env.CLOUDINARY_CLOUD_NAME ||
-  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD;
-
-const CLOUDINARY_UPLOAD_PRESET =
-  process.env.CLOUDINARY_UPLOAD_PRESET ||
-  process.env.NEXT_PUBLIC_CLOUDINARY_PRESET;
 
 function slugify(value) {
   return String(value || "")
@@ -34,6 +32,10 @@ function optionalText(value) {
 function parseBoolean(value, defaultValue = false) {
   if (value === null || value === undefined) {
     return defaultValue;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
   }
 
   return value === "true" || value === "1" || value === "on";
@@ -110,37 +112,27 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  console.log("[admin foster cats] POST handler reached");
-
   const unauthorized = await authorizeAdmin();
-
-  console.log("[admin foster cats] POST authorization:", {
-    blocked: Boolean(unauthorized),
-  });
 
   if (unauthorized) {
     return unauthorized;
   }
+  let asset;
   try {
-    const formData = await req.formData();
+    const body = await readSmallJson(req);
+    const name = String(body?.name || "").trim();
+    const requestedSlug = String(body?.slug || "").trim();
+    const shortBio = String(body?.shortBio || "").trim();
+    const story = optionalText(body?.story);
+    const careNeeds = optionalText(body?.careNeeds);
+    const ageLabel = optionalText(body?.ageLabel);
+    const sex = optionalText(body?.sex);
+    const imageAlt = optionalText(body?.imageAlt);
 
-    const file = formData.get("file");
-    const name = String(formData.get("name") || "").trim();
-    const requestedSlug = String(formData.get("slug") || "").trim();
-    const shortBio = String(formData.get("shortBio") || "").trim();
-    const story = optionalText(formData.get("story"));
-    const careNeeds = optionalText(formData.get("careNeeds"));
-    const ageLabel = optionalText(formData.get("ageLabel"));
-    const sex = optionalText(formData.get("sex"));
-    const imageAlt = optionalText(formData.get("imageAlt"));
-
-    const status = String(formData.get("status") || "ACTIVE").toUpperCase();
-
-    const isFeatured = parseBoolean(formData.get("isFeatured"), true);
-
-    const sortOrder = parseInteger(formData.get("sortOrder"), 0);
-
-    const goalCentsRaw = formData.get("goalCents");
+    const status = String(body?.status || "ACTIVE").toUpperCase();
+    const isFeatured = parseBoolean(body?.isFeatured, true);
+    const sortOrder = parseInteger(body?.sortOrder, 0);
+    const goalCentsRaw = body?.goalCents;
 
     const goalCents =
       goalCentsRaw === null || String(goalCentsRaw).trim() === ""
@@ -154,27 +146,6 @@ export async function POST(req) {
     if (!shortBio) {
       return NextResponse.json(
         { error: "Short bio is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!file || typeof file.arrayBuffer !== "function") {
-      return NextResponse.json(
-        { error: "An image is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!file.type?.startsWith("image/")) {
-      return NextResponse.json(
-        { error: "The uploaded file must be an image" },
-        { status: 400 }
-      );
-    }
-
-    if (file.size > MAX_IMAGE_BYTES) {
-      return NextResponse.json(
-        { error: "The image must be 10 MB or smaller" },
         { status: 400 }
       );
     }
@@ -218,84 +189,50 @@ export async function POST(req) {
       );
     }
 
-    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-      console.error("[admin foster cats] Missing Cloudinary configuration", {
-        hasCloudName: Boolean(CLOUDINARY_CLOUD_NAME),
-        hasUploadPreset: Boolean(CLOUDINARY_UPLOAD_PRESET),
-      });
-
-      return NextResponse.json(
-        { error: "Cloudinary upload is not configured" },
-        { status: 500 }
-      );
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const publicId = `${Date.now()}-${slug}`;
-
-    const cloudinaryResponse = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-      {
-        method: "POST",
-        body: new URLSearchParams({
-          file: `data:${file.type};base64,${buffer.toString("base64")}`,
-          upload_preset: CLOUDINARY_UPLOAD_PRESET,
-          public_id: publicId,
-          folder: "mabels-pawfect/foster-cats",
-        }),
-      }
+    asset = await verifyAdminUploadProof(
+      body?.uploadProof,
+      "foster-cat-image"
     );
 
-    const cloudinaryData = await cloudinaryResponse.json().catch(() => ({}));
+    const fosterCat = await prisma.$transaction(async (transaction) => {
+      await consumeAdminUploadGrant(transaction, asset);
+      return transaction.fosterCat.create({
+        data: {
+          name,
+          slug,
+          shortBio,
+          story,
+          careNeeds,
+          ageLabel,
+          sex,
+          goalCents,
+          status,
+          isFeatured,
+          sortOrder,
 
-    if (
-      !cloudinaryResponse.ok ||
-      !cloudinaryData.secure_url ||
-      !cloudinaryData.public_id
-    ) {
-      console.error("[admin foster cats] Cloudinary error:", {
-        status: cloudinaryResponse.status,
-        error: cloudinaryData?.error || cloudinaryData,
-      });
-
-      return NextResponse.json(
-        {
-          error:
-            cloudinaryData?.error?.message || "Cloudinary image upload failed",
+          imageUrl: asset.secureUrl,
+          imagePublicId: asset.publicId,
+          imageAssetId: asset.assetId,
+          imageWidth: asset.width,
+          imageHeight: asset.height,
+          imageFormat: asset.format,
+          imageBytes: asset.bytes,
+          imageAlt: imageAlt || `${name}, a foster cat receiving rescue care`,
         },
-        { status: 502 }
+      });
+    });
+
+    await markAdminUploadPersisted(asset.publicId, asset.resourceType);
+    return NextResponse.json({ cat: fosterCat }, { status: 201 });
+  } catch (error) {
+    if (error instanceof AdminUploadError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
       );
     }
 
-    const fosterCat = await prisma.fosterCat.create({
-      data: {
-        name,
-        slug,
-        shortBio,
-        story,
-        careNeeds,
-        ageLabel,
-        sex,
-        goalCents,
-        status,
-        isFeatured,
-        sortOrder,
-
-        imageUrl: cloudinaryData.secure_url,
-        imagePublicId: cloudinaryData.public_id,
-        imageAssetId: cloudinaryData.asset_id || null,
-        imageWidth: cloudinaryData.width || null,
-        imageHeight: cloudinaryData.height || null,
-        imageFormat: cloudinaryData.format || null,
-        imageBytes: cloudinaryData.bytes || null,
-        imageAlt: imageAlt || `${name}, a foster cat receiving rescue care`,
-      },
-    });
-
-    return NextResponse.json({ cat: fosterCat }, { status: 201 });
-  } catch (error) {
-    console.error("[admin foster cats] POST error:", error);
-
+    console.error("[admin foster cats] POST failed");
     return NextResponse.json(
       { error: "Failed to create foster cat" },
       { status: 500 }

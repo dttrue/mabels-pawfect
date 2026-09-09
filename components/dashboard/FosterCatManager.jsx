@@ -2,7 +2,8 @@
 "use client";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { uploadAdminAsset } from "@/lib/adminCloudinaryClient";
 
 const INITIAL_FORM = {
   name: "",
@@ -58,7 +59,7 @@ export default function FosterCatManager() {
     };
   }, [previewUrl]);
 
-  async function loadCats() {
+  const loadCats = useCallback(async () => {
     setLoadingCats(true);
 
     try {
@@ -90,11 +91,11 @@ export default function FosterCatManager() {
     } finally {
       setLoadingCats(false);
     }
-  }
+  }, [getToken]);
 
   useEffect(() => {
     loadCats();
-  }, []);
+  }, [loadCats]);
 
   function updateField(event) {
     const { name, value, type, checked } = event.target;
@@ -131,25 +132,6 @@ export default function FosterCatManager() {
       return;
     }
 
-    const payload = new FormData();
-
-    payload.append("file", file);
-    payload.append("name", form.name);
-    payload.append("slug", form.slug);
-    payload.append("shortBio", form.shortBio);
-    payload.append("story", form.story);
-    payload.append("careNeeds", form.careNeeds);
-    payload.append("ageLabel", form.ageLabel);
-    payload.append("sex", form.sex);
-    payload.append("imageAlt", form.imageAlt);
-    payload.append("status", form.status);
-    payload.append("sortOrder", form.sortOrder);
-    payload.append("isFeatured", String(form.isFeatured));
-
-    if (goalDollars !== null) {
-      payload.append("goalCents", String(Math.round(goalDollars * 100)));
-    }
-
     try {
       setSubmitting(true);
 
@@ -161,13 +143,21 @@ export default function FosterCatManager() {
         );
       }
 
+      const { proof } = await uploadAdminAsset(file, "foster-cat-image");
+
       const response = await fetch("/api/admin/foster-cats", {
         method: "POST",
         credentials: "include",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: payload,
+        body: JSON.stringify({
+          ...form,
+          goalCents:
+            goalDollars === null ? null : Math.round(goalDollars * 100),
+          uploadProof: proof,
+        }),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -399,7 +389,7 @@ export default function FosterCatManager() {
               <span className="mb-1 block text-sm font-medium">Image</span>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="file-input file-input-bordered w-full"
                 onChange={(event) => {
                   setFile(event.target.files?.[0] || null);

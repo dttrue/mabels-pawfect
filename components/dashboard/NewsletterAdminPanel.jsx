@@ -27,7 +27,7 @@ export default function NewsletterAdminPanel() {
     try {
       await axios.delete("/api/admin/newsletters", { data: { id } });
       setNewsletters((prev) => prev.filter((n) => n.id !== id));
-    } catch (err) {
+    } catch {
       alert("Failed to delete");
     }
   };

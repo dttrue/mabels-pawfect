@@ -5,39 +5,54 @@ import Stripe from "stripe";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { Resend } from "resend";
 import { generateOrderEmail } from "@/lib/emails/generateOrderEmail";
+import {
+  createResendClient,
+  sendRequiredEmail,
+} from "@/lib/emails/resend";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getShopStripe() {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    return null;
+  }
+
+  return new Stripe(secretKey);
+}
 
 export async function POST(req) {
   const sig = (await headers()).get("stripe-signature");
-  const raw = await req.text();
 
-  // Optional: quick sanity about key/account
-  try {
-    const acct = await stripe.accounts.retrieve();
-    console.log("[STRIPE SERVER]", {
-      mode: process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_")
-        ? "TEST"
-        : "LIVE",
-      account: acct.id,
-    });
-  } catch (e) {
-    console.warn("[STRIPE SERVER] account retrieve failed:", e?.message);
+  if (!sig) {
+    return NextResponse.json(
+      { error: "Missing Stripe signature." },
+      { status: 400 }
+    );
   }
+
+  const stripe = getShopStripe();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET_SHOP?.trim();
+
+  if (!stripe || !webhookSecret) {
+    console.error("[SHOP WH] Webhook is not configured.");
+    return NextResponse.json(
+      { error: "Shop webhook is not configured." },
+      { status: 503 }
+    );
+  }
+
+  const raw = await req.text();
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(
-      raw,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET_SHOP
+    event = stripe.webhooks.constructEvent(raw, sig, webhookSecret);
+  } catch {
+    console.error("[SHOP WH] Signature verification failed.");
+    return NextResponse.json(
+      { error: "Invalid Stripe signature." },
+      { status: 400 }
     );
-  } catch (err) {
-    console.error("[SHOP WH] ❌ verify failed:", err.message);
-    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
   console.log("[SHOP WH] ✔ verified", { type: event.type, id: event.id });
@@ -47,11 +62,12 @@ export async function POST(req) {
     return NextResponse.json({ received: true });
   }
 
-  const session = event.data.object;
-  if (session.payment_status !== "paid") {
-    console.log("[SHOP WH] skipped: session not paid");
-    return NextResponse.json({ skipped: "not paid" });
-  }
+  try {
+    const session = event.data.object;
+    if (session.payment_status !== "paid") {
+      console.log("[SHOP WH] skipped: session not paid");
+      return NextResponse.json({ skipped: "not paid" });
+    }
 
   const cartId = session.metadata?.cartId || null;
 
@@ -71,14 +87,7 @@ export async function POST(req) {
     { expand: ["data.price.product"], limit: 100 }
   );
 
-  console.log(
-    "[SHOP WH] items:",
-    lineItems.map((li) => ({
-      desc: li.description,
-      qty: li.quantity,
-      meta: li.price?.product?.metadata,
-    }))
-  );
+    console.log("[SHOP WH] items retrieved:", { count: lineItems.length });
 
   // Idempotent order upsert
   const order = await prisma.order.upsert({
@@ -119,7 +128,6 @@ export async function POST(req) {
 
   console.log("[SHOP WH] order upsert ✓", {
     id: order.id,
-    email: order.email,
     total: order.totalCents,
     items: order.items.length,
   });
@@ -170,30 +178,32 @@ export async function POST(req) {
           },
         });
       });
-    } catch (e) {
+    } catch {
       console.error("[SHOP WH] inventory tx failed:", {
         productId,
         variantId,
         qty,
-        err: e,
       });
       // don’t throw; order already persisted
     }
   }
 
   // Notify (only on first create)
+  let notificationSent = false;
   try {
     const html = generateOrderEmail({ order, items: order.items });
-    await resend.emails.send({
+    const emailClient = createResendClient();
+    await sendRequiredEmail(emailClient, {
       from: "Shop Alerts <no-reply@mabelspawfectpetservices.com>",
       to: ["therainbowniche@gmail.com", "danieltorres.dt@gmail.com"],
       subject: `🛍️ New Order #${order.id.slice(0, 8)} · ${(order.totalCents / 100).toFixed(2)} ${order.currency?.toUpperCase() || "USD"}`,
       html,
     });
-    console.log("[SHOP WH] 📬 email sent:", order.id);
-  } catch (e) {
-    console.error("[SHOP WH] email failed:", e);
+    notificationSent = true;
+  } catch {
+    notificationSent = false;
   }
+  console.log("[SHOP WH] notification:", { notificationSent });
 
   // Clear cart
   if (cartId) {
@@ -204,8 +214,24 @@ export async function POST(req) {
     }
   }
 
-  console.log("[SHOP WH] ✅ order done:", order.id);
-  return NextResponse.json({ ok: true, type: "shop", orderId: order.id });
+    console.log("[SHOP WH] ✅ order done:", order.id);
+    return NextResponse.json({ ok: true, type: "shop", orderId: order.id });
+  } catch (error) {
+    const providerFailure = error instanceof Stripe.errors.StripeError;
+    console.error(
+      providerFailure
+        ? "[SHOP WH] Payment provider request failed."
+        : "[SHOP WH] Event processing failed."
+    );
+    return NextResponse.json(
+      {
+        error: providerFailure
+          ? "Shop payment provider request failed."
+          : "Shop webhook processing failed.",
+      },
+      { status: providerFailure ? 502 : 500 }
+    );
+  }
 }
 
 // Helpers

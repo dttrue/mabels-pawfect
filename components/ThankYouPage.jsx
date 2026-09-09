@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import confetti from "canvas-confetti";
+import Link from "next/link";
 
 export default function ThankYouPage() {
   useEffect(() => {
@@ -23,12 +24,12 @@ export default function ThankYouPage() {
         <p className="text-sm text-gray-500 mb-8">
           In the meantime, feel free to explore more about what we offer.
         </p>
-        <a
+        <Link
           href="/"
           className="inline-block bg-pink-500 hover:bg-pink-600 text-white px-6 py-3 rounded-md font-semibold"
         >
           Back to Home
-        </a>
+        </Link>
       </div>
     </section>
   );

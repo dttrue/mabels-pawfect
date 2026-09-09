@@ -158,6 +158,7 @@ export async function POST(_request, context) {
         publishedAt,
         reviewedAt: publishedAt,
         reviewedBy: admin.userId,
+        draftCapabilityInvalidatedAt: publishedAt,
       },
       select: {
         id: true,

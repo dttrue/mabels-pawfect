@@ -5,7 +5,18 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+function getShopStripe() {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    return null;
+  }
+
+  return {
+    client: new Stripe(secretKey),
+    keyIsTest: secretKey.startsWith("sk_test_"),
+  };
+}
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -24,6 +35,16 @@ export async function GET(req) {
 
     // 2) If not found yet, pull the session to (a) confirm mode, (b) fallback via PI
     if (!order) {
+      const shopStripe = getShopStripe();
+
+      if (!shopStripe) {
+        return NextResponse.json(
+          { error: "Shop payments are not configured." },
+          { status: 503 }
+        );
+      }
+
+      const { client: stripe, keyIsTest } = shopStripe;
       let session;
       try {
         session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -35,11 +56,15 @@ export async function GET(req) {
             { status: 404 }
           );
         }
-        throw e; // other Stripe errors → 500 below
+
+        console.error("[by-session] Payment provider request failed.");
+        return NextResponse.json(
+          { error: "Unable to retrieve the checkout session." },
+          { status: 502 }
+        );
       }
 
       // Mode sanity check (helps when test objects are queried with live keys, and vice versa)
-      const keyIsTest = process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_");
       if (keyIsTest === !!session.livemode) {
         return NextResponse.json(
           { error: "Stripe mode mismatch" },
@@ -104,8 +129,8 @@ export async function GET(req) {
         })),
       },
     });
-  } catch (err) {
-    console.error("[by-session] error:", err);
+  } catch {
+    console.error("[by-session] Order lookup failed.");
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

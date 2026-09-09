@@ -1,54 +1,21 @@
 // app/api/admin/shop/upload/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
 
-export async function POST(req) {
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-
-  const {
-    imageUrl,
-    publicId,
-    altText = "",
-    caption = "",
-    productId,
-  } = body || {};
-  if (!imageUrl || !publicId) {
+export async function POST() {
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
     return NextResponse.json(
-      { error: "imageUrl and publicId required" },
-      { status: 400 }
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
     );
   }
 
-  try {
-    const image = await prisma.productImage.create({
-      data: {
-        url: imageUrl,
-        publicId, // <- for <CldImage src={publicId}>
-        alt: altText,
-        caption, // optional
-        sort: 0,
-        productId: productId || null, // optional link to a product
-      },
-      select: {
-        id: true,
-        url: true,
-        publicId: true,
-        alt: true,
-        caption: true,
-        productId: true,
-      },
-    });
-
-    return NextResponse.json({ ok: true, image });
-  } catch (err) {
-    console.error("Shop upload route error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
+  return NextResponse.json(
+    { error: "Use the verified shop-image upload endpoint" },
+    { status: 410 }
+  );
 }
 
 export async function GET() {

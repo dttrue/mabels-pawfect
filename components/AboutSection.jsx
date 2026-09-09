@@ -42,7 +42,7 @@ export default async function AboutSection() {
             they’re family.
           </p>
           <p className="text-gray-600">
-            Whether it's a quick walk or overnight care, I treat every pet with
+            Whether it&apos;s a quick walk or overnight care, I treat every pet with
             the same love, patience, and attention I give my own. 🐾
           </p>
         </div>

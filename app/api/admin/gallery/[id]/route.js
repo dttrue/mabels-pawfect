@@ -3,10 +3,21 @@
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
+
+function unauthorizedResponse(admin) {
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+  );
+}
 
 export async function DELETE(_req, context) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
   // Next.js 15+ requires awaiting params
-  const { params } = await context;
+  const params = await context.params;
   const id = params.id;
 
   if (!id || typeof id !== "string") {

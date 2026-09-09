@@ -1,16 +1,20 @@
-// app/api/admin/memorials/undo/[id]/route.js
+export const runtime = "nodejs";
 
-import { getAuth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
+import { bestEffortExpireMemorialCheckoutSession } from "@/lib/memorialCheckout";
 
 const UNDO_WINDOW_MS = 15 * 60 * 1000;
 
-export async function POST(req, context) {
-  const { userId } = await auth();
+export async function POST(_request, context) {
+  const admin = await requireAdmin();
 
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!admin.authorized) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
   }
 
   const { params } = await context;
@@ -28,6 +32,7 @@ export async function POST(req, context) {
     select: {
       id: true,
       deletedAt: true,
+      stripeSessionId: true,
     },
   });
 
@@ -51,15 +56,52 @@ export async function POST(req, context) {
     );
   }
 
-  const restored = await prisma.petMemorial.update({
-    where: { id },
-    data: {
-      deletedAt: null,
+  const result = await prisma.$transaction(
+    async (transaction) => {
+      const activeAttempt =
+        await transaction.petMemorialCheckoutAttempt.findUnique({
+          where: { activeMemorialId: id },
+          select: { id: true, stripeSessionId: true },
+        });
+      const now = new Date();
+
+      if (activeAttempt) {
+        await transaction.petMemorialCheckoutAttempt.updateMany({
+          where: {
+            id: activeAttempt.id,
+            activeMemorialId: id,
+            state: { in: ["CREATING", "OPEN"] },
+          },
+          data: {
+            state: "INVALIDATED",
+            activeMemorialId: null,
+            invalidatedAt: now,
+          },
+        });
+      }
+
+      const restored = await transaction.petMemorial.update({
+        where: { id },
+        data: {
+          deletedAt: null,
+          draftCapabilityInvalidatedAt:
+            memorial.deletedAt || memorial.draftCapabilityInvalidatedAt || now,
+        },
+      });
+
+      return {
+        restored,
+        stripeSessionId:
+          activeAttempt?.stripeSessionId || memorial.stripeSessionId || null,
+      };
     },
-  });
+    { isolationLevel: "Serializable" }
+  );
+
+  await bestEffortExpireMemorialCheckoutSession(result.stripeSessionId);
 
   return NextResponse.json({
     success: true,
-    restored,
+    restored: result.restored,
   });
 }

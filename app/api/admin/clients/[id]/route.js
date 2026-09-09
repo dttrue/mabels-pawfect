@@ -1,12 +1,15 @@
 // app/api/admin/clients/[id]/route.js
 import prisma from "@/lib/prisma";
-import { assertAdmin } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/adminAuth";
 
 /* ----------------------------- GET (detail) ----------------------------- */
 export async function GET(req, { params }) {
-  const auth = assertAdmin(req);
-  if (!auth.ok) {
-    return Response.json({ error: auth.reason }, { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
   }
 
   const { id } = params;
@@ -69,9 +72,12 @@ export async function GET(req, { params }) {
 
 /* ---------------------------- PATCH (edit) ---------------------------- */
 export async function PATCH(req, { params }) {
-  const auth = assertAdmin(req);
-  if (!auth.ok) {
-    return Response.json({ error: auth.reason }, { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
   }
 
   const { id } = params;
@@ -135,9 +141,12 @@ export async function PATCH(req, { params }) {
 
 /* --------------------------- DELETE (soft) --------------------------- */
 export async function DELETE(req, { params }) {
-  const auth = assertAdmin(req);
-  if (!auth.ok) {
-    return Response.json({ error: auth.reason }, { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
   }
 
   const { id } = params;

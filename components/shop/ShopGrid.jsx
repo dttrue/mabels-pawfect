@@ -1,5 +1,6 @@
 // components/shop/ShopGrid.jsx
 import prisma from "@/lib/prisma";
+import Link from "next/link";
 import { centsToUSD } from "@/lib/money";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopFilterBar from "@/components/shop/ShopFilterBar";
@@ -134,12 +135,12 @@ export default async function ShopGrid({
         </h1>
 
         {showBackLink && (
-          <a
+          <Link
             href="/"
             className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-base-200"
           >
             ← Home
-          </a>
+          </Link>
         )}
       </div>
 
@@ -168,12 +169,12 @@ export default async function ShopGrid({
             )}
 
             {selectedCategories.length || query || inStockOnly ? (
-              <a
+              <Link
                 href="/shop"
                 className="sm:ml-auto underline underline-offset-2 hover:text-base-content"
               >
                 Clear all
-              </a>
+              </Link>
             ) : null}
           </div>
         </div>

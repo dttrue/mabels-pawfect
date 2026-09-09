@@ -43,8 +43,8 @@ export default function BookingForm() {
   });
 
   const [blockedDates, setBlockedDates] = useState([]);
-  const [availableSlots, setAvailableSlots] = useState([]);
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [, setAvailableSlots] = useState([]);
+  const [, setSelectedDay] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -309,7 +309,7 @@ export default function BookingForm() {
 
           {success && (
             <div className="p-4 text-green-800 bg-green-100 rounded-lg shadow">
-              Booking submitted successfully! We'll get back to you soon. 💌
+              Booking submitted successfully! We&apos;ll get back to you soon. 💌
             </div>
           )}
 

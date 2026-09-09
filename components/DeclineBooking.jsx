@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 
 export default function DeclineBooking({ token }) {
@@ -31,7 +31,7 @@ export default function DeclineBooking({ token }) {
       } else {
         setError(data.error || "Something went wrong.");
       }
-    } catch (err) {
+    } catch {
       setError("Server error.");
     } finally {
       setSubmitting(false);
@@ -42,7 +42,7 @@ export default function DeclineBooking({ token }) {
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">Decline Booking</h1>
       <p className="mb-2 text-gray-700">
-        Please let the client know why you're unable to accept this booking.
+        Please let the client know why you&apos;re unable to accept this booking.
       </p>
 
       <textarea

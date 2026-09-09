@@ -1,7 +1,8 @@
 // components/dashboard/ShopUploader.jsx
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
+import { uploadAdminAsset } from "@/lib/adminCloudinaryClient";
 
 export default function ShopUploader({ onUploadComplete, productId }) {
   const [imageFile, setImageFile] = useState(null);
@@ -12,11 +13,6 @@ export default function ShopUploader({ onUploadComplete, productId }) {
 
   const MAX_KEYWORDS = 10;
   const MAX_ALT_LENGTH = 125;
-
-  const filenameTitle = useMemo(
-    () => (imageFile?.name ? humanize(imageFile.name) : ""),
-    [imageFile]
-  );
 
   function parseKeywords(input) {
     return String(input || "")
@@ -35,53 +31,19 @@ export default function ShopUploader({ onUploadComplete, productId }) {
 
     const keywords = parseKeywords(keywordsText);
 
-    const formData = new FormData();
-    formData.append("file", imageFile);
-    formData.append(
-      "upload_preset",
-      process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_PRESET
-    );
-
-    const root = (
-      process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_ROOT || "pawfect/shop/products"
-    ).replace(/\/+$/, "");
-
-    // ✅ make public_id unique & safe
-    const baseSlug = slugify(filenameTitle || "image") || "image";
-    const stamp = Date.now();
-    const publicId = `${root}/${baseSlug}-${stamp}`;
-
-    formData.append("folder", root);
-    formData.append("public_id", publicId);
-
     setLoading(true);
     try {
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
-        { method: "POST", body: formData }
-      );
-      const cloudData = await cloudRes.json();
-
-      if (!cloudRes.ok || !cloudData?.public_id || !cloudData?.secure_url) {
-        throw new Error(
-          cloudData?.error?.message || "Cloudinary upload failed"
-        );
-      }
-
-      // --- Persist in DB ---
-      const payload = {
-        imageUrl: cloudData.secure_url,
-        publicId: cloudData.public_id,
-        alt: alt.trim(),
-        caption: caption.trim() || null,
-        keywords,
-        productId: productId || undefined,
-      };
-
+      const { proof } = await uploadAdminAsset(imageFile, "shop-image");
       const dbRes = await fetch("/api/admin/shop/images", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          uploadProof: proof,
+          alt: alt.trim(),
+          caption: caption.trim(),
+          keywords,
+          productId: productId || null,
+        }),
       });
       const body = await dbRes.json().catch(() => ({}));
       if (!dbRes.ok) throw new Error(body?.error || "DB insert failed");
@@ -110,7 +72,7 @@ export default function ShopUploader({ onUploadComplete, productId }) {
     <div className="space-y-4 border p-4 rounded bg-base-200">
       <input
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         onChange={(e) => setImageFile(e.target.files[0] || null)}
       />
 
@@ -162,19 +124,4 @@ export default function ShopUploader({ onUploadComplete, productId }) {
       </button>
     </div>
   );
-}
-
-/* helpers */
-function humanize(name) {
-  return name
-    .replace(/[-_]+/g, " ")
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/\b\w/g, (m) => m.toUpperCase());
-}
-function slugify(s) {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }

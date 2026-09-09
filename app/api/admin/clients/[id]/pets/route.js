@@ -1,11 +1,14 @@
 // app/api/admin/clients/[id]/pets/route.js
 import prisma from "@/lib/prisma";
-import { assertAdmin } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/adminAuth";
 
 export async function GET(req, { params }) {
-  const auth = assertAdmin(req);
-  if (!auth.ok) {
-    return Response.json({ error: auth.reason }, { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
   }
 
   const { id: clientId } = params;
@@ -31,9 +34,12 @@ export async function GET(req, { params }) {
 }
 
 export async function POST(req, { params }) {
-  const auth = assertAdmin(req);
-  if (!auth.ok) {
-    return Response.json({ error: auth.reason }, { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
   }
 
   const { id: clientId } = params;

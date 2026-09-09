@@ -1,6 +1,16 @@
 // app/api/admin/gallery/route.js
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
+import {
+  AdminUploadError,
+  consumeAdminUploadGrant,
+  markAdminUploadPersisted,
+  readSmallJson,
+  verifyAdminUploadProof,
+} from "@/lib/adminCloudinaryUpload";
+
+export const runtime = "nodejs";
 
 // GET: Fetch all images (no user filter needed anymore)
 export async function GET() {
@@ -18,42 +28,23 @@ export async function GET() {
 
 // POST: Upload new image (no provider needed)
 export async function POST(req) {
-  try {
-    const formData = await req.formData();
-    const file = formData.get("file");
-    const caption = formData.get("caption");
-    const altText = formData.get("altText");
-    const category = formData.get("category");
-    const keywordsRaw = formData.get("keywords"); // ✅ New field
-
-    if (!file || typeof file !== "object") {
-      return NextResponse.json({ error: "Missing file" }, { status: 400 });
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const fileName = `${Date.now()}-${file.name.replace(/\s/g, "-")}`;
-
-    const cloudRes = await fetch(
-      `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
-      {
-        method: "POST",
-        body: new URLSearchParams({
-          file: `data:${file.type};base64,${buffer.toString("base64")}`,
-          upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
-          public_id: fileName,
-          folder: "bridget-gallery",
-        }),
-      }
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
     );
+  }
 
-    const data = await cloudRes.json();
+  let asset;
+  try {
+    const body = await readSmallJson(req);
+    const caption = String(body?.caption || "").trim() || null;
+    const altText = String(body?.altText || "").trim() || null;
+    const category = String(body?.category || "HAPPY").toUpperCase();
+    const keywordsRaw = String(body?.keywords || "");
 
-    if (!data.secure_url || !data.public_id) {
-      return NextResponse.json(
-        { error: "Cloudinary upload failed" },
-        { status: 500 }
-      );
-    }
+    asset = await verifyAdminUploadProof(body?.uploadProof, "gallery-image");
 
     // ✅ Sanitize keywords string (comma-separated, lowercase, trimmed)
     const keywords = keywordsRaw
@@ -64,21 +55,31 @@ export async function POST(req) {
           .slice(0, 10) // max 10
       : [];
 
-    const newImage = await prisma.gallery.create({
-      data: {
-        imageUrl: data.secure_url,
-        publicId: data.public_id,
-        caption: caption || null,
-        altText: altText || null,
-        category: category || "HAPPY",
-        keywords,
-      },
+    const newImage = await prisma.$transaction(async (transaction) => {
+      await consumeAdminUploadGrant(transaction, asset);
+      return transaction.gallery.create({
+        data: {
+          imageUrl: asset.secureUrl,
+          publicId: asset.publicId,
+          caption: caption || null,
+          altText: altText || null,
+          category: category || "HAPPY",
+          keywords,
+        },
+      });
     });
 
+    await markAdminUploadPersisted(asset.publicId, asset.resourceType);
     return NextResponse.json(newImage);
-  } catch (err) {
-    console.error("🛑 Gallery upload error:", err);
+  } catch (error) {
+    if (error instanceof AdminUploadError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
+
+    console.error("Gallery upload failed");
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }
-

@@ -64,7 +64,7 @@ export default function GalleryList() {
       const data = await res.json();
       setImages(data);
       toast.success("Image restored!");
-    } catch (err) {
+    } catch {
       toast.error("Failed to undo.");
     }
   };

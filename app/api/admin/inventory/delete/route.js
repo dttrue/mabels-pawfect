@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
+
+function unauthorizedResponse(admin) {
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+  );
+}
 
 // POST JSON: { productId: string, variantId: string, reason?: string, userId?: string }
 export async function POST(req) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
   try {
     const body = await req.json();
     const {

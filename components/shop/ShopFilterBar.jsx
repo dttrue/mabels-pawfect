@@ -54,7 +54,11 @@ export default function ShopFilterBar({
 
   const toggleCat = (slug) => {
     const next = new Set(catSet);
-    next.has(slug) ? next.delete(slug) : next.add(slug);
+    if (next.has(slug)) {
+      next.delete(slug);
+    } else {
+      next.add(slug);
+    }
     replaceURL(next);
   };
 

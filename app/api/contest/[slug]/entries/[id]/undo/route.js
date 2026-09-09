@@ -3,11 +3,20 @@
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
 
 const GRACE_MS = 15 * 60 * 1000;
 
 export async function POST(_req, { params }) {
-  const { slug, id } = params || {};
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
+  }
+
+  const { slug, id } = (await params) || {};
   if (!slug || !id)
     return NextResponse.json({ error: "Missing slug or id" }, { status: 400 });
 

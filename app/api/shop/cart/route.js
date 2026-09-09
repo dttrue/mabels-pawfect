@@ -7,7 +7,6 @@ import prisma from "@/lib/prisma";
 import {
   readCartId,
   ensureCart,
-  cartTotals,
   CART_COOKIE,
   COOKIE_MAX_AGE,
 } from "@/lib/cart";

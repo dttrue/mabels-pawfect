@@ -1,11 +1,23 @@
 // app/api/admin/shop/images/[id]/route.js
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
+
+function unauthorizedResponse(admin) {
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+  );
+}
 
 /* -------------------------------------------- */
 /* DELETE — Soft delete an image                */
 /* -------------------------------------------- */
-export async function DELETE(_req, { params }) {
+export async function DELETE(_req, context) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
+  const params = await context.params;
   const { id } = params || {};
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
@@ -35,7 +47,11 @@ export async function DELETE(_req, { params }) {
 /* -------------------------------------------- */
 /* PATCH — Update image metadata or set main    */
 /* -------------------------------------------- */
-export async function PATCH(req, { params }) {
+export async function PATCH(req, context) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
+  const params = await context.params;
   const { id } = params || {};
 
   if (!id) {
@@ -45,7 +61,7 @@ export async function PATCH(req, { params }) {
   let body = {};
   try {
     body = await req.json();
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 

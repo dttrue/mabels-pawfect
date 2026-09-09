@@ -1,6 +1,6 @@
 // app/api/admin/payments/route.js
 import prisma from "@/lib/prisma";
-import { assertAdmin } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/adminAuth";
 
 function toCents(n) {
   const x = Number(n);
@@ -8,11 +8,11 @@ function toCents(n) {
 }
 
 export async function POST(req) {
-  const auth = assertAdmin(req);
-  if (!auth.ok) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
     return Response.json(
-      { error: auth.reason || "Unauthorized" },
-      { status: 401 }
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
     );
   }
 

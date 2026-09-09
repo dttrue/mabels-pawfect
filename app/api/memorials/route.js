@@ -2,6 +2,14 @@
 
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import {
+  createMemorialDraftCapability,
+  MemorialUploadError,
+  readBoundedJson,
+} from "@/lib/memorialUpload";
+import { verifyMemorialCreationChallenge } from "@/lib/memorialTurnstile";
+
+export const runtime = "nodejs";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -36,7 +44,11 @@ function parseOptionalYear(value) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readBoundedJson(request, 32 * 1024);
+
+    // A successful token is single-use and must be bound by Cloudflare to the
+    // canonical deployment hostname and the memorial_create widget action.
+    await verifyMemorialCreationChallenge(body?.turnstileToken);
 
     const ownerName = String(body.ownerName || "").trim();
 
@@ -194,6 +206,7 @@ export async function POST(request) {
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const draftCapability = createMemorialDraftCapability();
 
     const memorial = await prisma.petMemorial.create({
       data: {
@@ -225,6 +238,8 @@ export async function POST(request) {
         submitterConfirmedRights,
 
         expiresAt,
+        draftCapabilityHash: draftCapability.hash,
+        draftCapabilityExpiresAt: expiresAt,
       },
       select: {
         id: true,
@@ -238,12 +253,26 @@ export async function POST(request) {
     return NextResponse.json(
       {
         memorial,
+        draftCapability: draftCapability.capability,
       },
       {
         status: 201,
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
       }
     );
   } catch (error) {
+    if (error instanceof MemorialUploadError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        },
+        { status: error.status }
+      );
+    }
+
     console.error("[memorials] create error:", error);
 
     return NextResponse.json(

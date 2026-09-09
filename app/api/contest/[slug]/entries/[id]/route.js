@@ -3,9 +3,18 @@
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
 
 export async function POST(_req, { params }) {
-  const { slug, id } = params || {};
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
+  }
+
+  const { slug, id } = (await params) || {};
   if (!slug || !id)
     return NextResponse.json({ error: "Missing params" }, { status: 400 });
 
@@ -27,4 +36,3 @@ export async function POST(_req, { params }) {
   });
   return NextResponse.json({ ok: true });
 }
-

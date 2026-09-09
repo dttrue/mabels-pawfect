@@ -1,6 +1,7 @@
 // components/home/ShopCTA.jsx
 "use client";
 
+import Link from "next/link";
 import { trackShopNavClick } from "@/lib/ga-events";
 
 export default function ShopCTA({ summerSaleActive = false }) {
@@ -65,7 +66,7 @@ export default function ShopCTA({ summerSaleActive = false }) {
         </p>
       )}
 
-      <a
+      <Link
         href="/shop"
         onClick={handleClick}
         className={[
@@ -76,7 +77,7 @@ export default function ShopCTA({ summerSaleActive = false }) {
         ].join(" ")}
       >
         {summerSaleActive ? "Shop the Summer Sale →" : "🐶 Visit the Shop"}
-      </a>
+      </Link>
 
       {summerSaleActive && (
         <p className="mt-3 text-xs text-gray-500">

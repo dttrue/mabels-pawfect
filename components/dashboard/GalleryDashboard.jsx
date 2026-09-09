@@ -4,6 +4,7 @@
 import { useState } from "react";
 import GalleryList from "@/components/dashboard/gallery/GalleryList";
 import PendingMemorialList from "@/components/dashboard/gallery/PendingMemorialList";
+import PaymentConflictList from "@/components/dashboard/gallery/PaymentConflictList";
 import GalleryUploader from "@/components/dashboard/GalleryUploader";
 
 export default function GalleryDashboard() {
@@ -29,6 +30,8 @@ export default function GalleryDashboard() {
         <GalleryUploader onUploadComplete={handleUploadComplete} />
         <GalleryList key={refreshKey} />
       </section>
+
+      <PaymentConflictList />
 
       <section className="border-t border-gray-200 pt-8">
         <PendingMemorialList />

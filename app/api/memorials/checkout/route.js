@@ -1,218 +1,234 @@
-// app/api/memorials/checkout/route.js
-
 export const runtime = "nodejs";
 
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import memorialStripe from "@/lib/memorialStripe";
+import {
+  getMemorialStripe,
+  isMemorialStripeProviderError,
+  MemorialStripeConfigurationError,
+} from "@/lib/memorialStripe";
+import {
+  activateMemorialCheckoutAttempt,
+  bestEffortExpireMemorialCheckoutSession,
+  expireMemorialCheckoutAttempt,
+  getCanonicalAppOrigin,
+  prepareMemorialCheckoutAttempt,
+} from "@/lib/memorialCheckout";
+import {
+  bestEffortTagMemorialForReview,
+  MemorialUploadError,
+  readBoundedJson,
+} from "@/lib/memorialUpload";
 
-function getBaseUrlFromEnvironment() {
+function sessionMatchesAttempt(session, attempt) {
   return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ||
-    "http://localhost:3000"
+    session?.status === "open" &&
+    session?.payment_status !== "paid" &&
+    session?.mode === "payment" &&
+    typeof session?.url === "string" &&
+    session.url.length > 0 &&
+    session?.metadata?.paymentType === "memorial" &&
+    session?.metadata?.memorialId === attempt.memorialId &&
+    session?.metadata?.checkoutAttemptId === attempt.id &&
+    Number(session?.amount_total) === attempt.amountCents &&
+    String(session?.currency || "").toLowerCase() === attempt.currency &&
+    Number(session?.expires_at) * 1000 > Date.now()
   );
 }
 
-async function resolveBaseUrl() {
-  let baseUrl = getBaseUrlFromEnvironment();
+function checkoutSessionParameters(memorial, attempt, appOrigin) {
+  return {
+    mode: "payment",
+    customer_email: memorial.ownerEmail,
+    expires_at: Math.floor(attempt.stripeSessionExpiresAt.getTime() / 1000),
+    line_items: [
+      {
+        price_data: {
+          currency: attempt.currency,
+          unit_amount: attempt.amountCents,
+          product_data: {
+            name: `${memorial.petName} Memorial`,
+            description:
+              "A personalized online pet memorial page containing the pet's photos, story, and tribute.",
+            tax_code: "txcd_10701401",
+          },
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      paymentType: "memorial",
+      memorialId: memorial.id,
+      checkoutAttemptId: attempt.id,
+    },
+    payment_intent_data: {
+      metadata: {
+        paymentType: "memorial",
+        memorialId: memorial.id,
+        checkoutAttemptId: attempt.id,
+      },
+    },
+    success_url: `${appOrigin}/memorials/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appOrigin}/memorials/create?memorialId=${encodeURIComponent(
+      memorial.id
+    )}&checkout=canceled`,
+  };
+}
 
-  try {
-    const headerStore = await headers();
-    const host = headerStore.get("host");
+async function obtainStripeSession(memorialStripe, prepared, appOrigin) {
+  const { attempt, memorial } = prepared;
 
-    if (host) {
-      const forwardedProto = headerStore.get("x-forwarded-proto");
-      const protocol =
-        forwardedProto || (host.includes("localhost") ? "http" : "https");
+  if (attempt.state === "OPEN" && attempt.stripeSessionId) {
+    const existing = await memorialStripe.checkout.sessions.retrieve(
+      attempt.stripeSessionId
+    );
 
-      baseUrl = `${protocol}://${host}`.replace(/\/+$/, "");
+    if (sessionMatchesAttempt(existing, attempt)) {
+      return existing;
     }
-  } catch (error) {
-    console.warn("[memorial-checkout] Could not resolve request host:", error);
+
+    if (
+      existing?.payment_status === "paid" ||
+      existing?.status === "complete"
+    ) {
+      throw new MemorialUploadError(
+        "This payment is already being processed.",
+        409,
+        { code: "CHECKOUT_PAYMENT_PROCESSING" }
+      );
+    }
+
+    const obsoleteSessionId = await expireMemorialCheckoutAttempt(attempt.id);
+    await bestEffortExpireMemorialCheckoutSession(obsoleteSessionId);
+    return null;
   }
 
-  return baseUrl;
+  if (attempt.state !== "CREATING") {
+    return null;
+  }
+
+  return memorialStripe.checkout.sessions.create(
+    checkoutSessionParameters(memorial, attempt, appOrigin),
+    { idempotencyKey: `memorial-checkout-${attempt.idempotencyKey}` }
+  );
+}
+
+async function prepareAndObtainSession(
+  memorialStripe,
+  memorialId,
+  draftCapability,
+  appOrigin
+) {
+  for (let pass = 0; pass < 2; pass += 1) {
+    const prepared = await prepareMemorialCheckoutAttempt(
+      memorialId,
+      draftCapability
+    );
+
+    for (const reservation of prepared.expiredReservations) {
+      await bestEffortTagMemorialForReview(reservation.publicId);
+    }
+
+    for (const obsoleteSessionId of prepared.obsoleteSessionIds) {
+      await bestEffortExpireMemorialCheckoutSession(obsoleteSessionId);
+    }
+
+    const session = await obtainStripeSession(
+      memorialStripe,
+      prepared,
+      appOrigin
+    );
+
+    if (session) {
+      return { prepared, session };
+    }
+  }
+
+  throw new MemorialUploadError(
+    "Checkout state changed while the session was opening. Please retry.",
+    409,
+    { code: "CHECKOUT_STATE_CHANGED" }
+  );
 }
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    const body = await readBoundedJson(request, 4 * 1024);
     const memorialId = String(body?.memorialId || "").trim();
+    const draftCapability = String(body?.draftCapability || "");
 
     if (!memorialId) {
-      return NextResponse.json(
-        {
-          error: "Missing memorial ID.",
-        },
-        {
-          status: 400,
-        }
-      );
+      throw new MemorialUploadError("Missing memorial ID.", 400);
     }
 
-    const memorial = await prisma.petMemorial.findUnique({
-      where: {
-        id: memorialId,
-      },
-      include: {
-        images: {
-          where: {
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-            imageUrl: true,
-            isCover: true,
-            sortOrder: true,
-          },
-          orderBy: {
-            sortOrder: "asc",
-          },
-        },
-      },
-    });
+    // Resolve only from the deployment-owned canonical URL. Request Host and
+    // forwarded headers are intentionally never trusted for Stripe redirects.
+    const appOrigin = getCanonicalAppOrigin();
+    const memorialStripe = getMemorialStripe();
+    const { prepared, session } = await prepareAndObtainSession(
+      memorialStripe,
+      memorialId,
+      draftCapability,
+      appOrigin
+    );
 
-    if (!memorial || memorial.deletedAt) {
-      return NextResponse.json(
-        {
-          error: "Memorial submission not found.",
-        },
-        {
-          status: 404,
-        }
-      );
+    try {
+      await activateMemorialCheckoutAttempt({
+        attemptId: prepared.attempt.id,
+        memorialId,
+        draftCapability,
+        session,
+      });
+    } catch (error) {
+      // A provider session created with the persisted idempotency key remains
+      // recoverable after transient database failures. Only a definite local
+      // state/capability rejection retires it.
+      if (error instanceof MemorialUploadError && error.status < 500) {
+        const obsoleteSessionId = await expireMemorialCheckoutAttempt(
+          prepared.attempt.id
+        );
+        await bestEffortExpireMemorialCheckoutSession(
+          obsoleteSessionId || session.id
+        );
+      }
+
+      throw error;
     }
-
-    if (!["DRAFT", "PENDING_PAYMENT"].includes(memorial.status)) {
-      return NextResponse.json(
-        {
-          error: "This memorial is not available for checkout.",
-        },
-        {
-          status: 409,
-        }
-      );
-    }
-
-    if (
-      !Number.isInteger(memorial.donationAmountCents) ||
-      memorial.donationAmountCents < 300
-    ) {
-      return NextResponse.json(
-        {
-          error: "This memorial does not have a valid donation amount.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (memorial.images.length === 0) {
-      return NextResponse.json(
-        {
-          error: "Please upload at least one memorial photo before checkout.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const baseUrl = await resolveBaseUrl();
-
-    const coverImage =
-      memorial.images.find((image) => image.isCover) || memorial.images[0];
-
-    const productData = {
-      name: `${memorial.petName} Memorial`,
-      description:
-        "A personalized online memorial page containing the pet's photos, story, and tribute.",
-      tax_code: process.env.MEMORIAL_STRIPE_TAX_CODE,
-      metadata: {
-        memorialId: memorial.id,
-        paymentType: "memorial",
-      },
-    };
-
-    if (coverImage?.imageUrl) {
-      productData.images = [coverImage.imageUrl];
-    }
-
-    const session = await memorialStripe.checkout.sessions.create({
-      mode: "payment",
-
-      customer_email: memorial.ownerEmail,
-
-      line_items: [
-        {
-          price_data: {
-            currency: memorial.currency || "usd",
-            unit_amount: memorial.donationAmountCents,
-            product_data: {
-              name: `${memorial.petName} Memorial`,
-              description:
-                "A personalized online pet memorial page containing the pet's photos, story, and tribute.",
-              tax_code: "txcd_10701401",
-            },
-          },
-          quantity: 1,
-        },
-      ],
-
-      metadata: {
-        paymentType: "memorial",
-        memorialId: memorial.id,
-      },
-
-      payment_intent_data: {
-        metadata: {
-          paymentType: "memorial",
-          memorialId: memorial.id,
-        },
-      },
-
-      success_url: `${baseUrl}/memorials/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/memorials/create?memorialId=${encodeURIComponent(
-        memorial.id
-      )}&checkout=canceled`,
-    });
-
-    await prisma.petMemorial.update({
-      where: {
-        id: memorial.id,
-      },
-      data: {
-        status: "PENDING_PAYMENT",
-        stripeSessionId: session.id,
-      },
-    });
 
     return NextResponse.json(
-      {
-        url: session.url,
-      },
+      { url: session.url },
       {
         status: 200,
+        headers: { "Cache-Control": "private, no-store" },
       }
     );
   } catch (error) {
-    console.error("[memorial-checkout] Failed to create Checkout Session:", {
-      type: error?.type,
-      code: error?.code,
-      message: error?.message,
-      param: error?.param,
-      statusCode: error?.statusCode,
-    });
+    if (error instanceof MemorialStripeConfigurationError) {
+      return NextResponse.json(
+        { error: "Memorial payments are not configured." },
+        { status: 503 }
+      );
+    }
+
+    if (error instanceof MemorialUploadError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          ...(error.code ? { code: error.code } : {}),
+        },
+        { status: error.status }
+      );
+    }
+
+    const providerFailure = isMemorialStripeProviderError(error);
+    console.error(
+      providerFailure
+        ? "[memorial-checkout] Payment provider request failed."
+        : "[memorial-checkout] Checkout processing failed."
+    );
 
     return NextResponse.json(
-      {
-        error: "We could not start memorial checkout. Please try again.",
-      },
-      {
-        status: 500,
-      }
+      { error: "We could not start memorial checkout. Please try again." },
+      { status: providerFailure ? 502 : 500 }
     );
   }
 }

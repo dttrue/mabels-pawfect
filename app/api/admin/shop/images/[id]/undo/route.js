@@ -1,10 +1,22 @@
 // app/api/admin/shop/images/[id]/undo/route.js
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import prisma from "@/lib/prisma";
 
 const UNDO_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
-export async function POST(_req, { params }) {
+function unauthorizedResponse(admin) {
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+  );
+}
+
+export async function POST(_req, context) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) return unauthorizedResponse(admin);
+
+  const params = await context.params;
   const { id } = params || {};
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });

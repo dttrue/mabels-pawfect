@@ -2,10 +2,13 @@
 
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { Resend } from "resend";
+import {
+  createResendClient,
+  getRequiredEmailFailure,
+  sendRequiredEmail,
+} from "@/lib/emails/resend";
 
 const prisma = new PrismaClient();
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function GET(req, { params }) {
   const { token } = params;
@@ -40,29 +43,15 @@ export async function GET(req, { params }) {
       );
     }
 
+    const emailClient = createResendClient();
+
     await prisma.booking.update({
       where: { token },
       data: { status: "accepted" },
     });
 
     console.log("✅ Booking marked as accepted in database.");
-    console.log(
-      "🧾 Raw booking.entries:",
-      JSON.stringify(booking.entries, null, 2)
-    );
-
-    const formattedDates = (booking.entries || [])
-      .map((entry, i) => {
-        if (!entry?.date || !entry?.time)
-          return `<li>⚠️ Invalid date for entry ${i}</li>`;
-        const formatted = new Date(
-          `${entry.date}T${entry.time}`
-        ).toLocaleString();
-        return `<li>${formatted}</li>`;
-      })
-      .join("");
-
-    await resend.emails.send({
+    await sendRequiredEmail(emailClient, {
       from: "mabel@mabelspawfectpetservices.com",
       to: booking.email,
       subject: "Booking Confirmed ✅",
@@ -80,6 +69,13 @@ export async function GET(req, { params }) {
       message: "Booking accepted and confirmation email sent.",
     });
   } catch (err) {
+    const emailFailure = getRequiredEmailFailure(err);
+    if (emailFailure) {
+      return NextResponse.json(
+        { error: emailFailure.message },
+        { status: emailFailure.status }
+      );
+    }
     console.error("❌ Accept error:", err);
     return NextResponse.json(
       { error: "Failed to accept booking" },
@@ -87,6 +83,5 @@ export async function GET(req, { params }) {
     );
   }
 }
-
 
 

@@ -14,7 +14,7 @@ export default function GalleryPage() {
           </h2>
 
           <p className="text-gray-600 mb-12 max-w-xl mx-auto">
-            A look at some of the wonderful pets we've cared for and loved.
+            A look at some of the wonderful pets we&apos;ve cared for and loved.
           </p>
 
           <HappyPetsGrid />

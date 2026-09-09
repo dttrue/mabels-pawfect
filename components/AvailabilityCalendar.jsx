@@ -9,8 +9,8 @@ export default function AvailabilityCalendar({ onSelect }) {
   const [bookedDates, setBookedDates] = useState({});
   const [selectedDay, setSelectedDay] = useState(null);
   const [slots, setSlots] = useState([]);
-  const [calendarKey, setCalendarKey] = useState(Date.now()); // ✅ force re-render key
-  const [overnightBlocked, setOvernightBlocked] = useState([]);
+  const [calendarKey] = useState(Date.now()); // ✅ force re-render key
+  const [, setOvernightBlocked] = useState([]);
 
 // Load all blocked overnights
   useEffect(() => {

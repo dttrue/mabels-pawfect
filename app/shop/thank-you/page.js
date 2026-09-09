@@ -1,5 +1,7 @@
 // app/shop/thank-you/page.js
 
+import Link from "next/link";
+
 export const runtime = "nodejs";
 
 export default function ThankYouPage({ searchParams } = {}) {
@@ -9,9 +11,9 @@ export default function ThankYouPage({ searchParams } = {}) {
       <h1 className="text-3xl font-bold mb-3">Thank you! 🐾</h1>
       <p className="opacity-80">Your order has been received.</p>
       {sessionId && <p className="mt-2 text-xs opacity-60">Ref: {sessionId}</p>}
-      <a href="/shop" className="mt-6 inline-block underline">
+      <Link href="/shop" className="mt-6 inline-block underline">
         Back to Shop
-      </a>
+      </Link>
     </main>
   );
 }

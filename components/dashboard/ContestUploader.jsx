@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { uploadAdminAsset } from "@/lib/adminCloudinaryClient";
 
 export default function ContestUploader({
   slug = "halloween-2025",
@@ -39,51 +40,17 @@ export default function ContestUploader({
     if (!imageFile) return toast.error("Please select an image");
     if (remaining <= 0) return toast.error(`Max ${maxEntries} entries reached`);
 
-    const form = new FormData();
-    form.append("file", imageFile);
-    form.append(
-      "upload_preset",
-      process.env.NEXT_PUBLIC_CLOUDINARY_CONTEST_PRESET
-    );
-
-    // Only needed if your preset isn’t hard-locking the folder
-    const root = (
-      process.env.NEXT_PUBLIC_CLOUDINARY_CONTEST_ROOT || "pawfect/contest"
-    ).replace(/\/+$/, "");
-    form.append("folder", `${root}/${slug}`);
-
     setLoading(true);
     try {
-      // 1️⃣ Upload to Cloudinary
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
-        { method: "POST", body: form }
-      );
-      const cloudData = await cloudRes.json();
-      if (!cloudRes.ok || !cloudData?.public_id) {
-        throw new Error(
-          cloudData?.error?.message || "Cloudinary upload failed"
-        );
-      }
-
-      // ✅ Guard: ensure it went to the correct contest folder
-      if (!cloudData?.public_id?.startsWith(`${root}/${slug}/`)) {
-        console.warn(
-          "⚠️ Contest upload landed in wrong folder:",
-          cloudData.public_id
-        );
-        toast.error("Wrong Cloudinary preset/folder for contest uploads.");
-        return;
-      }
-
-      // 2️⃣ Upsert ContestEntry (title + publicId)
-      const safeTitle = (title || filenameTitle || "Untitled").trim();
+      const { proof } = await uploadAdminAsset(imageFile, "contest-image", {
+        contestSlug: slug,
+      });
       const r2 = await fetch(`/api/contest/${slug}/entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: safeTitle,
-          publicId: cloudData.public_id,
+          title: (title || filenameTitle || "Untitled").trim(),
+          uploadProof: proof,
         }),
       });
       const j2 = await r2.json().catch(() => ({}));
@@ -113,7 +80,7 @@ export default function ContestUploader({
 
       <input
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         onChange={(e) => setImageFile(e.target.files[0])}
       />
 

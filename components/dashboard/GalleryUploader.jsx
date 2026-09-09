@@ -1,7 +1,8 @@
 // components/dashboard/GalleryUploader.jsx
 "use client";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
+import { uploadAdminAsset } from "@/lib/adminCloudinaryClient";
 
 export default function GalleryUploader({ onUploadComplete }) {
   const [imageFile, setImageFile] = useState(null);
@@ -11,18 +12,8 @@ export default function GalleryUploader({ onUploadComplete }) {
   const [loading, setLoading] = useState(false);
   const [keywords, setKeywords] = useState("");
 
-  // 🚀 NEW: contest wiring
-  const [contestMode, setContestMode] = useState(false);
-  const [contestSlug, setContestSlug] = useState("halloween-2025");
-  const [contestTitle, setContestTitle] = useState("");
-
   const MAX_KEYWORDS = 10;
   const MAX_ALT_LENGTH = 125;
-
-  const filenameTitle = useMemo(() => {
-    if (!imageFile?.name) return "";
-    return humanize(imageFile.name);
-  }, [imageFile]);
 
   const handleUpload = async () => {
     if (!imageFile) {
@@ -31,79 +22,24 @@ export default function GalleryUploader({ onUploadComplete }) {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", imageFile);
-    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_PRESET);
-
-    // ✅ If contest mode, drop into a predictable Cloudinary folder
-    if (contestMode) {
-      const folder =
-        process.env.NEXT_PUBLIC_CLOUDINARY_CONTEST_ROOT?.replace(/\/+$/, "") ||
-        "pawfect/contest";
-      formData.append("folder", `${folder}/${contestSlug}`);
-      // Optional: use filename without extension as public_id for nicer URLs
-      // formData.append("public_id", slugify(contestTitle || filenameTitle));
-    }
-
     setLoading(true);
 
     try {
-      console.log("📤 Uploading to Cloudinary...");
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const cloudData = await cloudRes.json();
-      console.log("✅ Cloudinary response:", cloudData);
-
-      if (!cloudData.secure_url || !cloudData.public_id) {
-        throw new Error("Cloudinary upload failed");
-      }
-
-      // 1) Save to your existing gallery DB
-      const payload = {
-        imageUrl: cloudData.secure_url,
-        publicId: cloudData.public_id,
-        altText,
-        caption,
-        category,
-        keywords, // keep if your API supports it
-      };
-
-      console.log("📦 Sending to DB:", payload);
+      const { proof } = await uploadAdminAsset(imageFile, "gallery-image");
       const dbRes = await fetch("/api/admin/gallery/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          uploadProof: proof,
+          altText: altText.trim(),
+          caption: caption.trim(),
+          category,
+          keywords,
+        }),
       });
 
-      const dbResponseBody = await dbRes.text(); // catch even non-JSON errors
-      console.log("📥 DB response status:", dbRes.status);
-      console.log("📥 DB response body:", dbResponseBody);
-
-      if (!dbRes.ok) throw new Error("DB insert failed");
-
-      // 2) If Contest Mode, upsert a ContestEntry
-      if (contestMode) {
-        const title = (contestTitle || filenameTitle || "Untitled").trim();
-        const r2 = await fetch(`/api/admin/contest/${contestSlug}/entries`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            publicId: cloudData.public_id,
-          }),
-        });
-        const j2 = await r2.json().catch(() => ({}));
-        console.log("🏁 Contest upsert:", r2.status, j2);
-        if (!r2.ok) {
-          throw new Error(j2?.error || "Contest entry failed");
-        }
-      }
+      const body = await dbRes.json().catch(() => ({}));
+      if (!dbRes.ok) throw new Error(body?.error || "Upload failed");
 
       toast.success("Uploaded successfully!");
       // Reset UI
@@ -111,7 +47,6 @@ export default function GalleryUploader({ onUploadComplete }) {
       setAltText("");
       setCaption("");
       setKeywords("");
-      setContestTitle("");
       onUploadComplete?.(); // refresh gallery
     } catch (err) {
       console.error("🛑 Upload error:", err);
@@ -126,7 +61,7 @@ export default function GalleryUploader({ onUploadComplete }) {
       {/* --- File picker --- */}
       <input
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         onChange={(e) => setImageFile(e.target.files[0])}
       />
 
@@ -212,14 +147,3 @@ export default function GalleryUploader({ onUploadComplete }) {
     </div>
   );
 }
-
-/* helpers */
-function humanize(name) {
-  return name
-    .replace(/[-_]+/g, " ")
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/\b\w/g, (m) => m.toUpperCase());
-}
-// function slugify(s) {
-//   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-// }

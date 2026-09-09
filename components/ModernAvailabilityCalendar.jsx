@@ -4,7 +4,6 @@
 import { useEffect, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import clsx from "clsx";
 
 export default function ModernAvailabilityCalendar({ onSelect }) {
   const [bookedDates, setBookedDates] = useState({});

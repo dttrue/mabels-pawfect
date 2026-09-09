@@ -1,6 +1,4 @@
 // components/NewsletterUploadPage.jsx
-"use client";
-
 import React from "react";
 import Link from "next/link";
 import prisma from "@/lib/prisma";

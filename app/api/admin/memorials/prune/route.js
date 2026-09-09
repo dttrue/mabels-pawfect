@@ -5,24 +5,25 @@ export const runtime = "nodejs";
 import { v2 as cloudinary } from "cloudinary";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { requireAdmin } from "@/lib/adminAuth";
 
-cloudinary.config({
-  cloud_name:
-    process.env.CLOUDINARY_CLOUD_NAME ||
-    process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+export async function POST() {
+  const admin = await requireAdmin();
 
-const ALLOWED_ADMIN_IDS = ["user_2xYcBxcVUeYD9RmUOhCdEErW4ef"];
-
-export async function POST(req) {
-  const { userId } = await auth();
-
-  if (!userId || !ALLOWED_ADMIN_IDS.includes(userId)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!admin.authorized) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
   }
+
+  cloudinary.config({
+    cloud_name:
+      process.env.CLOUDINARY_CLOUD_NAME ||
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
 
   const cutoff = new Date(Date.now() - 15 * 60 * 1000);
 
@@ -34,6 +35,15 @@ export async function POST(req) {
     },
     include: {
       images: true,
+      uploadReservations: {
+        select: {
+          id: true,
+          state: true,
+        },
+      },
+      checkoutAttempts: {
+        select: { id: true, state: true },
+      },
     },
   });
 
@@ -43,6 +53,24 @@ export async function POST(req) {
 
   for (const memorial of expiredMemorials) {
     try {
+      if (memorial.uploadReservations.length > 0) {
+        failures.push({
+          memorialId: memorial.id,
+          reason:
+            "Secure memorial upload records require manual asset review before pruning.",
+        });
+        continue;
+      }
+
+      if (memorial.checkoutAttempts.length > 0) {
+        failures.push({
+          memorialId: memorial.id,
+          reason:
+            "Memorial checkout and payment audit records must be retained.",
+        });
+        continue;
+      }
+
       let cloudinaryFailed = false;
 
       for (const image of memorial.images) {

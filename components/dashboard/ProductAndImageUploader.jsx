@@ -1,9 +1,10 @@
 // components/dashboard/ProductAndImageUploader.jsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { CATEGORIES, CATEGORY_PRESETS } from "@/scripts/products.data";
+import { uploadAdminAsset } from "@/lib/adminCloudinaryClient";
 
 /** Combine product creation, editing, and image upload in one flow */
 export default function ProductAndImageUploader() {
@@ -58,15 +59,14 @@ export default function ProductAndImageUploader() {
     })();
   }, [mode]);
 
-  const filenameTitle = useMemo(
-    () => (imageFiles[0]?.name ? humanize(imageFiles[0].name) : ""),
-    [imageFiles]
-  );
-
   function toggleCat(slug) {
     setChosenCats((prev) => {
       const next = new Set(prev);
-      next.has(slug) ? next.delete(slug) : next.add(slug);
+      if (next.has(slug)) {
+        next.delete(slug);
+      } else {
+        next.add(slug);
+      }
       return next;
     });
   }
@@ -254,47 +254,20 @@ export default function ProductAndImageUploader() {
         }
       }
 
-      // 2) Upload ALL selected files to Cloudinary + DB
-      const root = (
-        process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_ROOT || "pawfect/shop/products"
-      ).replace(/\/+$/, "");
-
-      const baseSlug = slugify(filenameTitle || title || "image") || "image";
-
-      const stamp = Date.now(); // uniqueness
-
+      // 2) Upload all selected files through the authorized server route.
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
 
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append(
-          "upload_preset",
-          process.env.NEXT_PUBLIC_CLOUDINARY_SHOP_PRESET
-        );
-
-        const publicId = `${root}/${baseSlug}-${stamp}-${i}`;
-        formData.append("folder", root);
-        formData.append("public_id", publicId);
-
-        const cloudRes = await fetch(
-          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
-          { method: "POST", body: formData }
-        );
-        const cloud = await cloudRes.json();
-        if (!cloudRes.ok || !cloud?.public_id || !cloud?.secure_url) {
-          throw new Error(cloud?.error?.message || "Cloudinary upload failed");
-        }
+        const { proof } = await uploadAdminAsset(file, "shop-image");
 
         const dbRes = await fetch("/api/admin/shop/images", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            uploadProof: proof,
             productId,
-            imageUrl: cloud.secure_url,
-            publicId: cloud.public_id,
             alt: alt.trim(),
-            caption: caption.trim() || undefined,
+            caption: caption.trim(),
             keywords: kw,
           }),
         });
@@ -626,7 +599,7 @@ export default function ProductAndImageUploader() {
         <div className="grid gap-3 md:grid-cols-2">
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             multiple
             onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
             className="file-input file-input-bordered"
@@ -678,12 +651,6 @@ export default function ProductAndImageUploader() {
 }
 
 /* helpers */
-function humanize(name) {
-  return name
-    .replace(/[-_]+/g, " ")
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/\b\w/g, (m) => m.toUpperCase());
-}
 function slugify(s) {
   return s
     .toLowerCase()

@@ -1,12 +1,12 @@
 // components/dashboard/HighlightUploader.jsx
 
 "use client";
-import { useRef, useState, useCallback, useMemo } from "react";
+import { useRef, useState, useCallback } from "react";
+import { uploadAdminAsset } from "@/lib/adminCloudinaryClient";
 
 export default function HighlightUploader({
   defaultTitle = "Bacon’s First Birthday Party",
   defaultSlug = "bacons-first-birthday",
-  onSaved,
 }) {
   const [title, setTitle] = useState(defaultTitle);
   const [slug, setSlug] = useState(defaultSlug);
@@ -16,8 +16,8 @@ export default function HighlightUploader({
   const [previewUrl, setPreviewUrl] = useState("");
   const inputRef = useRef(null);
 
-  const MAX_MB = 500;
-  const MAX_BYTES = MAX_MB * 1024 * 1024;
+  const MAX_MIB = 100;
+  const MAX_BYTES = 104_857_600;
 
   const onPick = useCallback(
     (f) => {
@@ -27,7 +27,7 @@ export default function HighlightUploader({
         return;
       }
       if (f.size > MAX_BYTES) {
-        setMsg(`❌ File too large. Max ${MAX_MB}MB`);
+        setMsg(`❌ File too large. Max ${MAX_MIB} MiB`);
         return;
       }
       setFile(f);
@@ -58,12 +58,6 @@ export default function HighlightUploader({
 
   const onDragOver = useCallback((e) => e.preventDefault(), []);
 
-  const posterHint = useMemo(() => {
-    const name = process.env.NEXT_PUBLIC_CLOUDINARY_NAME;
-    if (!name || !slug) return "";
-    return `https://res.cloudinary.com/${name}/video/upload/so_2/highlights/2025/${slug}.jpg`;
-  }, [slug]);
-
   async function handleSubmit(e) {
     e.preventDefault();
     setMsg("");
@@ -73,45 +67,29 @@ export default function HighlightUploader({
 
     setBusy(true);
     try {
-      const form = new FormData();
-      form.append("title", title.trim());
-      form.append("slug", slug.trim());
-      form.append("file", file);
+      const { proof } = await uploadAdminAsset(
+        file,
+        "highlight-video",
+        {},
+        "/api/admin/highlights/upload"
+      );
 
-      console.log("[Uploader] Uploading to /api/admin/highlights/upload...");
-      const upRes = await fetch("/api/admin/highlights/upload", {
-        method: "POST",
-        body: form,
-      });
-      console.log("[Uploader] upload status", upRes.status, upRes.statusText);
-      const upText = await upRes.text(); // log raw text before parsing
-      console.log("[Uploader] upload raw response:", upText);
-
-      let upJson;
-      try {
-        upJson = JSON.parse(upText);
-      } catch (err) {
-        throw new Error("Upload route did not return valid JSON");
-      }
-      if (!upRes.ok || upJson.error)
-        throw new Error(upJson.error || "Upload failed");
-
-      console.log("[Uploader] Upload OK:", upJson);
-
-      console.log("[Uploader] Saving to /api/admin/highlights...");
       const saveRes = await fetch("/api/admin/highlights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...upJson, type: "video" }),
+        body: JSON.stringify({
+          title: title.trim(),
+          slug: slug.trim(),
+          type: "video",
+          uploadProof: proof,
+        }),
       });
-      console.log("[Uploader] save status", saveRes.status, saveRes.statusText);
       const saveText = await saveRes.text();
-      console.log("[Uploader] save raw response:", saveText);
 
       let saveJson;
       try {
         saveJson = JSON.parse(saveText);
-      } catch (err) {
+      } catch {
         throw new Error("Save route did not return valid JSON");
       }
       if (!saveRes.ok || saveJson.error)
@@ -165,7 +143,7 @@ export default function HighlightUploader({
         <input
           ref={inputRef}
           type="file"
-          accept="video/*"
+          accept="video/mp4,video/quicktime"
           hidden
           onChange={onFileChange}
         />
@@ -173,11 +151,11 @@ export default function HighlightUploader({
           <p className="font-medium">
             Drop your video here, or click to choose
           </p>
-          <p className="text-sm opacity-70">MP4 / MOV • up to {MAX_MB}MB</p>
+          <p className="text-sm opacity-70">MP4 / MOV • up to {MAX_MIB} MiB</p>
           {file && (
             <p className="text-sm">
               Selected: <span className="font-mono">{file.name}</span> (
-              {(file.size / 1024 / 1024).toFixed(1)} MB)
+              {(file.size / 1024 / 1024).toFixed(1)} MiB)
             </p>
           )}
         </div>
@@ -198,12 +176,9 @@ export default function HighlightUploader({
         <button className="btn btn-primary" disabled={busy || !file}>
           {busy ? "Uploading…" : "Upload & Save"}
         </button>
-        {posterHint && (
-          <span className="text-xs opacity-70">
-            Poster will be derived like:{" "}
-            <span className="ml-1 font-mono break-all">{posterHint}</span>
-          </span>
-        )}
+        <span className="text-xs opacity-70">
+          The poster will be derived from the verified uploaded video.
+        </span>
       </div>
 
       {msg && (

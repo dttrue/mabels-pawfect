@@ -78,10 +78,7 @@ export async function POST(req, ctx) {
     ]);
   } catch (e) {
     // Unique constraint on (entryId, ipHash) → already voted for this entry
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2002"
-    ) {
+    if (e?.code === "P2002") {
       duplicate = true;
     } else {
       console.error("vote error", e);

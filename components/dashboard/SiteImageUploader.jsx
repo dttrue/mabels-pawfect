@@ -1,8 +1,9 @@
 // components/dashboard/SiteImageUploader.jsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
+import { uploadAdminAsset } from "@/lib/adminCloudinaryClient";
 
 const MAX_KEYWORDS = 10;
 const MAX_ALT_LENGTH = 125;
@@ -17,11 +18,6 @@ export default function SiteImageUploader({
   const [caption, setCaption] = useState("");
   const [keywordsText, setKeywordsText] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const filenameTitle = useMemo(
-    () => (imageFile?.name ? humanize(imageFile.name) : ""),
-    [imageFile]
-  );
 
   function parseKeywords(input) {
     return String(input || "")
@@ -41,51 +37,19 @@ export default function SiteImageUploader({
 
     const keywords = parseKeywords(keywordsText);
 
-    const formData = new FormData();
-    formData.append("file", imageFile);
-    formData.append(
-      "upload_preset",
-      process.env.NEXT_PUBLIC_CLOUDINARY_SITE_PRESET
-    );
-
-    const root = (
-      process.env.NEXT_PUBLIC_CLOUDINARY_SITE_ROOT || "pawfect/site/assets"
-    ).replace(/\/+$/, "");
-
-    const baseSlug = slugify(filenameTitle || key || "image") || "image";
-    const stamp = Date.now();
-    const publicId = `${root}/${baseSlug}-${stamp}`;
-
-    formData.append("folder", root);
-    formData.append("public_id", publicId);
-
     setLoading(true);
     try {
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/image/upload`,
-        { method: "POST", body: formData }
-      );
-      const cloudData = await cloudRes.json();
-
-      if (!cloudRes.ok || !cloudData?.public_id || !cloudData?.secure_url) {
-        throw new Error(
-          cloudData?.error?.message || "Cloudinary upload failed"
-        );
-      }
-
-      const payload = {
-        key: key.trim(),
-        imageUrl: cloudData.secure_url,
-        publicId: cloudData.public_id,
-        alt: alt.trim(),
-        caption: caption.trim() || null,
-        keywords,
-      };
-
-      const dbRes = await fetch("/api/admin/site-images", {
+      const { proof } = await uploadAdminAsset(imageFile, "site-image");
+      const dbRes = await fetch("/api/admin/site-images/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          uploadProof: proof,
+          key: key.trim(),
+          alt: alt.trim(),
+          caption: caption.trim(),
+          keywords,
+        }),
       });
 
       const body = await dbRes.json().catch(() => ({}));
@@ -137,7 +101,7 @@ export default function SiteImageUploader({
 
       <input
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         onChange={(e) => setImageFile(e.target.files[0] || null)}
       />
 
@@ -189,19 +153,4 @@ export default function SiteImageUploader({
       </button>
     </div>
   );
-}
-
-/* helpers */
-function humanize(name) {
-  return name
-    .replace(/[-_]+/g, " ")
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/\b\w/g, (m) => m.toUpperCase());
-}
-function slugify(s) {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }

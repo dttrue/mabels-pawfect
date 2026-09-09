@@ -1,11 +1,13 @@
 // app/api/bookings/route.js
 import prisma from "@/lib/prisma";
-import { Resend } from "resend";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { generateBookingRequestEmail } from "@/lib/emails/generateBookingRequestEmail";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import {
+  createResendClient,
+  getRequiredEmailFailure,
+  sendRequiredEmail,
+} from "@/lib/emails/resend";
 
 export async function POST(req) {
   try {
@@ -110,6 +112,7 @@ export async function POST(req) {
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+    const emailClient = createResendClient();
 
     const booking = await prisma.booking.create({
       data: {
@@ -143,16 +146,12 @@ export async function POST(req) {
       declineUrl,
     });
 
-    const emailResult = await resend.emails.send({
+    await sendRequiredEmail(emailClient, {
       from: "Mabel's Pawfect <no-reply@mabelspawfectpetservices.com>",
       to: "therainbowniche@gmail.com",
       subject: `New Booking Request from ${fullName} at ${new Date().toLocaleTimeString()}`,
       html,
     });
-
-    console.log("📬 Booking email result:", emailResult);
-    console.log("📧 Accept:", acceptUrl);
-    console.log("❌ Decline:", declineUrl);
 
     return NextResponse.json(
       {
@@ -162,6 +161,13 @@ export async function POST(req) {
       { status: 201 }
     );
   } catch (err) {
+    const emailFailure = getRequiredEmailFailure(err);
+    if (emailFailure) {
+      return NextResponse.json(
+        { error: emailFailure.message },
+        { status: emailFailure.status }
+      );
+    }
     console.error("POST error:", err);
     return NextResponse.json(
       { error: "Failed to create booking" },

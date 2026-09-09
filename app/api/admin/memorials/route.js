@@ -4,9 +4,18 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
 
 export async function GET() {
   try {
+    const admin = await requireAdmin();
+    if (!admin.authorized) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+      );
+    }
+
     const memorials = await prisma.petMemorial.findMany({
       where: {
         deletedAt: null,
@@ -60,9 +69,11 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(memorials);
-  } catch (error) {
-    console.error("[ADMIN_MEMORIALS_GET_ERROR]", error);
+    return NextResponse.json(memorials, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  } catch {
+    console.error("[ADMIN_MEMORIALS_GET_ERROR]");
 
     return NextResponse.json(
       {

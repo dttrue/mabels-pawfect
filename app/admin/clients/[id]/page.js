@@ -1,6 +1,7 @@
 // app/admin/clients/[id]/page.js
 import prisma from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/adminAuth";
 import ClientPaymentsEditor from "@/components/dashboard/ClientPaymentsEditor";
 import ClientActionsBar from "@/components/dashboard/ClientActionsBar";
 import Link from "next/link";
@@ -65,6 +66,12 @@ function getAppointmentAmountAndMethod(a) {
 }
 
 export default async function ClientDetailPage(props) {
+  const admin = await requireAdmin();
+  if (admin.reason === "SIGNED_OUT") {
+    redirect("/sign-in?redirect_url=/admin/clients");
+  }
+  if (!admin.authorized) redirect("/not-authorized");
+
   const { params } = await props;
   const { id } = params;
 

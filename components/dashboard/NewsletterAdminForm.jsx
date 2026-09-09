@@ -1,33 +1,25 @@
 // components/dashboard/NewsletterAdminForm.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { uploadAdminAsset } from "@/lib/adminCloudinaryClient";
+
+const MAX_NEWSLETTER_PDF_BYTES = 10_485_760;
 
 export default function NewsletterAdminForm({ onSuccess }) {
   const [form, setForm] = useState({
     title: "",
     description: "",
-    imageUrl: "",
-    fileUrl: "",
     altText: "",
     keywords: "",
-    publicId: "",
     isActive: true,
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-
-  // Load Cloudinary widget if not already loaded
-  useEffect(() => {
-    if (!window.cloudinary) {
-      const script = document.createElement("script");
-      script.src = "https://widget.cloudinary.com/v2.0/global/all.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -37,53 +29,45 @@ export default function NewsletterAdminForm({ onSuccess }) {
     }));
   };
 
-  const handleImageUpload = () => {
-    window.cloudinary?.openUploadWidget(
-      {
-        cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD,
-        uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_PRESET,
-        multiple: false,
-        resourceType: "image",
-      },
-      (error, result) => {
-        if (!error && result.event === "success") {
-          setForm((prev) => ({
-            ...prev,
-            imageUrl: result.info.secure_url,
-            publicId: result.info.public_id,
-          }));
-        }
-      }
-    );
-  };
+  const imagePreview = useMemo(
+    () => (imageFile ? URL.createObjectURL(imageFile) : ""),
+    [imageFile]
+  );
 
-  const handlePdfUpload = () => {
-    window.cloudinary?.openUploadWidget(
-      {
-        cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD,
-        uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_PRESET,
-        multiple: false,
-        resourceType: "raw",
-      },
-      (error, result) => {
-        if (!error && result.event === "success") {
-          setForm((prev) => ({
-            ...prev,
-            fileUrl: result.info.secure_url,
-          }));
-        }
-      }
-    );
-  };
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setMessage("");
 
+    if (
+      pdfFile &&
+      (pdfFile.size <= 0 || pdfFile.size > MAX_NEWSLETTER_PDF_BYTES)
+    ) {
+      setMessage("❌ Newsletter PDFs must be 10 MiB or smaller.");
+      return;
+    }
+
+    setLoading(true);
+
     try {
+      if (!imageFile) throw new Error("Select a newsletter image");
+
+      const imageUpload = await uploadAdminAsset(
+        imageFile,
+        "newsletter-image"
+      );
+      const pdfUpload = pdfFile
+        ? await uploadAdminAsset(pdfFile, "newsletter-pdf")
+        : null;
       const payload = {
         ...form,
+        imageUploadProof: imageUpload.proof,
+        pdfUploadProof: pdfUpload?.proof || null,
         keywords: form.keywords
           .split(",")
           .map((kw) => kw.trim())
@@ -95,13 +79,12 @@ export default function NewsletterAdminForm({ onSuccess }) {
       setForm({
         title: "",
         description: "",
-        imageUrl: "",
-        fileUrl: "",
         altText: "",
         keywords: "",
-        publicId: "",
         isActive: true,
       });
+      setImageFile(null);
+      setPdfFile(null);
       onSuccess?.();
     } catch (err) {
       console.error(err);
@@ -139,31 +122,52 @@ export default function NewsletterAdminForm({ onSuccess }) {
       />
 
       {/* Image Upload */}
-      <button
-        type="button"
-        onClick={handleImageUpload}
-        className="btn btn-secondary w-full"
-      >
-        📤 Upload Image
-      </button>
-      {form.imageUrl && (
+      <label className="btn btn-secondary w-full">
+        📤 Choose Image
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+          disabled={loading}
+        />
+      </label>
+      {imagePreview && (
         <img
-          src={form.imageUrl}
+          src={imagePreview}
           alt="Newsletter preview"
           className="w-full h-48 object-cover rounded mt-2"
         />
       )}
 
       {/* PDF Upload */}
-      <button
-        type="button"
-        onClick={handlePdfUpload}
-        className="btn btn-outline w-full"
-      >
-        📄 Upload PDF (optional)
-      </button>
-      {form.fileUrl && (
-        <p className="text-xs text-green-600 mt-1">PDF uploaded ✔️</p>
+      <label className="btn btn-outline w-full">
+        📄 Choose PDF (optional, up to 10 MiB)
+        <input
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0] || null;
+
+            if (
+              file &&
+              (file.size <= 0 || file.size > MAX_NEWSLETTER_PDF_BYTES)
+            ) {
+              setPdfFile(null);
+              setMessage("❌ Newsletter PDFs must be 10 MiB or smaller.");
+              event.target.value = "";
+              return;
+            }
+
+            setPdfFile(file);
+            setMessage("");
+          }}
+          disabled={loading}
+        />
+      </label>
+      {pdfFile && (
+        <p className="text-xs text-green-600 mt-1">{pdfFile.name} selected</p>
       )}
 
       {/* Keywords Input */}
@@ -198,5 +202,3 @@ export default function NewsletterAdminForm({ onSuccess }) {
     </form>
   );
 }
-
-

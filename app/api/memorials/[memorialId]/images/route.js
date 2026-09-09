@@ -1,266 +1,382 @@
-// app/api/memorials/[memorialId]/images/route.js
-
-import { randomUUID } from "node:crypto";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import {
+  assertMemorialDraftCapability,
+  bestEffortClearMemorialPendingTag,
+  issueMemorialUploadReservation,
+  isMemorialTransactionConflict,
+  markMemorialReservationForReview,
+  MemorialUploadError,
+  readBoundedJson,
+  verifyMemorialProviderUpload,
+} from "@/lib/memorialUpload";
 
-const MAX_IMAGES = 6;
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+export const runtime = "nodejs";
 
-const ALLOWED_IMAGE_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-]);
+function errorResponse(error) {
+  if (error instanceof MemorialUploadError) {
+    return NextResponse.json(
+      {
+        error: error.message,
+        ...(error.code ? { code: error.code } : {}),
+      },
+      { status: error.status }
+    );
+  }
 
-function sanitizeFileName(fileName) {
-  return String(fileName || "memorial-image")
-    .trim()
-    .toLowerCase()
-    .replace(/\.[^/.]+$/, "")
-    .replace(/[^a-z0-9-_]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+  console.error("[memorial-images] request failed:", {
+    message: error?.message,
+    code: error?.code,
+  });
+
+  return NextResponse.json(
+    { error: "The memorial image request could not be completed." },
+    { status: 500 }
+  );
+}
+
+async function resolveMemorialId(context) {
+  const { memorialId } = await context.params;
+  const normalized = String(memorialId || "").trim();
+
+  if (!normalized) {
+    throw new MemorialUploadError("Missing memorial ID.", 400);
+  }
+
+  return normalized;
+}
+
+function cleanOptionalText(value, maxLength) {
+  const cleaned = String(value || "").trim();
+
+  if (cleaned.length > maxLength) {
+    throw new MemorialUploadError("Image text is too long.", 400);
+  }
+
+  return cleaned || null;
+}
+
+async function loadAuthorizedMemorial(memorialId, draftCapability) {
+  const memorial = await prisma.petMemorial.findUnique({
+    where: { id: memorialId },
+  });
+
+  assertMemorialDraftCapability(memorial, draftCapability, {
+    allowedStatuses: ["DRAFT"],
+  });
+
+  return memorial;
 }
 
 export async function POST(request, context) {
   try {
-    const { memorialId } = await context.params;
+    const memorialId = await resolveMemorialId(context);
+    const body = await readBoundedJson(request, 4 * 1024);
+    const draftCapability = String(body?.draftCapability || "");
 
-    if (!memorialId) {
-      return NextResponse.json(
-        {
-          error: "Missing memorial ID.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const cloudName =
-      process.env.CLOUDINARY_CLOUD_NAME ||
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD;
-
-    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      console.error(
-        "[memorial-images] Missing Cloudinary environment variables.",
-        {
-          hasCloudName: Boolean(cloudName),
-          hasUploadPreset: Boolean(uploadPreset),
-        }
-      );
-
-      return NextResponse.json(
-        {
-          error: "Image uploads are not configured correctly.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    const memorial = await prisma.petMemorial.findUnique({
-      where: {
-        id: memorialId,
-      },
-      include: {
-        images: {
-          where: {
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-          },
-        },
-      },
-    });
-
-    if (!memorial || memorial.deletedAt) {
-      return NextResponse.json(
-        {
-          error: "Memorial submission not found.",
-        },
-        {
-          status: 404,
-        }
-      );
-    }
-
-    if (!["DRAFT", "PENDING_PAYMENT"].includes(memorial.status)) {
-      return NextResponse.json(
-        {
-          error: "Images can no longer be added to this memorial.",
-        },
-        {
-          status: 409,
-        }
-      );
-    }
-
-    const existingImageCount = memorial.images.length;
-
-    if (existingImageCount >= MAX_IMAGES) {
-      return NextResponse.json(
-        {
-          error: `You can upload up to ${MAX_IMAGES} photos.`,
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const formData = await request.formData();
-
-    const file = formData.get("file");
-
-    const altText = String(formData.get("altText") || "").trim();
-
-    const caption = String(formData.get("caption") || "").trim();
-
-    if (!(file instanceof File)) {
-      return NextResponse.json(
-        {
-          error: "Please select an image.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-      return NextResponse.json(
-        {
-          error: "Only JPEG, PNG, WebP, HEIC, and HEIF images are allowed.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        {
-          error: "Each image must be smaller than 10 MB.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    const safeName = sanitizeFileName(file.name) || "memorial-image";
-
-    const publicId = `${Date.now()}-${randomUUID()}-${safeName}`;
-
-    const cloudinaryResponse = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-      {
-        method: "POST",
-        body: new URLSearchParams({
-          file: `data:${file.type};base64,${buffer.toString("base64")}`,
-          upload_preset: uploadPreset,
-          public_id: publicId,
-          folder: `mabels-pawfect/memorials/${memorialId}`,
-        }),
-      }
+    const grant = await issueMemorialUploadReservation(
+      memorialId,
+      draftCapability
     );
 
-    const cloudinaryData = await cloudinaryResponse.json().catch(() => null);
+    return NextResponse.json(grant, {
+      status: 201,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
 
-    if (
-      !cloudinaryResponse.ok ||
-      !cloudinaryData?.secure_url ||
-      !cloudinaryData?.public_id
-    ) {
-      console.error("[memorial-images] Cloudinary error:", {
-        status: cloudinaryResponse.status,
-        response: cloudinaryData,
+export async function PUT(request, context) {
+  let memorialId = null;
+  let reservationId = null;
+
+  try {
+    memorialId = await resolveMemorialId(context);
+    const body = await readBoundedJson(request, 16 * 1024);
+    const draftCapability = String(body?.draftCapability || "");
+    reservationId = String(body?.reservationId || "").trim();
+    const altText = cleanOptionalText(body?.altText, 200);
+    const caption = cleanOptionalText(body?.caption, 500);
+
+    if (!reservationId) {
+      throw new MemorialUploadError("Missing upload reservation.", 400);
+    }
+
+    await loadAuthorizedMemorial(memorialId, draftCapability);
+
+    const reservation =
+      await prisma.petMemorialUploadReservation.findUnique({
+        where: { id: reservationId },
       });
 
-      return NextResponse.json(
-        {
-          error:
-            cloudinaryData?.error?.message ||
-            "The image could not be uploaded. Please try again.",
-        },
-        {
-          status: 502,
-        }
+    if (!reservation || reservation.memorialId !== memorialId) {
+      throw new MemorialUploadError("Upload reservation not found.", 404);
+    }
+
+    if (reservation.state === "FINALIZED") {
+      throw new MemorialUploadError(
+        "This upload reservation has already been finalized.",
+        409
       );
     }
 
-    const image = await prisma.petMemorialImage.create({
-      data: {
+    if (reservation.state !== "PENDING") {
+      throw new MemorialUploadError(
+        "This upload reservation requires manual review.",
+        409
+      );
+    }
+
+    if (reservation.finalizationDeadline.getTime() < Date.now()) {
+      await markMemorialReservationForReview(
         memorialId,
+        reservationId,
+        "FINALIZATION_DEADLINE_EXPIRED"
+      );
 
-        imageUrl: cloudinaryData.secure_url,
-        publicId: cloudinaryData.public_id,
-        assetId: cloudinaryData.asset_id || null,
+      throw new MemorialUploadError(
+        "The image finalization deadline has expired.",
+        410
+      );
+    }
 
-        version:
-          typeof cloudinaryData.version === "number"
-            ? cloudinaryData.version
-            : null,
+    let authoritativeAsset;
 
-        format: cloudinaryData.format || null,
+    try {
+      authoritativeAsset = await verifyMemorialProviderUpload(
+        reservation,
+        body?.proof
+      );
+    } catch (error) {
+      if (error instanceof MemorialUploadError && error.markReview) {
+        await markMemorialReservationForReview(
+          memorialId,
+          reservationId,
+          error.code || "PROVIDER_VERIFICATION_FAILED"
+        );
+      }
 
-        resourceType: cloudinaryData.resource_type || "image",
+      throw error;
+    }
 
-        width:
-          typeof cloudinaryData.width === "number"
-            ? cloudinaryData.width
-            : null,
+    let transactionResult;
 
-        height:
-          typeof cloudinaryData.height === "number"
-            ? cloudinaryData.height
-            : null,
+    try {
+      transactionResult = await prisma.$transaction(
+        async (transaction) => {
+          const transactionMemorial =
+            await transaction.petMemorial.findUnique({
+              where: { id: memorialId },
+            });
 
-        bytes:
-          typeof cloudinaryData.bytes === "number"
-            ? cloudinaryData.bytes
-            : null,
+          assertMemorialDraftCapability(
+            transactionMemorial,
+            draftCapability,
+            { allowedStatuses: ["DRAFT"] }
+          );
 
-        altText: altText || null,
-        caption: caption || null,
+          const transactionReservation =
+            await transaction.petMemorialUploadReservation.findUnique({
+              where: { id: reservationId },
+            });
 
-        sortOrder: existingImageCount,
-        isCover: existingImageCount === 0,
-      },
-    });
+          if (
+            !transactionReservation ||
+            transactionReservation.memorialId !== memorialId
+          ) {
+            throw new MemorialUploadError(
+              "Upload reservation not found.",
+              404
+            );
+          }
+
+          if (transactionReservation.state === "FINALIZED") {
+            throw new MemorialUploadError(
+              "This upload reservation has already been finalized.",
+              409
+            );
+          }
+
+          if (transactionReservation.state !== "PENDING") {
+            throw new MemorialUploadError(
+              "This upload reservation requires manual review.",
+              409
+            );
+          }
+
+          const now = new Date();
+
+          if (transactionReservation.finalizationDeadline < now) {
+            throw new MemorialUploadError(
+              "The image finalization deadline has expired.",
+              410,
+              { markReview: true }
+            );
+          }
+
+          const existingProviderImage =
+            await transaction.petMemorialImage.findFirst({
+              where: {
+                OR: [
+                  { publicId: authoritativeAsset.publicId },
+                  { assetId: authoritativeAsset.assetId },
+                ],
+              },
+              select: { id: true },
+            });
+
+          if (existingProviderImage) {
+            throw new MemorialUploadError(
+              "This provider asset is already associated with an image.",
+              409,
+              { markReview: true }
+            );
+          }
+
+          const activeImageCount = await transaction.petMemorialImage.count({
+            where: {
+              memorialId,
+              deletedAt: null,
+            },
+          });
+
+          if (activeImageCount >= 6) {
+            throw new MemorialUploadError(
+              "This memorial already has six finalized photos.",
+              409,
+              { markReview: true }
+            );
+          }
+
+          const consumption =
+            await transaction.petMemorialUploadReservation.updateMany({
+              where: {
+                id: reservationId,
+                memorialId,
+                state: "PENDING",
+                finalizationDeadline: { gte: now },
+              },
+              data: {
+                state: "FINALIZED",
+                finalizedAt: now,
+                providerPublicId: authoritativeAsset.publicId,
+                providerAssetId: authoritativeAsset.assetId,
+                providerVersion: authoritativeAsset.version,
+              },
+            });
+
+          if (consumption.count !== 1) {
+            throw new MemorialUploadError(
+              "This upload reservation is no longer pending.",
+              409
+            );
+          }
+
+          const sortOrderResult =
+            await transaction.petMemorialImage.aggregate({
+              where: {
+                memorialId,
+                deletedAt: null,
+              },
+              _max: { sortOrder: true },
+            });
+
+          const image = await transaction.petMemorialImage.create({
+            data: {
+              memorialId,
+              uploadReservationId: reservationId,
+              imageUrl: authoritativeAsset.secureUrl,
+              publicId: authoritativeAsset.publicId,
+              assetId: authoritativeAsset.assetId,
+              version: authoritativeAsset.version,
+              format: authoritativeAsset.format,
+              resourceType: authoritativeAsset.resourceType,
+              width: authoritativeAsset.width,
+              height: authoritativeAsset.height,
+              bytes: authoritativeAsset.bytes,
+              altText,
+              caption,
+              sortOrder: (sortOrderResult._max.sortOrder ?? -1) + 1,
+              isCover: activeImageCount === 0,
+            },
+          });
+
+          return {
+            image,
+            imageCount: activeImageCount + 1,
+          };
+        },
+        { isolationLevel: "Serializable" }
+      );
+    } catch (error) {
+      if (isMemorialTransactionConflict(error)) {
+        throw new MemorialUploadError(
+          "Another memorial image request completed first. Please retry.",
+          409
+        );
+      }
+
+      if (error instanceof MemorialUploadError && error.markReview) {
+        await markMemorialReservationForReview(
+          memorialId,
+          reservationId,
+          "FINALIZATION_PERSISTENCE_CONFLICT"
+        );
+      }
+
+      throw error;
+    }
+
+    await bestEffortClearMemorialPendingTag(authoritativeAsset.publicId);
 
     return NextResponse.json(
       {
-        image,
-        imageCount: existingImageCount + 1,
-        remainingSlots: MAX_IMAGES - existingImageCount - 1,
+        image: transactionResult.image,
+        imageCount: transactionResult.imageCount,
+        remainingSlots: 6 - transactionResult.imageCount,
       },
       {
         status: 201,
+        headers: { "Cache-Control": "private, no-store" },
       }
     );
   } catch (error) {
-    console.error("[memorial-images] upload error:", error);
+    return errorResponse(error);
+  }
+}
 
-    return NextResponse.json(
-      {
-        error: "The image could not be uploaded. Please try again.",
-      },
-      {
-        status: 500,
-      }
+export async function PATCH(request, context) {
+  try {
+    const memorialId = await resolveMemorialId(context);
+    const body = await readBoundedJson(request, 4 * 1024);
+    const draftCapability = String(body?.draftCapability || "");
+    const reservationId = String(body?.reservationId || "").trim();
+
+    if (!reservationId) {
+      throw new MemorialUploadError("Missing upload reservation.", 400);
+    }
+
+    const memorial = await prisma.petMemorial.findUnique({
+      where: { id: memorialId },
+    });
+
+    assertMemorialDraftCapability(memorial, draftCapability, {
+      allowedStatuses: ["DRAFT", "PENDING_PAYMENT"],
+    });
+
+    const result = await markMemorialReservationForReview(
+      memorialId,
+      reservationId,
+      "CLIENT_UPLOAD_ABANDONED"
     );
+
+    return NextResponse.json(result, {
+      status: 200,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  } catch (error) {
+    return errorResponse(error);
   }
 }

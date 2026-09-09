@@ -68,7 +68,7 @@ export default function HeroSection() {
         </h1>
 
         <p className="text-base sm:text-lg text-gray-600 mb-6">
-          Personalized, loving care for your dogs and cats while you're away.
+          Personalized, loving care for your dogs and cats while you&apos;re away.
         </p>
 
         <button

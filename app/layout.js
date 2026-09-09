@@ -27,13 +27,8 @@ export default function RootLayout({ children }) {
     .toLowerCase();
 
   const {
-    isHalloween,
-    isFall,
-    isSummer,
-    isThanksgiving,
     isChristmas,
     isValentines,
-    isStPatricks,
     isEaster,
     isOffSeason,
     isRenaissance,

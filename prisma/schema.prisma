@@ -136,6 +136,40 @@ model Newsletter {
   publicId    String?
 }
 
+enum AdminUploadState {
+  PENDING
+  CONSUMED
+  RECONCILED
+  REVIEW_REQUIRED
+  CLOSED_NO_ASSET
+}
+
+model AdminUploadGrant {
+  id                     String           @id @default(cuid())
+  nonce                  String           @unique
+  purpose                String
+  publicId               String
+  resourceType           String
+  folder                 String
+  state                  AdminUploadState @default(PENDING)
+  uploadDeadline         DateTime
+  finalizationDeadline   DateTime
+  reconcileAfter         DateTime
+  nextReconcileAt        DateTime
+  reconciliationAttempts Int            @default(0)
+  lastReconcileError     String?
+  reconciledAt           DateTime?
+  consumedAt             DateTime?
+  providerPublicId       String?
+  providerAssetId        String?          @unique
+  providerVersion        Int?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  @@unique([resourceType, publicId])
+  @@index([state, nextReconcileAt])
+}
+
 model BlockedDate {
   id        String   @id @default(uuid())
   date      DateTime
@@ -473,7 +507,13 @@ model PetMemorial {
   expiresAt DateTime?
   deletedAt DateTime?
 
-  images PetMemorialImage[]
+  draftCapabilityHash          String?   @unique
+  draftCapabilityExpiresAt     DateTime?
+  draftCapabilityInvalidatedAt DateTime?
+
+  images             PetMemorialImage[]
+  uploadReservations PetMemorialUploadReservation[]
+  checkoutAttempts   PetMemorialCheckoutAttempt[]
 
   @@index([status])
   @@index([ownerEmail])
@@ -484,8 +524,9 @@ model PetMemorial {
 }
 
 model PetMemorialImage {
-  id         String @id @default(cuid())
-  memorialId String
+  id                  String  @id @default(cuid())
+  memorialId          String
+  uploadReservationId String? @unique
 
   // Cloudinary information
   imageUrl     String
@@ -509,12 +550,119 @@ model PetMemorialImage {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  memorial PetMemorial @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  memorial         PetMemorial                     @relation(fields: [memorialId], references: [id], onDelete: Cascade)
+  uploadReservation PetMemorialUploadReservation? @relation(fields: [uploadReservationId], references: [id], onDelete: Restrict)
 
   @@index([memorialId])
   @@index([memorialId, sortOrder])
   @@index([memorialId, isCover])
   @@index([deletedAt])
+}
+
+enum PetMemorialUploadState {
+  PENDING
+  FINALIZED
+  REVIEW_REQUIRED
+  CLOSED_NO_ASSET
+}
+
+model PetMemorialUploadReservation {
+  id         String @id @default(cuid())
+  memorialId String
+  nonce      String @unique
+  purpose    String
+
+  publicId     String @unique
+  resourceType String
+  deliveryType String
+  folder       String
+  preset       String
+
+  maxBytes       Int
+  allowedFormats String[]
+  transformation String
+
+  state                PetMemorialUploadState @default(PENDING)
+  uploadDeadline       DateTime
+  finalizationDeadline DateTime
+  reviewAfter          DateTime
+
+  finalizedAt     DateTime?
+  reviewRequiredAt DateTime?
+  reviewReason     String?
+
+  providerPublicId String? @unique
+  providerAssetId  String? @unique
+  providerVersion  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memorial PetMemorial       @relation(fields: [memorialId], references: [id], onDelete: Restrict)
+  image    PetMemorialImage?
+
+  @@index([memorialId, state])
+  @@index([state, reviewAfter])
+}
+
+enum MemorialCheckoutAttemptState {
+  CREATING
+  OPEN
+  COMPLETED
+  EXPIRED
+  INVALIDATED
+}
+
+model PetMemorialCheckoutAttempt {
+  id               String                       @id @default(cuid())
+  memorialId       String
+  activeMemorialId String?                      @unique
+  state            MemorialCheckoutAttemptState @default(CREATING)
+  idempotencyKey   String                       @unique
+
+  amountCents Int
+  currency    String
+
+  stripeSessionId        String?   @unique
+  stripeSessionExpiresAt DateTime
+  completedAt            DateTime?
+  invalidatedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memorial PetMemorial          @relation(fields: [memorialId], references: [id], onDelete: Restrict)
+  events   MemorialStripeEvent[]
+
+  @@index([memorialId, state])
+  @@index([state, stripeSessionExpiresAt])
+}
+
+enum MemorialStripeEventState {
+  PROCESSING
+  PROCESSED
+  IGNORED
+  REVIEW_REQUIRED
+}
+
+model MemorialStripeEvent {
+  id                String                   @id @default(cuid())
+  stripeEventId     String                   @unique
+  eventType         String
+  state             MemorialStripeEventState @default(PROCESSING)
+  result            String?
+  memorialId        String?
+  checkoutAttemptId String?
+  stripeSessionId   String?
+  stripeCreatedAt   DateTime?
+  processedAt       DateTime?
+  createdAt         DateTime                 @default(now())
+
+  checkoutAttempt PetMemorialCheckoutAttempt? @relation(fields: [checkoutAttemptId], references: [id], onDelete: SetNull)
+
+  @@index([memorialId, createdAt])
+  @@index([checkoutAttemptId])
+  @@index([state, createdAt])
 }
 
 enum MemorialStatus {

@@ -9,7 +9,7 @@ export default function ServicesPage() {
       <div className="max-w-4xl mx-auto text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-6">Our Services</h1>
         <p className="text-gray-600 mb-12">
-          We provide loving, dependable care for your pets—whether you're home
+          We provide loving, dependable care for your pets—whether you&apos;re home
           or away.
         </p>
 

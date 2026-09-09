@@ -1,9 +1,10 @@
 // app/api/contact/route.js
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const to = process.env.CONTACT_RECEIVER_EMAIL; // e.g., your Gmail or business inbox
+import {
+  createResendClient,
+  getRequiredEmailFailure,
+  sendRequiredEmail,
+} from "@/lib/emails/resend";
 
 export async function POST(req) {
   try {
@@ -13,6 +14,8 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing fields." }, { status: 400 });
     }
 
+    const emailClient = createResendClient();
+
     const subject = `New message from ${name}`;
     const body = `
       <strong>From:</strong> ${name} <br />
@@ -21,18 +24,22 @@ export async function POST(req) {
       ${message.replace(/\n/g, "<br />")}
     `;
 
-const data = await resend.emails.send({
-  from: "Mabel's Contact Form <no-reply@mabelspawfectpetservices.com>",
-  to: ["Therainbowniche@gmail.com"],
-  reply_to: email, // 👈 so Bridget can reply straight to the sender
-  subject,
-  html: body,
-});
-
-
-
+    const data = await sendRequiredEmail(emailClient, {
+      from: "Mabel's Contact Form <no-reply@mabelspawfectpetservices.com>",
+      to: ["Therainbowniche@gmail.com"],
+      replyTo: email, // 👈 so Bridget can reply straight to the sender
+      subject,
+      html: body,
+    });
     return NextResponse.json({ success: true, id: data?.id });
   } catch (err) {
+    const emailFailure = getRequiredEmailFailure(err);
+    if (emailFailure) {
+      return NextResponse.json(
+        { error: emailFailure.message },
+        { status: emailFailure.status }
+      );
+    }
     console.error("Contact form error:", err);
     return NextResponse.json(
       { error: "Something went wrong." },

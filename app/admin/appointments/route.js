@@ -2,12 +2,17 @@
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { assertAdmin } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/adminAuth";
 
 export async function POST(req) {
   try {
-    // ✅ Enforce the same admin key model as /api/admin/clients
-    assertAdmin(req);
+    const admin = await requireAdmin();
+    if (!admin.authorized) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+      );
+    }
 
     const body = await req.json();
 

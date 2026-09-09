@@ -10,17 +10,19 @@ export default function Analytics() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // No GA ID → no tracking
-  if (!GA_ID) return null;
-
   // Fire a page_view on first load + every route change
   useEffect(() => {
+    if (!GA_ID) return;
+
     const search = searchParams?.toString();
     const url = search ? `${pathname}?${search}` : pathname;
 
     // This uses your lib/ga.js helper
     trackPageview(url);
   }, [pathname, searchParams]);
+
+  // No GA ID → no scripts or tracking
+  if (!GA_ID) return null;
 
   return (
     <>

@@ -11,7 +11,7 @@ export async function GET() {
      orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(reviews);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to fetch reviews" },
       { status: 500 }
@@ -42,7 +42,7 @@ const review = await prisma.review.create({
 });
 
     return NextResponse.json(review, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Failed to create review" },
       { status: 500 }

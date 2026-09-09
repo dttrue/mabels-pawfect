@@ -43,6 +43,8 @@ const SWATCH = {
   black: "bg-gray-900",
 };
 
+const EMPTY_VARIANTS = Object.freeze([]);
+
 function swatchClass(name = "") {
   const key = name.trim().toLowerCase();
   return SWATCH[key] || SWATCH.default;
@@ -53,7 +55,7 @@ export default function ProductCard({ product }) {
   const img = product.images?.[0];
 
   // Variants merged in ShopGrid
-  const variants = product._variants ?? [];
+  const variants = product._variants ?? EMPTY_VARIANTS;
   const hasVariants = variants.length > 0;
 
   // Injected from ShopGrid

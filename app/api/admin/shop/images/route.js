@@ -1,7 +1,16 @@
 // app/api/admin/shop/images/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
+import {
+  AdminUploadError,
+  consumeAdminUploadGrant,
+  markAdminUploadPersisted,
+  readSmallJson,
+  verifyAdminUploadProof,
+} from "@/lib/adminCloudinaryUpload";
 
+export const runtime = "nodejs";
 
 export async function GET(req) {
   const url = new URL(req.url);
@@ -24,35 +33,26 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
+  }
+
+  let asset;
   try {
-    const body = await req.json();
-    const {
-      url,
-      imageUrl,
-      publicId,
-      alt,
-      altText,
-      caption,
-      keywords,
-      productId,
-    } = body;
+    const body = await readSmallJson(req);
+    const productId = String(body?.productId || "").trim() || null;
+    const alt = String(body?.alt || "").trim();
+    const caption = String(body?.caption || "").trim() || null;
+    const keywords = Array.isArray(body?.keywords) ? body.keywords : [];
 
-    const finalUrl = url || imageUrl;
-    const finalAlt = (alt ?? altText) || null;
-
-    const finalKeywords = Array.isArray(keywords)
-      ? keywords
-      : String(keywords || "")
-          .split(",")
-          .map((k) => k.trim().toLowerCase())
-          .filter(Boolean);
-
-    if (!finalUrl || !publicId) {
-      return NextResponse.json(
-        { error: "Missing url/publicId" },
-        { status: 400 }
-      );
-    }
+    const finalKeywords = keywords
+      .map((keyword) => String(keyword).trim().toLowerCase())
+      .filter(Boolean)
+      .slice(0, 10);
 
     let product = null;
     if (productId) {
@@ -68,26 +68,33 @@ export async function POST(req) {
       }
     }
 
-    const image = await prisma.productImage.create({
-      data: {
-        url: finalUrl,
-        publicId,
-        alt: finalAlt,
-        caption: caption || null,
-        keywords: { set: finalKeywords },
-        productId: product ? product.id : null,
-      },
+    asset = await verifyAdminUploadProof(body?.uploadProof, "shop-image");
+
+    const image = await prisma.$transaction(async (transaction) => {
+      await consumeAdminUploadGrant(transaction, asset);
+      return transaction.productImage.create({
+        data: {
+          url: asset.secureUrl,
+          publicId: asset.publicId,
+          alt: alt || null,
+          caption,
+          keywords: { set: finalKeywords },
+          productId: product ? product.id : null,
+        },
+      });
     });
 
+    await markAdminUploadPersisted(asset.publicId, asset.resourceType);
     return NextResponse.json({ image }, { status: 201 });
   } catch (err) {
-    if (err?.code === "P2002" && err?.meta?.target?.includes("publicId")) {
+    if (err instanceof AdminUploadError) {
       return NextResponse.json(
-        { error: "Duplicate publicId" },
-        { status: 409 }
+        { error: err.message },
+        { status: err.status }
       );
     }
-    console.error("shop/images POST error", err);
+
+    console.error("Product image upload failed");
     return NextResponse.json({ error: "DB insert failed" }, { status: 500 });
   }
 }

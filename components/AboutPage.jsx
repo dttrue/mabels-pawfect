@@ -45,12 +45,12 @@ export default async function AboutPage() {
           <strong>500 bookings</strong>. I’m certified in{" "}
           <strong>Pet First Aid</strong> and fully covered with{" "}
           <strong>Pet Sitting Insurance</strong> — because when I’m watching
-          your fur-babies, I treat their safety like it's my top priority.
+          your fur-babies, I treat their safety like it&apos;s my top priority.
         </p>
 
         <p className="text-gray-700 mb-6 leading-relaxed">
           Whether it’s belly rubs, playtime zoomies, or just being a cozy
-          companion, I’m here to make your pets feel loved while you're away.
+          companion, I’m here to make your pets feel loved while you&apos;re away.
           It’s not just a job — it’s my joy. 🐾
         </p>
 

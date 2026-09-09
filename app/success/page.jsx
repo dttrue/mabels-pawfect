@@ -1,4 +1,5 @@
 // no need for headers here anymore
+import Link from "next/link";
 import OrderPanel from "./OrderPanel";
 
 export default async function SuccessPage({ searchParams }) {
@@ -32,9 +33,9 @@ export default async function SuccessPage({ searchParams }) {
 
       <OrderPanel sessionId={sessionId} initialOrder={initialOrder} />
 
-      <a href="/" className="btn btn-primary mt-8">
+      <Link href="/" className="btn btn-primary mt-8">
         Back to Home
-      </a>
+      </Link>
     </main>
   );
 }

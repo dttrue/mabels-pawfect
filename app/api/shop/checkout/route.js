@@ -8,9 +8,20 @@ import {
 } from "@/lib/summerSaleHelpers";
 import { SUMMER_TOY_CLEAROUT } from "@/lib/summerSaleConfig";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 const TAX_RATE_NJ = process.env.STRIPE_TAX_NJ || "txr_1STBaSGjN79HWlVreR8FWPEJ";
+
+function getShopStripe() {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+
+  if (!secretKey) {
+    return null;
+  }
+
+  return {
+    client: new Stripe(secretKey),
+    keyIsTest: secretKey.startsWith("sk_test_"),
+  };
+}
 
 async function getAppBase() {
   try {
@@ -118,19 +129,6 @@ function validateItems(items) {
 }
 
 export async function POST(req) {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    console.error("[checkout] Missing STRIPE_SECRET_KEY");
-
-    return NextResponse.json(
-      {
-        error: "Server misconfigured (Stripe key)",
-      },
-      {
-        status: 500,
-      }
-    );
-  }
-
   let body;
 
   try {
@@ -197,8 +195,17 @@ export async function POST(req) {
   }
 
   const appBase = await getAppBase();
+  const shopStripe = getShopStripe();
 
-  const keyIsTest = process.env.STRIPE_SECRET_KEY.startsWith("sk_test_");
+  if (!shopStripe) {
+    console.error("[checkout] Shop payments are not configured.");
+    return NextResponse.json(
+      { error: "Shop payments are not configured." },
+      { status: 503 }
+    );
+  }
+
+  const { client: stripe, keyIsTest } = shopStripe;
 
   const domain = appBase
     .replace(/^https?:\/\//, "")
@@ -365,25 +372,16 @@ export async function POST(req) {
       }
     );
   } catch (error) {
-    const detail = {
-      type: error?.type,
-      code: error?.code,
-      message: error?.message || error?.raw?.message,
-      param: error?.param,
-      declineCode: error?.decline_code,
-      rawType: error?.rawType,
-      httpStatus: error?.statusCode,
-    };
-
-    console.error("[checkout] Stripe error:", detail);
+    const providerFailure = error instanceof Stripe.errors.StripeError;
+    console.error(
+      providerFailure
+        ? "[checkout] Payment provider request failed."
+        : "[checkout] Checkout processing failed."
+    );
 
     return NextResponse.json(
-      {
-        error: detail.message || "Failed to create checkout session",
-      },
-      {
-        status: 500,
-      }
+      { error: "Failed to create checkout session." },
+      { status: providerFailure ? 502 : 500 }
     );
   }
 }

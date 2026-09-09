@@ -1,7 +1,9 @@
 // app/api/admin/site-images/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
 
+// Public reads are used to render website images without signing in.
 export async function GET(req) {
   try {
     const url = new URL(req.url);
@@ -18,8 +20,8 @@ export async function GET(req) {
     });
 
     return NextResponse.json({ images });
-  } catch (err) {
-    console.error("SiteImage GET error:", err);
+  } catch {
+    console.error("SiteImage GET failed");
     return NextResponse.json(
       { error: "Failed to load site images" },
       { status: 500 }
@@ -27,40 +29,22 @@ export async function GET(req) {
   }
 }
 
-export async function POST(req) {
+export async function POST() {
   try {
-    const body = await req.json();
-    const { key, imageUrl, publicId, alt, caption, keywords = [] } = body;
-
-    if (!key || !imageUrl || !publicId) {
+    const admin = await requireAdmin();
+    if (!admin.authorized) {
       return NextResponse.json(
-        { error: "key, imageUrl, publicId required" },
-        { status: 400 }
+        { error: "Unauthorized" },
+        { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
       );
     }
 
-    const image = await prisma.siteImage.upsert({
-      where: { key },
-      create: {
-        key,
-        imageUrl,
-        publicId,
-        alt: alt?.trim() || null,
-        caption: caption?.trim() || null,
-        keywords,
-      },
-      update: {
-        imageUrl,
-        publicId,
-        alt: alt?.trim() || null,
-        caption: caption?.trim() || null,
-        keywords,
-      },
-    });
-
-    return NextResponse.json({ image }, { status: 201 });
-  } catch (err) {
-    console.error("SiteImage POST error:", err);
+    return NextResponse.json(
+      { error: "Use the verified site-image upload endpoint" },
+      { status: 410 }
+    );
+  } catch {
+    console.error("SiteImage POST failed");
     return NextResponse.json(
       { error: "Failed to save site image" },
       { status: 500 }

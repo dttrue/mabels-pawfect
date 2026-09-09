@@ -5,7 +5,7 @@
 // ✅ Safer revenue math (null guards) + last visit uses startAt/endAt fallback
 
 import prisma from "@/lib/prisma";
-import { assertAdmin } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/adminAuth";
 
 function toCents(n) {
   const x = Number(n);
@@ -20,8 +20,13 @@ function bestDateMs(a) {
 }
 
 export async function GET(req) {
-  const auth = assertAdmin(req);
-  if (!auth.ok) return Response.json({ error: auth.reason }, { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
+  }
 
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
@@ -123,8 +128,13 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  const auth = assertAdmin(req);
-  if (!auth.ok) return Response.json({ error: auth.reason }, { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin.authorized) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: admin.reason === "SIGNED_OUT" ? 401 : 403 }
+    );
+  }
 
   let body = {};
   try {
@@ -220,4 +230,3 @@ export async function POST(req) {
 
   return Response.json({ client });
 }
-

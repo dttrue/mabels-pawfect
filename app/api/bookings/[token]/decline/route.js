@@ -1,10 +1,13 @@
 // app/api/bookings/[token]/decline/route.js
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
 import { PrismaClient } from "@prisma/client";
+import {
+  createResendClient,
+  getRequiredEmailFailure,
+  sendRequiredEmail,
+} from "@/lib/emails/resend";
 
 const prisma = new PrismaClient();
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req, { params }) {
   const { token } = params;
@@ -18,6 +21,8 @@ export async function POST(req, { params }) {
   }
 
   try {
+    const emailClient = createResendClient();
+
     const booking = await prisma.booking.update({
       where: { token },
       data: {
@@ -27,7 +32,7 @@ export async function POST(req, { params }) {
       include: { entries: true }, // ✅ Ensure entries are loaded
     });
 
-    await resend.emails.send({
+    await sendRequiredEmail(emailClient, {
       from: "mabel@mabelspawfectpetservices.com",
       to: booking.email,
       subject: "Booking Request Declined",
@@ -56,6 +61,13 @@ export async function POST(req, { params }) {
 
     return NextResponse.json({ message: "Declined and email sent." });
   } catch (err) {
+    const emailFailure = getRequiredEmailFailure(err);
+    if (emailFailure) {
+      return NextResponse.json(
+        { error: emailFailure.message },
+        { status: emailFailure.status }
+      );
+    }
     console.error("Decline POST error:", err);
     return NextResponse.json(
       { error: "Failed to decline booking" },
@@ -68,6 +80,8 @@ export async function GET(req, { params }) {
   const { token } = params;
 
   try {
+    const emailClient = createResendClient();
+
     const booking = await prisma.booking.update({
       where: { token },
       data: {
@@ -84,25 +98,8 @@ export async function GET(req, { params }) {
       );
     }
 
-    console.log("📌 Booking declined in DB for:", booking.fullName);
-    console.log(
-      "🧾 Raw booking.entries:",
-      JSON.stringify(booking.entries, null, 2)
-    );
-
-    const formattedDates = (booking.entries || [])
-      .map((entry, i) => {
-        if (!entry?.date || !entry?.time)
-          return `<li>⚠️ Invalid date for entry ${i}</li>`;
-        const formatted = new Date(
-          `${entry.date}T${entry.time}`
-        ).toLocaleString();
-        return `<li>${formatted}</li>`;
-      })
-      .join("");
-
     // 🔥 Send email to the client
-    await resend.emails.send({
+    await sendRequiredEmail(emailClient, {
       from: "mabel@mabelspawfectpetservices.com",
       to: booking.email,
       subject: "Booking Declined ❌",
@@ -125,6 +122,16 @@ export async function GET(req, { params }) {
       }
     );
   } catch (err) {
+    const emailFailure = getRequiredEmailFailure(err);
+    if (emailFailure) {
+      return new Response(
+        `<html><body><h2>⚠️ ${emailFailure.message}</h2></body></html>`,
+        {
+          headers: { "Content-Type": "text/html" },
+          status: emailFailure.status,
+        }
+      );
+    }
     console.error("🔥 Decline GET error:", err);
     return new Response(
       `<html><body><h2>⚠️ Something went wrong while declining this booking. Please contact support.</h2></body></html>`,
@@ -135,7 +142,6 @@ export async function GET(req, { params }) {
     );
   }
 }
-
 
 
 
